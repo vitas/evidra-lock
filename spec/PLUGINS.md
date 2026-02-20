@@ -1,5 +1,9 @@
 # Plugins (Level 2)
 
+Status: Experimental (future).
+- Level 2 plugins are not the primary extension mechanism for v0.1.
+- Recommended extension mechanism for v0.1 is Level 1 Tool Packs (`spec/TOOL_PACKS.md`).
+
 Evidra uses compile-time plugins to extend the tool surface while keeping core execution flow unchanged.
 
 ## Model

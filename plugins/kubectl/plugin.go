@@ -10,6 +10,7 @@ import (
 	"samebits.com/evidra-mcp/pkg/registry"
 )
 
+// Plugin is an experimental Level 2 compile-time plugin.
 type Plugin struct{}
 
 func New() Plugin {

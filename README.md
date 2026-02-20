@@ -121,8 +121,9 @@ MCP tools:
 - `get_event`: fetches one immutable evidence record by `event_id` (chain-safe read).
 
 Tool surface extension:
-- Additional tools are added via compile-time plugins (Level 2), registered explicitly in `cmd/evidra-mcp`.
-- `kubectl` is provided in this repository as a compile-time plugin.
+- Primary (v0.1): declarative Tool Packs (Level 1) loaded from `EVIDRA_PACKS_DIR` for local extension without new binaries.
+- Experimental / future: compile-time plugins (Level 2), registered explicitly in `cmd/evidra-mcp`.
+- `kubectl` is currently provided in this repository as an experimental compile-time plugin.
 
 Example flow:
 1. Call `execute` and capture returned `event_id`.

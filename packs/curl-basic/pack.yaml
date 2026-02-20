@@ -1,0 +1,19 @@
+pack: "curl-basic"
+version: "0.1"
+tools:
+  - name: "curl"
+    kind: "cli"
+    binary: "curl"
+    operations:
+      - name: "version"
+        args: ["--version"]
+        params: {}
+      - name: "get"
+        args: ["-sS", "{{url}}"]
+        params:
+          url: {type: "string", required: true}
+      - name: "post"
+        args: ["-sS", "-X", "POST", "-d", "{{data}}", "{{url}}"]
+        params:
+          url: {type: "string", required: true}
+          data: {type: "string", required: true}

@@ -11,6 +11,7 @@ import (
 
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/mcpserver"
+	"samebits.com/evidra-mcp/pkg/packs"
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/policysource"
 	"samebits.com/evidra-mcp/pkg/registry"
@@ -53,8 +54,22 @@ func main() {
 	}
 
 	toolRegistry := registry.NewDefaultRegistry()
+	// Experimental Level 2 plugin registration (may move to Tool Packs as the
+	// default extension path over time). Kept enabled for backward compatibility.
 	if err := kubectlplugin.New().Register(toolRegistry); err != nil {
 		log.Fatalf("register kubectl plugin: %v", err)
+	}
+	packsDir := strings.TrimSpace(os.Getenv("EVIDRA_PACKS_DIR"))
+	if packsDir != "" {
+		defs, err := packs.LoadToolDefinitions(packsDir, toolRegistry.ToolNames())
+		if err != nil {
+			log.Fatalf("load tool packs: %v", err)
+		}
+		for _, def := range defs {
+			if err := toolRegistry.RegisterTool(def); err != nil {
+				log.Fatalf("register pack tool %q: %v", def.Name, err)
+			}
+		}
 	}
 	server := mcpserver.NewServer(
 		mcpserver.Options{

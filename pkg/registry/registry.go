@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"os/exec"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -36,6 +39,7 @@ type ToolInvocationInput struct {
 type Registry interface {
 	Lookup(toolName string) (ToolDefinition, bool)
 	RegisterTool(def ToolDefinition) error
+	ToolNames() []string
 }
 
 type InMemoryRegistry struct {
@@ -102,6 +106,12 @@ func (r *InMemoryRegistry) RegisterTool(def ToolDefinition) error {
 	return nil
 }
 
+func (r *InMemoryRegistry) ToolNames() []string {
+	out := make([]string, len(r.order))
+	copy(out, r.order)
+	return out
+}
+
 func SupportsOperation(def ToolDefinition, operation string) bool {
 	for _, op := range def.SupportedOperations {
 		if op == operation {
@@ -116,6 +126,178 @@ func ValidateParams(def ToolDefinition, operation string, params map[string]inte
 		return fmt.Errorf("tool %q has no param validator", def.Name)
 	}
 	return def.ValidateParams(operation, params)
+}
+
+type ParamRule struct {
+	Type     string
+	Required bool
+}
+
+type CLIOperationSpec struct {
+	Args   []string
+	Params map[string]ParamRule
+}
+
+type CLIToolSpec struct {
+	Binary     string
+	Operations map[string]CLIOperationSpec
+}
+
+var placeholderPattern = regexp.MustCompile(`^\{\{([a-zA-Z0-9_]+)(\?)?\}\}$`)
+
+func NewDeclarativeCLIToolDefinition(name, inputSchema string, spec CLIToolSpec) (ToolDefinition, error) {
+	if strings.TrimSpace(name) == "" {
+		return ToolDefinition{}, fmt.Errorf("tool name is required")
+	}
+	if strings.TrimSpace(spec.Binary) == "" {
+		return ToolDefinition{}, fmt.Errorf("binary is required")
+	}
+	if len(spec.Operations) == 0 {
+		return ToolDefinition{}, fmt.Errorf("at least one operation is required")
+	}
+
+	ops := make([]string, 0, len(spec.Operations))
+	for op := range spec.Operations {
+		ops = append(ops, op)
+	}
+	sort.Strings(ops)
+
+	specCopy := spec
+	return ToolDefinition{
+		Name:                name,
+		SupportedOperations: ops,
+		InputSchema:         inputSchema,
+		ValidateParams: func(operation string, params map[string]interface{}) error {
+			_, err := BuildDeclarativeCLIArgs(specCopy, operation, params)
+			return err
+		},
+		Executor: func(ctx context.Context, inv ToolInvocationInput) (ExecutionResult, error) {
+			argv, err := BuildDeclarativeCLIArgs(specCopy, inv.Operation, inv.Params)
+			if err != nil {
+				return ExecutionResult{Status: "failed", ExitCode: nil}, err
+			}
+			cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			err = cmd.Run()
+			if err == nil {
+				code := 0
+				return ExecutionResult{Status: "success", Stdout: stdout.String(), Stderr: stderr.String(), ExitCode: &code}, nil
+			}
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				code := exitErr.ExitCode()
+				return ExecutionResult{Status: "failed", Stdout: stdout.String(), Stderr: stderr.String(), ExitCode: &code}, nil
+			}
+			return ExecutionResult{Status: "failed", Stdout: stdout.String(), Stderr: stderr.String(), ExitCode: nil}, err
+		},
+	}, nil
+}
+
+func BuildDeclarativeCLIArgs(spec CLIToolSpec, operation string, params map[string]interface{}) ([]string, error) {
+	op, ok := spec.Operations[operation]
+	if !ok {
+		return nil, fmt.Errorf("unsupported operation")
+	}
+	if params == nil {
+		params = map[string]interface{}{}
+	}
+
+	out := []string{spec.Binary}
+	for _, token := range op.Args {
+		val, optional, isPlaceholder, err := resolveTemplateToken(token)
+		if err != nil {
+			return nil, err
+		}
+		if !isPlaceholder {
+			if strings.Contains(token, "{{") || strings.Contains(token, "}}") {
+				return nil, fmt.Errorf("invalid template token: %s", token)
+			}
+			out = append(out, token)
+			continue
+		}
+
+		rule, exists := op.Params[val]
+		if !exists {
+			return nil, fmt.Errorf("placeholder %q is not declared in params", val)
+		}
+		paramVal, exists := params[val]
+		if !exists {
+			if optional || !rule.Required {
+				continue
+			}
+			return nil, fmt.Errorf("missing required param: %s", val)
+		}
+		arg, convErr := convertParamToArg(val, paramVal, rule.Type)
+		if convErr != nil {
+			return nil, convErr
+		}
+		if arg == "" && (optional || !rule.Required) {
+			continue
+		}
+		out = append(out, arg)
+	}
+
+	for name, rule := range op.Params {
+		if !rule.Required {
+			continue
+		}
+		if _, exists := params[name]; !exists {
+			return nil, fmt.Errorf("missing required param: %s", name)
+		}
+	}
+	return out, nil
+}
+
+func resolveTemplateToken(token string) (name string, optional bool, isPlaceholder bool, err error) {
+	m := placeholderPattern.FindStringSubmatch(token)
+	if len(m) == 0 {
+		return "", false, false, nil
+	}
+	return m[1], m[2] == "?", true, nil
+}
+
+func convertParamToArg(name string, value interface{}, typ string) (string, error) {
+	switch typ {
+	case "string":
+		v, ok := value.(string)
+		if !ok {
+			return "", fmt.Errorf("param %s must be string", name)
+		}
+		if strings.Contains(v, "\n") || strings.ContainsRune(v, rune(0)) {
+			return "", fmt.Errorf("param %s contains disallowed characters", name)
+		}
+		if name == "url" && strings.TrimSpace(v) != "" {
+			if !strings.HasPrefix(v, "http://") && !strings.HasPrefix(v, "https://") {
+				return "", fmt.Errorf("param %s must start with http:// or https://", name)
+			}
+		}
+		return v, nil
+	case "int":
+		switch x := value.(type) {
+		case int:
+			return strconv.Itoa(x), nil
+		case int64:
+			return strconv.FormatInt(x, 10), nil
+		case float64:
+			if math.Trunc(x) != x {
+				return "", fmt.Errorf("param %s must be int", name)
+			}
+			return strconv.FormatInt(int64(x), 10), nil
+		default:
+			return "", fmt.Errorf("param %s must be int", name)
+		}
+	case "bool":
+		v, ok := value.(bool)
+		if !ok {
+			return "", fmt.Errorf("param %s must be bool", name)
+		}
+		return strconv.FormatBool(v), nil
+	default:
+		return "", fmt.Errorf("unsupported param type %q", typ)
+	}
 }
 
 func validateEchoParams(operation string, params map[string]interface{}) error {
