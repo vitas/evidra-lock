@@ -21,7 +21,6 @@ func TestDefaultProfileIsOps(t *testing.T) {
 }
 
 func TestBuildRegistryForProfiles(t *testing.T) {
-	t.Setenv("EVIDRA_ENABLE_EXPERIMENTAL_PLUGINS", "")
 	opReg, err := buildRegistryForProfile(ProfileOps)
 	if err != nil {
 		t.Fatalf("buildRegistryForProfile(ops) error = %v", err)
@@ -32,10 +31,6 @@ func TestBuildRegistryForProfiles(t *testing.T) {
 	if _, ok := opReg.Lookup("git"); ok {
 		t.Fatalf("ops profile must not register git")
 	}
-	if _, ok := opReg.Lookup("kubectl"); ok {
-		t.Fatalf("ops profile must not register experimental kubectl plugin by default")
-	}
-
 	devReg, err := buildRegistryForProfile(ProfileDev)
 	if err != nil {
 		t.Fatalf("buildRegistryForProfile(dev) error = %v", err)
@@ -45,17 +40,6 @@ func TestBuildRegistryForProfiles(t *testing.T) {
 	}
 	if _, ok := devReg.Lookup("git"); !ok {
 		t.Fatalf("dev profile expected git")
-	}
-}
-
-func TestExperimentalPluginRegistrationFlag(t *testing.T) {
-	t.Setenv("EVIDRA_ENABLE_EXPERIMENTAL_PLUGINS", "true")
-	opReg, err := buildRegistryForProfile(ProfileOps)
-	if err != nil {
-		t.Fatalf("buildRegistryForProfile(ops) error = %v", err)
-	}
-	if _, ok := opReg.Lookup("kubectl"); !ok {
-		t.Fatalf("expected kubectl from plugin when flag is enabled")
 	}
 }
 
@@ -76,6 +60,8 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 	}
 	foundArgoCD := false
 	foundAWS := false
+	foundDocker := false
+	foundCompose := false
 	foundHelm := false
 	foundKubectl := false
 	foundPodman := false
@@ -86,6 +72,12 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 		}
 		if def.Name == "aws" {
 			foundAWS = true
+		}
+		if def.Name == "docker" {
+			foundDocker = true
+		}
+		if def.Name == "docker-compose" {
+			foundCompose = true
 		}
 		if def.Name == "podman" {
 			foundPodman = true
@@ -134,6 +126,12 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 	if !foundAWS {
 		t.Fatalf("expected aws tool from ops packs")
 	}
+	if !foundDocker {
+		t.Fatalf("expected docker tool from ops packs")
+	}
+	if !foundCompose {
+		t.Fatalf("expected docker-compose tool from ops packs")
+	}
 	if !foundPodman {
 		t.Fatalf("expected podman tool from ops packs")
 	}
@@ -158,6 +156,14 @@ func TestResolvePolicyPathsDefaults(t *testing.T) {
 	if dataPath != defaultOpsDataPath {
 		t.Fatalf("expected ops default data path %q, got %q", defaultOpsDataPath, dataPath)
 	}
+
+	devPolicyPath, devDataPath := resolvePolicyPaths(ProfileDev, "", "")
+	if devPolicyPath != defaultOpsPolicyPath {
+		t.Fatalf("expected dev default policy path %q, got %q", defaultOpsPolicyPath, devPolicyPath)
+	}
+	if devDataPath != defaultOpsDataPath {
+		t.Fatalf("expected dev default data path %q, got %q", defaultOpsDataPath, devDataPath)
+	}
 }
 
 func TestOpsPolicyKitPolicyRefIsComputable(t *testing.T) {
@@ -167,7 +173,7 @@ func TestOpsPolicyKitPolicyRefIsComputable(t *testing.T) {
 	}
 	root := filepath.Clean(filepath.Join(wd, "..", ".."))
 	policyPath := filepath.Join(root, "policy", "kits", "ops-v0.1", "policy.rego")
-	dataPath := filepath.Join(root, "policy", "kits", "ops-v0.1", "data.example.json")
+	dataPath := filepath.Join(root, "policy", "kits", "ops-v0.1", "data.json")
 	ps := policysource.NewLocalFileSource(policyPath, dataPath)
 	ref, err := ps.PolicyRef()
 	if err != nil {

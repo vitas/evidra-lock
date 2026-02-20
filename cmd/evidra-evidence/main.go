@@ -639,12 +639,12 @@ func writeAuditPack(outPath, evidencePath, storeFormat string, policyBytes []byt
 	}
 
 	if len(policyBytes) > 0 {
-		if err := addBytesToTar(tw, "policy/policy.rego", policyBytes); err != nil {
+		if err := addBytesToTar(tw, "policy/active.rego", policyBytes); err != nil {
 			return err
 		}
 	}
 	if len(dataBytes) > 0 {
-		if err := addBytesToTar(tw, "policy/data.json", dataBytes); err != nil {
+		if err := addBytesToTar(tw, "policy/active-data.json", dataBytes); err != nil {
 			return err
 		}
 	}

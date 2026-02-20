@@ -22,7 +22,7 @@ Defaults:
 - profile defaults to `ops` if unset.
 - evidence defaults to `./data/evidence`.
 - ops policy defaults to `./policy/kits/ops-v0.1/policy.rego`.
-- ops data defaults to `./policy/kits/ops-v0.1/data.example.json`.
+- ops data defaults to `./policy/kits/ops-v0.1/data.json`.
 - ops packs default to `./packs/_core/ops`.
 
 ## 3) Offline Policy Simulation
@@ -30,7 +30,7 @@ Defaults:
 ```bash
 ./bin/evidra-policy-sim \
   --policy ./policy/kits/ops-v0.1/policy.rego \
-  --data ./policy/kits/ops-v0.1/data.example.json \
+  --data ./policy/kits/ops-v0.1/data.json \
   --input ./examples/invocations/allowed_kubectl_get_dev.json
 ```
 
@@ -91,7 +91,7 @@ Expected wrapper response:
 ```bash
 ./bin/evidra-evidence verify --evidence ./data/evidence
 ./bin/evidra-evidence violations --evidence ./data/evidence --min-risk high
-./bin/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/policy.rego --data ./policy/data.json
+./bin/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/kits/ops-v0.1/policy.rego --data ./policy/kits/ops-v0.1/data.json
 ```
 
 ## 7) Expected Files

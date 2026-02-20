@@ -1,0 +1,50 @@
+{
+  "pack": "terraform-basic",
+  "policy": "policy.rego",
+  "cases": [
+    {
+      "name": "terraform plan allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "terraform",
+        "operation": "plan",
+        "params": {"dir": "./infra"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "medium", "reason": "allowed_read_or_prepare"}
+    },
+    {
+      "name": "terraform apply dev allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "terraform",
+        "operation": "apply",
+        "params": {"dir": "./infra"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "high", "reason": "allowed_apply_dev"}
+    },
+    {
+      "name": "terraform apply prod critical",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "terraform",
+        "operation": "apply",
+        "params": {"dir": "./infra"},
+        "context": {"environment": "prod"}
+      },
+      "expect": {"allow": true, "risk_level": "critical", "reason": "allowed_apply_prod"}
+    },
+    {
+      "name": "terraform destroy denied by default",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "terraform",
+        "operation": "destroy",
+        "params": {"dir": "./infra"},
+        "context": {"environment": "prod"}
+      },
+      "expect": {"allow": false, "risk_level": "critical", "reason": "policy_denied_default"}
+    }
+  ]
+}

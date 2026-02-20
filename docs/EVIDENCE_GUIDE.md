@@ -30,7 +30,7 @@ Manifest includes:
 ```bash
 go run ./cmd/evidra-evidence verify --evidence ./data/evidence
 go run ./cmd/evidra-evidence violations --evidence ./data/evidence --min-risk high
-go run ./cmd/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/policy.rego --data ./policy/data.json
+go run ./cmd/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/kits/ops-v0.1/policy.rego --data ./policy/kits/ops-v0.1/data.json
 go run ./cmd/evidra-evidence cursor show --evidence ./data/evidence
 go run ./cmd/evidra-evidence cursor ack --evidence ./data/evidence --segment evidence-000001.jsonl --line 0
 ```

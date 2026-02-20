@@ -1,0 +1,9 @@
+{
+  "docker_compose": {
+    "allowed_dirs": [
+      "./deploy/",
+      "./compose/"
+    ]
+  }
+}
+

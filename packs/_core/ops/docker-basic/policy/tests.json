@@ -1,0 +1,51 @@
+{
+  "pack": "docker-basic",
+  "policy": "policy.rego",
+  "data": "data.example.json",
+  "cases": [
+    {
+      "name": "docker images allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "docker",
+        "operation": "images",
+        "params": {},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"}
+    },
+    {
+      "name": "docker push prod allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "docker",
+        "operation": "push",
+        "params": {"image": "registry.example.com/team/app:1.2.3"},
+        "context": {"environment": "prod"}
+      },
+      "expect": {"allow": true, "risk_level": "critical", "reason": "allowed_push_prod"}
+    },
+    {
+      "name": "docker push denied latest",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "docker",
+        "operation": "push",
+        "params": {"image": "registry.example.com/team/app:latest"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": false, "risk_level": "critical", "reason": "denied_disallowed_tag"}
+    },
+    {
+      "name": "docker tag denied unknown registry",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "docker",
+        "operation": "tag",
+        "params": {"source": "app:1.2.3", "target": "docker.io/library/app:1.2.3"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": false, "risk_level": "critical", "reason": "denied_disallowed_registry"}
+    }
+  ]
+}

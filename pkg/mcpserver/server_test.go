@@ -495,7 +495,7 @@ func newServiceWithModeAndPolicyPath(t *testing.T, mode Mode, policyPath string)
 }
 
 func policyPathFromWorkingDir(wd string) (string, error) {
-	return filepath.Abs(filepath.Join(wd, "..", "..", "policy", "policy.rego"))
+	return filepath.Abs(filepath.Join(wd, "testdata", "policy.rego"))
 }
 
 func baseInvocation(tool, operation string, params map[string]interface{}) invocation.ToolInvocation {

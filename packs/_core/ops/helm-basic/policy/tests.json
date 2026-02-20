@@ -1,0 +1,51 @@
+{
+  "pack": "helm-basic",
+  "policy": "policy.rego",
+  "data": "data.json",
+  "cases": [
+    {
+      "name": "helm list allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "helm",
+        "operation": "list",
+        "params": {},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "low", "reason": "allowed_by_rule"}
+    },
+    {
+      "name": "helm status allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "helm",
+        "operation": "status",
+        "params": {"release": "app", "namespace": "default"},
+        "context": {"environment": "prod"}
+      },
+      "expect": {"allow": true, "risk_level": "low", "reason": "allowed_by_rule"}
+    },
+    {
+      "name": "helm upgrade dev allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "helm",
+        "operation": "upgrade",
+        "params": {"release": "app", "chart": "./chart", "namespace": "default"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "high", "reason": "allowed_by_rule"}
+    },
+    {
+      "name": "helm upgrade prod critical",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "helm",
+        "operation": "upgrade",
+        "params": {"release": "app", "chart": "./chart", "namespace": "default"},
+        "context": {"environment": "prod"}
+      },
+      "expect": {"allow": true, "risk_level": "critical", "reason": "allowed_by_rule"}
+    }
+  ]
+}

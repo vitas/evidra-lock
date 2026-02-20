@@ -18,7 +18,6 @@ import (
 	"samebits.com/evidra-mcp/pkg/policysource"
 	"samebits.com/evidra-mcp/pkg/registry"
 	"samebits.com/evidra-mcp/pkg/version"
-	kubectlplugin "samebits.com/evidra-mcp/plugins/kubectl"
 )
 
 type Profile string
@@ -28,8 +27,7 @@ const (
 	ProfileDev Profile = "dev"
 
 	defaultOpsPolicyPath = "./policy/kits/ops-v0.1/policy.rego"
-	defaultOpsDataPath   = "./policy/kits/ops-v0.1/data.example.json"
-	defaultDevPolicyPath = "./policy/policy.rego"
+	defaultOpsDataPath   = "./policy/kits/ops-v0.1/data.json"
 )
 
 func main() {
@@ -177,11 +175,6 @@ func buildRegistryForProfile(profile Profile) (*registry.InMemoryRegistry, error
 			return nil, err
 		}
 	}
-	if envBool("EVIDRA_ENABLE_EXPERIMENTAL_PLUGINS", false) {
-		if err := kubectlplugin.New().Register(toolRegistry); err != nil {
-			return nil, err
-		}
-	}
 	return toolRegistry, nil
 }
 
@@ -208,9 +201,9 @@ func resolvePolicyPaths(profile Profile, policyFlag, dataFlag string) (string, s
 	case ProfileOps:
 		return defaultOpsPolicyPath, defaultOpsDataPath
 	case ProfileDev:
-		return defaultDevPolicyPath, ""
+		return defaultOpsPolicyPath, defaultOpsDataPath
 	default:
-		return defaultDevPolicyPath, ""
+		return defaultOpsPolicyPath, defaultOpsDataPath
 	}
 }
 

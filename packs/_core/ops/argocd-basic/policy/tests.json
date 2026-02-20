@@ -1,0 +1,50 @@
+{
+  "pack": "argocd-basic",
+  "policy": "policy.rego",
+  "cases": [
+    {
+      "name": "argocd app-get allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "argocd",
+        "operation": "app-get",
+        "params": {"app": "payments"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"}
+    },
+    {
+      "name": "argocd app-sync dev allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "argocd",
+        "operation": "app-sync",
+        "params": {"app": "payments"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "high", "reason": "allowed_write_dev"}
+    },
+    {
+      "name": "argocd app-rollback prod critical",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "argocd",
+        "operation": "app-rollback",
+        "params": {"app": "payments"},
+        "context": {"environment": "prod"}
+      },
+      "expect": {"allow": true, "risk_level": "critical", "reason": "allowed_write_prod"}
+    },
+    {
+      "name": "argocd delete denied by default",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "argocd",
+        "operation": "delete",
+        "params": {"app": "payments"},
+        "context": {"environment": "prod"}
+      },
+      "expect": {"allow": false, "risk_level": "critical", "reason": "policy_denied_default"}
+    }
+  ]
+}

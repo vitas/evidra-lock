@@ -9,17 +9,25 @@ import (
 )
 
 func TestEvaluateDefaultDeny(t *testing.T) {
-	policyPath, err := filepath.Abs(filepath.Join("..", "..", "policy", "policy.rego"))
+	policyPath, err := filepath.Abs(filepath.Join("..", "..", "policy", "kits", "ops-v0.1", "policy.rego"))
 	if err != nil {
 		t.Fatalf("filepath.Abs() error = %v", err)
+	}
+	dataPath, err := filepath.Abs(filepath.Join("..", "..", "policy", "kits", "ops-v0.1", "data.json"))
+	if err != nil {
+		t.Fatalf("filepath.Abs(data) error = %v", err)
 	}
 
 	policyBytes, err := os.ReadFile(policyPath)
 	if err != nil {
 		t.Fatalf("ReadFile(policy.rego) error = %v", err)
 	}
+	dataBytes, err := os.ReadFile(dataPath)
+	if err != nil {
+		t.Fatalf("ReadFile(data.json) error = %v", err)
+	}
 
-	engine, err := NewOPAEngine(policyBytes, nil)
+	engine, err := NewOPAEngine(policyBytes, dataBytes)
 	if err != nil {
 		t.Fatalf("NewOPAEngine() error = %v", err)
 	}

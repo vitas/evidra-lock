@@ -1,8 +1,14 @@
 # Policy Guide
 
+Evidra v0.1 uses the ops policy kit:
+- `policy/kits/ops-v0.1/policy.rego`
+- `policy/kits/ops-v0.1/data.json`
+
+Rego logic is stable; local customization should happen in `data.json`.
+
 ## 1) Policy Input
 
-Evidra policy evaluates canonical `ToolInvocation` input:
+Policy evaluates canonical `ToolInvocation`:
 
 ```json
 {
@@ -18,9 +24,9 @@ Evidra policy evaluates canonical `ToolInvocation` input:
 }
 ```
 
-## 2) Policy Output Contract
+## 2) Policy Output
 
-Policy must return:
+Policy returns:
 
 ```json
 {
@@ -30,34 +36,31 @@ Policy must return:
 }
 ```
 
-Notes:
-- `allow=false` blocks execution in enforce mode.
-- `reason` should come from controlled reason codes.
+`allow=false` blocks execution in enforce mode.
 
-## 3) Environment Control
+## 3) Data-Driven Configuration
 
-Set execution context from caller input:
-- `context.environment`: `dev` or `prod`
-- `context.cluster`: `local` or `remote` (if used by policy)
+Prefer `data.json` changes over Rego edits for routine tuning.
 
-Policies should use these fields for risk and allow decisions, especially for write operations.
+Common edits:
+1. Add/remove allowed container registries.
+2. Add/remove S3 delete allowlist prefixes.
+3. Adjust operation-specific allowlists used by ops tool packs.
 
-## 4) Typical Rules
+## 4) Environment Context
 
-Common operations policy shape:
-- Read operations: allow with `low` risk.
-- Write operations in `dev`: allow with `high` risk.
-- Write operations in `prod`: `critical` risk or explicit deny.
+Policies use request context for risk and permission decisions:
+- `context.environment` (`dev` or `prod`)
+- `context.cluster` (`local` or `remote`, if referenced by a rule)
 
 ## 5) Local Policy Testing
 
-Use policy simulator:
-
 ```bash
-go run ./cmd/evidra-policy-sim --policy ./policy/policy.rego --data ./policy/data.json --input ./examples/invocations/allowed_kubectl_get_dev.json
+go run ./cmd/evidra-policy-sim \
+  --policy ./policy/kits/ops-v0.1/policy.rego \
+  --data ./policy/kits/ops-v0.1/data.json \
+  --input ./examples/invocations/allowed_kubectl_get_dev.json
 ```
-
-If you maintain Rego tests in policy folders, run `opa test` over those directories.
 
 ## 6) Learn OPA
 

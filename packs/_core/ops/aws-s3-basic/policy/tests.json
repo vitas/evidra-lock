@@ -1,0 +1,62 @@
+{
+  "pack": "aws-s3-basic",
+  "policy": "policy.rego",
+  "data": "data.example.json",
+  "cases": [
+    {
+      "name": "s3 ls allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "aws",
+        "operation": "s3-ls",
+        "params": {"uri": "s3://my-bucket/tmp/"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"}
+    },
+    {
+      "name": "s3 rm object dev allowlisted",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "aws",
+        "operation": "s3-rm-object",
+        "params": {"uri": "s3://my-bucket/tmp/file.txt"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "high", "reason": "allowed_s3_delete_object_dev"}
+    },
+    {
+      "name": "s3 rm object denied for non-allowlisted prefix",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "aws",
+        "operation": "s3-rm-object",
+        "params": {"uri": "s3://other-bucket/file.txt"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": false, "risk_level": "critical", "reason": "policy_denied_high_risk"}
+    },
+    {
+      "name": "s3 rm recursive dev allowlisted",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "aws",
+        "operation": "s3-rm-recursive",
+        "params": {"uri": "s3://my-bucket/scratch/"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "critical", "reason": "allowed_s3_delete_recursive_dev"}
+    },
+    {
+      "name": "s3 rm recursive prod denied",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "aws",
+        "operation": "s3-rm-recursive",
+        "params": {"uri": "s3://my-bucket/tmp/"},
+        "context": {"environment": "prod"}
+      },
+      "expect": {"allow": false, "risk_level": "critical", "reason": "denied_s3_delete_recursive_prod"}
+    }
+  ]
+}

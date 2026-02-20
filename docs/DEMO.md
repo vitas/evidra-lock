@@ -15,8 +15,8 @@ Run MCP server (ops profile):
 ```bash
 EVIDRA_PROFILE=ops \
 EVIDRA_PACKS_DIR=./packs/_core/ops \
-EVIDRA_POLICY_PATH=./policy/policy.rego \
-EVIDRA_POLICY_DATA_PATH=./policy/data.json \
+EVIDRA_POLICY_PATH=./policy/kits/ops-v0.1/policy.rego \
+EVIDRA_POLICY_DATA_PATH=./policy/kits/ops-v0.1/data.json \
 EVIDRA_EVIDENCE_PATH=./data/evidence \
 ./bin/evidra-mcp
 ```
@@ -50,8 +50,8 @@ Prod Terraform apply invocation:
 Run policy simulation:
 
 ```bash
-./bin/evidra-policy-sim --policy ./policy/policy.rego --data ./policy/data.json --input ./examples/invocations/allowed_terraform_apply_dev.json
-./bin/evidra-policy-sim --policy ./policy/policy.rego --data ./policy/data.json --input ./examples/invocations/allowed_helm_upgrade_prod.json
+./bin/evidra-policy-sim --policy ./policy/kits/ops-v0.1/policy.rego --data ./policy/kits/ops-v0.1/data.json --input ./examples/invocations/allowed_terraform_apply_dev.json
+./bin/evidra-policy-sim --policy ./policy/kits/ops-v0.1/policy.rego --data ./policy/kits/ops-v0.1/data.json --input ./examples/invocations/allowed_helm_upgrade_prod.json
 ```
 
 Expected output fields:
@@ -65,7 +65,7 @@ When invoked through MCP `execute`, response also includes `event_id`.
 
 ```bash
 ./bin/evidra-evidence violations --evidence ./data/evidence --min-risk high
-./bin/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/policy.rego --data ./policy/data.json
+./bin/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/kits/ops-v0.1/policy.rego --data ./policy/kits/ops-v0.1/data.json
 ```
 
 The audit pack is a portable artifact for review and incident handoff.

@@ -1,0 +1,39 @@
+{
+  "pack": "kubectl-basic",
+  "policy": "policy.rego",
+  "cases": [
+    {
+      "name": "kubectl get dev allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "kubectl",
+        "operation": "get",
+        "params": {"resource": "pods", "namespace": "default"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"}
+    },
+    {
+      "name": "kubectl apply dev allowed",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "kubectl",
+        "operation": "apply",
+        "params": {"file": "./manifests/deploy.yaml", "namespace": "default"},
+        "context": {"environment": "dev"}
+      },
+      "expect": {"allow": true, "risk_level": "high", "reason": "allowed_write_dev"}
+    },
+    {
+      "name": "kubectl delete prod denied",
+      "input": {
+        "actor": {"type": "human", "id": "test", "origin": "unit"},
+        "tool": "kubectl",
+        "operation": "delete",
+        "params": {"resource": "deployment", "name": "api", "namespace": "default"},
+        "context": {"environment": "prod"}
+      },
+      "expect": {"allow": false, "risk_level": "critical", "reason": "policy_denied_high_risk"}
+    }
+  ]
+}

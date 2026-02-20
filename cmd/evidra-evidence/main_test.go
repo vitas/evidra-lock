@@ -101,11 +101,11 @@ func TestExportCreatesAuditPack(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected manifest.json in tar")
 	}
-	if _, ok := files["policy/policy.rego"]; !ok {
-		t.Fatalf("expected policy/policy.rego in tar")
+	if _, ok := files["policy/active.rego"]; !ok {
+		t.Fatalf("expected policy/active.rego in tar")
 	}
-	if _, ok := files["policy/data.json"]; !ok {
-		t.Fatalf("expected policy/data.json in tar")
+	if _, ok := files["policy/active-data.json"]; !ok {
+		t.Fatalf("expected policy/active-data.json in tar")
 	}
 
 	var mf map[string]interface{}
@@ -126,10 +126,10 @@ func TestExportCreatesAuditPack(t *testing.T) {
 	if !ok || dataSHA == "" {
 		t.Fatalf("expected data_file_sha256 in manifest")
 	}
-	if policySHA != bytesSHA256Hex(files["policy/policy.rego"]) {
+	if policySHA != bytesSHA256Hex(files["policy/active.rego"]) {
 		t.Fatalf("policy_file_sha256 does not match policy bytes in tar")
 	}
-	if dataSHA != bytesSHA256Hex(files["policy/data.json"]) {
+	if dataSHA != bytesSHA256Hex(files["policy/active-data.json"]) {
 		t.Fatalf("data_file_sha256 does not match data bytes in tar")
 	}
 }
