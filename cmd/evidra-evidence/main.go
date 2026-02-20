@@ -39,13 +39,15 @@ type verifyFailOutput struct {
 }
 
 type manifest struct {
-	Format       string `json:"format"`
-	CreatedAt    string `json:"created_at"`
-	EvidenceFile string `json:"evidence_file"`
-	Records      int    `json:"records"`
-	LastHash     string `json:"last_hash"`
-	PolicyRef    string `json:"policy_ref"`
-	Notes        string `json:"notes"`
+	Format                        string `json:"format"`
+	CreatedAt                     string `json:"created_at"`
+	EvidenceFile                  string `json:"evidence_file"`
+	Records                       int    `json:"records"`
+	LastHash                      string `json:"last_hash"`
+	PolicyRef                     string `json:"policy_ref"`
+	Notes                         string `json:"notes"`
+	EvidenceStoreFormat           string `json:"evidence_store_format"`
+	EvidenceStoreManifestLastHash string `json:"evidence_store_manifest_last_hash,omitempty"`
 
 	PolicyFileSHA256 string `json:"policy_file_sha256,omitempty"`
 	DataFileSHA256   string `json:"data_file_sha256,omitempty"`
@@ -57,7 +59,7 @@ func main() {
 
 func run(args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export|violations> [flags]")
+		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export|violations|cursor> [flags]")
 		return exitInputError
 	}
 
@@ -68,8 +70,10 @@ func run(args []string, stdout io.Writer, stderr io.Writer) int {
 		return runExport(args[1:], stdout, stderr)
 	case "violations":
 		return runViolations(args[1:], stdout, stderr)
+	case "cursor":
+		return runCursor(args[1:], stdout, stderr)
 	default:
-		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export|violations> [flags]")
+		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export|violations|cursor> [flags]")
 		return exitInputError
 	}
 }
@@ -168,6 +172,15 @@ func runExport(args []string, stdout io.Writer, stderr io.Writer) int {
 		return exitVerifyFailed
 	}
 
+	storeFormat, err := evidence.StoreFormatAtPath(*evidencePath)
+	if err != nil {
+		_ = writeJSON(stdout, verifyFailOutput{
+			OK:    false,
+			Error: err.Error(),
+		})
+		return exitExportFailure
+	}
+
 	var policyBytes []byte
 	if *policyPath != "" {
 		policyBytes, err = os.ReadFile(*policyPath)
@@ -186,14 +199,31 @@ func runExport(args []string, stdout io.Writer, stderr io.Writer) int {
 		}
 	}
 
+	evidenceFileRef := "evidence/evidence.log"
+	storeManifestLastHash := ""
+	if storeFormat == "segmented" {
+		evidenceFileRef = "evidence/manifest.json"
+		storeManifest, err := evidence.LoadManifest(*evidencePath)
+		if err != nil {
+			_ = writeJSON(stdout, verifyFailOutput{
+				OK:    false,
+				Error: err.Error(),
+			})
+			return exitExportFailure
+		}
+		storeManifestLastHash = storeManifest.LastHash
+	}
+
 	m := manifest{
-		Format:       "evidra-audit-pack-v0.1",
-		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
-		EvidenceFile: "evidence/evidence.log",
-		Records:      meta.Records,
-		LastHash:     meta.LastHash,
-		PolicyRef:    meta.PolicyRef,
-		Notes:        "Evidra audit pack v0.1",
+		Format:                        "evidra-audit-pack-v0.1",
+		CreatedAt:                     time.Now().UTC().Format(time.RFC3339),
+		EvidenceFile:                  evidenceFileRef,
+		Records:                       meta.Records,
+		LastHash:                      meta.LastHash,
+		PolicyRef:                     meta.PolicyRef,
+		Notes:                         "Evidra audit pack v0.1",
+		EvidenceStoreFormat:           storeFormat,
+		EvidenceStoreManifestLastHash: storeManifestLastHash,
 	}
 	if len(policyBytes) > 0 {
 		m.PolicyFileSHA256 = sha256Hex(policyBytes)
@@ -202,7 +232,7 @@ func runExport(args []string, stdout io.Writer, stderr io.Writer) int {
 		m.DataFileSHA256 = sha256Hex(dataBytes)
 	}
 
-	if err := writeAuditPack(*outPath, *evidencePath, policyBytes, dataBytes, m); err != nil {
+	if err := writeAuditPack(*outPath, *evidencePath, storeFormat, policyBytes, dataBytes, m); err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return exitExportFailure
 	}
@@ -321,12 +351,12 @@ func runViolations(args []string, stdout io.Writer, stderr io.Writer) int {
 		return exitExportFailure
 	}
 
-	records, err := evidence.ReadAllAtPath(*evidencePath)
+	meta, err := evidence.MetadataAtPath(*evidencePath)
 	if err != nil {
 		_ = writeJSON(stdout, map[string]interface{}{
 			"ok":    false,
 			"error": err.Error(),
-			"hint":  "failed to parse evidence records",
+			"hint":  "failed to read evidence metadata",
 		})
 		return exitExportFailure
 	}
@@ -344,17 +374,17 @@ func runViolations(args []string, stdout io.Writer, stderr io.Writer) int {
 	recordsScanned := 0
 	violationsTotal := 0
 
-	for _, rec := range records {
+	err = evidence.ForEachRecordAtPath(*evidencePath, func(rec evidence.Record) error {
 		ts := rec.Timestamp.UTC()
 		if sincePtr != nil && ts.Before(cutoff) {
-			continue
+			return nil
 		}
 		recordsScanned++
 
 		recRiskRank, _ := riskRank(rec.PolicyDecision.RiskLevel)
 		isCandidate := !rec.PolicyDecision.Allow || recRiskRank >= minRiskRank
 		if !isCandidate {
-			continue
+			return nil
 		}
 		violationsTotal++
 
@@ -384,6 +414,15 @@ func runViolations(args []string, stdout io.Writer, stderr io.Writer) int {
 				Reason:    reason,
 			})
 		}
+		return nil
+	})
+	if err != nil {
+		_ = writeJSON(stdout, map[string]interface{}{
+			"ok":    false,
+			"error": err.Error(),
+			"hint":  "failed to parse evidence records",
+		})
+		return exitExportFailure
 	}
 
 	byReason := buildReasonCounts(reasonCounts, 50)
@@ -394,7 +433,7 @@ func runViolations(args []string, stdout io.Writer, stderr io.Writer) int {
 	report := violationsReport{
 		OK:             true,
 		EvidencePath:   *evidencePath,
-		RecordsTotal:   len(records),
+		RecordsTotal:   meta.Records,
 		RecordsScanned: recordsScanned,
 		TimeWindow: violationsTimeWindow{
 			Since: sincePtr,
@@ -415,7 +454,141 @@ func runViolations(args []string, stdout io.Writer, stderr io.Writer) int {
 	return exitOK
 }
 
-func writeAuditPack(outPath, evidencePath string, policyBytes []byte, dataBytes []byte, m manifest) error {
+func runCursor(args []string, stdout io.Writer, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "usage: evidra-evidence cursor <show|ack> [flags]")
+		return exitInputError
+	}
+	switch args[0] {
+	case "show":
+		return runCursorShow(args[1:], stdout, stderr)
+	case "ack":
+		return runCursorAck(args[1:], stdout, stderr)
+	default:
+		fmt.Fprintln(stderr, "usage: evidra-evidence cursor <show|ack> [flags]")
+		return exitInputError
+	}
+}
+
+func runCursorShow(args []string, stdout io.Writer, stderr io.Writer) int {
+	fs := flag.NewFlagSet("cursor show", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	evidencePath := fs.String("evidence", "", "Path to segmented evidence root")
+	if err := fs.Parse(args); err != nil {
+		return exitInputError
+	}
+	if *evidencePath == "" {
+		fmt.Fprintln(stderr, "--evidence is required")
+		return exitInputError
+	}
+	info, err := os.Stat(*evidencePath)
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		return exitInputError
+	}
+	if !info.IsDir() {
+		fmt.Fprintln(stderr, "cursor not supported for legacy evidence")
+		return exitInputError
+	}
+
+	storeFormat, err := evidence.StoreFormatAtPath(*evidencePath)
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		return exitInputError
+	}
+	if storeFormat != "segmented" {
+		fmt.Fprintln(stderr, "cursor not supported for legacy evidence")
+		return exitInputError
+	}
+
+	state, found, err := evidence.LoadForwarderState(*evidencePath)
+	if err != nil {
+		_ = writeJSON(stdout, map[string]interface{}{"ok": false, "error": err.Error()})
+		return exitExportFailure
+	}
+	if !found {
+		_ = writeJSON(stdout, map[string]interface{}{"ok": true, "cursor": nil})
+		return exitOK
+	}
+
+	_ = writeJSON(stdout, map[string]interface{}{
+		"ok":            true,
+		"cursor":        state.Cursor,
+		"last_ack_hash": state.LastAckHash,
+	})
+	return exitOK
+}
+
+func runCursorAck(args []string, stdout io.Writer, stderr io.Writer) int {
+	fs := flag.NewFlagSet("cursor ack", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	evidencePath := fs.String("evidence", "", "Path to segmented evidence root")
+	segment := fs.String("segment", "", "Segment filename")
+	line := fs.Int("line", -1, "Line index (0-based)")
+	if err := fs.Parse(args); err != nil {
+		return exitInputError
+	}
+	if *evidencePath == "" || *segment == "" || *line < 0 {
+		fmt.Fprintln(stderr, "--evidence, --segment, and --line are required")
+		return exitInputError
+	}
+	info, err := os.Stat(*evidencePath)
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		return exitInputError
+	}
+	if !info.IsDir() {
+		fmt.Fprintln(stderr, "cursor not supported for legacy evidence")
+		return exitInputError
+	}
+
+	storeFormat, err := evidence.StoreFormatAtPath(*evidencePath)
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		return exitInputError
+	}
+	if storeFormat != "segmented" {
+		fmt.Fprintln(stderr, "cursor not supported for legacy evidence")
+		return exitInputError
+	}
+
+	if err := evidence.ValidateChainAtPath(*evidencePath); err != nil {
+		_ = writeJSON(stdout, map[string]interface{}{"ok": false, "error": err.Error()})
+		return exitVerifyFailed
+	}
+
+	rec, err := evidence.ResolveCursorRecord(*evidencePath, *segment, *line)
+	if err != nil {
+		if errors.Is(err, evidence.ErrCursorSegmentNotFound) || errors.Is(err, evidence.ErrCursorLineOutOfRange) {
+			fmt.Fprintln(stderr, err.Error())
+			return exitInputError
+		}
+		_ = writeJSON(stdout, map[string]interface{}{"ok": false, "error": err.Error()})
+		return exitExportFailure
+	}
+
+	state := evidence.ForwarderState{
+		Format:      "evidra-forwarder-state-v0.1",
+		UpdatedAt:   time.Now().UTC().Format(time.RFC3339),
+		Cursor:      evidence.ForwarderCursor{Segment: *segment, Line: *line},
+		LastAckHash: rec.Hash,
+		Destination: evidence.ForwarderDestination{Type: "none", ID: ""},
+		Notes:       "",
+	}
+	if err := evidence.SaveForwarderState(*evidencePath, state); err != nil {
+		_ = writeJSON(stdout, map[string]interface{}{"ok": false, "error": err.Error()})
+		return exitExportFailure
+	}
+
+	_ = writeJSON(stdout, map[string]interface{}{
+		"ok":            true,
+		"cursor":        state.Cursor,
+		"last_ack_hash": state.LastAckHash,
+	})
+	return exitOK
+}
+
+func writeAuditPack(outPath, evidencePath, storeFormat string, policyBytes []byte, dataBytes []byte, m manifest) error {
 	outFile, err := os.Create(outPath)
 	if err != nil {
 		return fmt.Errorf("create output file: %w", err)
@@ -428,8 +601,28 @@ func writeAuditPack(outPath, evidencePath string, policyBytes []byte, dataBytes 
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
 
-	if err := addFileToTar(tw, evidencePath, "evidence/evidence.log"); err != nil {
-		return err
+	switch storeFormat {
+	case "legacy":
+		if err := addFileToTar(tw, evidencePath, "evidence/evidence.log"); err != nil {
+			return err
+		}
+	case "segmented":
+		manifestPath := evidence.ManifestPath(evidencePath)
+		if err := addFileToTar(tw, manifestPath, "evidence/manifest.json"); err != nil {
+			return err
+		}
+		segments, err := evidence.SegmentFiles(evidencePath)
+		if err != nil {
+			return err
+		}
+		for _, seg := range segments {
+			dest := filepath.ToSlash(filepath.Join("evidence", "segments", filepath.Base(seg)))
+			if err := addFileToTar(tw, seg, dest); err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("unsupported evidence store format: %s", storeFormat)
 	}
 
 	manifestBytes, err := json.MarshalIndent(m, "", "  ")

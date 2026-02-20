@@ -16,10 +16,11 @@ import (
 )
 
 type Options struct {
-	Name      string
-	Version   string
-	Mode      Mode
-	PolicyRef string
+	Name         string
+	Version      string
+	Mode         Mode
+	PolicyRef    string
+	EvidencePath string
 }
 
 type Mode string
@@ -41,6 +42,14 @@ type executeHandler struct {
 	service *ExecuteService
 }
 
+type getEventHandler struct {
+	service *ExecuteService
+}
+
+type getEventInput struct {
+	EventID string `json:"event_id"`
+}
+
 func NewServer(opts Options, reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore) *mcp.Server {
 	if opts.Name == "" {
 		opts.Name = "evidra-mcp"
@@ -51,9 +60,14 @@ func NewServer(opts Options, reg registry.Registry, policyEngine core.PolicyEngi
 	if opts.Mode == "" {
 		opts.Mode = ModeEnforce
 	}
+	if opts.EvidencePath == "" {
+		opts.EvidencePath = "./data/evidence"
+	}
 
 	svc := NewExecuteServiceWithMode(reg, policyEngine, evidenceStore, opts.Mode, opts.PolicyRef)
-	handler := &executeHandler{service: svc}
+	svc.evidencePath = opts.EvidencePath
+	executeTool := &executeHandler{service: svc}
+	getEventTool := &getEventHandler{service: svc}
 
 	server := mcp.NewServer(
 		&mcp.Implementation{Name: opts.Name, Version: opts.Version},
@@ -62,7 +76,11 @@ func NewServer(opts Options, reg registry.Registry, policyEngine core.PolicyEngi
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "execute",
 		Description: "Invoke a registered tool through registry, policy, and evidence flow",
-	}, handler.Handle)
+	}, executeTool.Handle)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_event",
+		Description: "Fetch a single immutable evidence record by event_id",
+	}, getEventTool.Handle)
 	return server
 }
 
@@ -78,12 +96,25 @@ func (h *executeHandler) Handle(
 	return nil, output, nil
 }
 
+func (h *getEventHandler) Handle(
+	ctx context.Context,
+	_ *mcp.CallToolRequest,
+	input getEventInput,
+) (*mcp.CallToolResult, evidence.Record, error) {
+	record, err := h.service.GetEvent(ctx, input.EventID)
+	if err != nil {
+		return nil, evidence.Record{}, err
+	}
+	return nil, record, nil
+}
+
 type ExecuteService struct {
-	registry  registry.Registry
-	policy    core.PolicyEngine
-	evidence  core.EvidenceStore
-	mode      Mode
-	policyRef string
+	registry     registry.Registry
+	policy       core.PolicyEngine
+	evidence     core.EvidenceStore
+	mode         Mode
+	policyRef    string
+	evidencePath string
 }
 
 func NewExecuteService(reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore) *ExecuteService {
@@ -95,12 +126,31 @@ func NewExecuteServiceWithMode(reg registry.Registry, policyEngine core.PolicyEn
 		mode = ModeEnforce
 	}
 	return &ExecuteService{
-		registry:  reg,
-		policy:    policyEngine,
-		evidence:  evidenceStore,
-		mode:      mode,
-		policyRef: policyRef,
+		registry:     reg,
+		policy:       policyEngine,
+		evidence:     evidenceStore,
+		mode:         mode,
+		policyRef:    policyRef,
+		evidencePath: "./data/evidence",
 	}
+}
+
+func (s *ExecuteService) GetEvent(_ context.Context, eventID string) (evidence.Record, error) {
+	if eventID == "" {
+		return evidence.Record{}, errors.New("event_id is required")
+	}
+
+	rec, found, err := evidence.FindByEventID(s.evidencePath, eventID)
+	if err != nil {
+		if errors.Is(err, evidence.ErrChainInvalid) {
+			return evidence.Record{}, errors.New("evidence_chain_invalid")
+		}
+		return evidence.Record{}, err
+	}
+	if !found {
+		return evidence.Record{}, fmt.Errorf("event_id %q not found", eventID)
+	}
+	return rec, nil
 }
 
 func (s *ExecuteService) Execute(ctx context.Context, inv invocation.ToolInvocation) (ExecuteOutput, error) {

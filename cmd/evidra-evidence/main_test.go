@@ -173,6 +173,45 @@ func TestExportFailsOnMixedPolicyRef(t *testing.T) {
 	}
 }
 
+func TestExportSegmentedIncludesManifestAndSegments(t *testing.T) {
+	t.Setenv("EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES", "400")
+	root := writeSegmentedEvidenceRoot(t, []evidence.EvidenceRecord{
+		newViolationRecord("evt-1", "policy-abc", "echo", "run", "alice", true, "low", "allowed_by_rule"),
+		newViolationRecord("evt-2", "policy-abc", "echo", "run", "alice", true, "low", "allowed_by_rule"),
+		newViolationRecord("evt-3", "policy-abc", "echo", "run", "alice", true, "low", "allowed_by_rule"),
+	}, strings.Repeat("z", 300))
+
+	outPath := filepath.Join(t.TempDir(), "audit-pack-segmented.tar.gz")
+	var out strings.Builder
+	var errOut strings.Builder
+	code := run([]string{"export", "--evidence", root, "--out", outPath}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
+	}
+
+	files := readTarGzFiles(t, outPath)
+	if _, ok := files["evidence/manifest.json"]; !ok {
+		t.Fatalf("expected evidence/manifest.json in tar")
+	}
+	segmentCount := 0
+	for name := range files {
+		if strings.HasPrefix(name, "evidence/segments/evidence-") {
+			segmentCount++
+		}
+	}
+	if segmentCount == 0 {
+		t.Fatalf("expected segmented evidence files in tar")
+	}
+
+	var mf map[string]interface{}
+	if err := json.Unmarshal(files["manifest.json"], &mf); err != nil {
+		t.Fatalf("unmarshal manifest: %v", err)
+	}
+	if mf["evidence_store_format"] != "segmented" {
+		t.Fatalf("expected evidence_store_format=segmented, got %v", mf["evidence_store_format"])
+	}
+}
+
 func TestViolationsReportCountsDeniesAndHighRisk(t *testing.T) {
 	logPath := writeEvidenceLog(t, []evidence.EvidenceRecord{
 		newViolationRecord("evt-deny", "policy-abc", "git", "push", "alice", false, "high", "policy_denied_default"),
@@ -276,6 +315,158 @@ func TestViolationsSortingDeterministic(t *testing.T) {
 	}
 }
 
+func TestViolationsWorksAcrossSegmentedStore(t *testing.T) {
+	t.Setenv("EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES", "400")
+	root := writeSegmentedEvidenceRoot(t, []evidence.EvidenceRecord{
+		newViolationRecord("evt-deny", "policy-abc", "git", "push", "alice", false, "high", "policy_denied_default"),
+		newViolationRecord("evt-high", "policy-abc", "git", "status", "alice", true, "high", "allowed_by_rule"),
+		newViolationRecord("evt-low", "policy-abc", "echo", "run", "bob", true, "low", "allowed_by_rule"),
+	}, strings.Repeat("w", 280))
+
+	var out strings.Builder
+	var errOut strings.Builder
+	code := run([]string{"violations", "--evidence", root, "--min-risk", "high"}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
+	}
+
+	var resp struct {
+		ViolationsTotal int `json:"violations_total"`
+	}
+	if err := json.Unmarshal([]byte(out.String()), &resp); err != nil {
+		t.Fatalf("unmarshal output: %v", err)
+	}
+	if resp.ViolationsTotal != 2 {
+		t.Fatalf("expected violations_total=2, got %d", resp.ViolationsTotal)
+	}
+}
+
+func TestCursorShowReturnsNullWhenMissing(t *testing.T) {
+	root := writeSegmentedEvidenceRoot(t, []evidence.EvidenceRecord{
+		newViolationRecord("evt-1", "policy-abc", "echo", "run", "alice", true, "low", "allowed_by_rule"),
+	}, "small")
+
+	var out strings.Builder
+	var errOut strings.Builder
+	code := run([]string{"cursor", "show", "--evidence", root}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(out.String()), &resp); err != nil {
+		t.Fatalf("unmarshal output: %v", err)
+	}
+	if _, ok := resp["cursor"]; !ok || resp["cursor"] != nil {
+		t.Fatalf("expected cursor=null, got %v", resp["cursor"])
+	}
+}
+
+func TestCursorAckAndShowRoundTrip(t *testing.T) {
+	root := writeSegmentedEvidenceRoot(t, []evidence.EvidenceRecord{
+		newViolationRecord("evt-1", "policy-abc", "echo", "run", "alice", true, "low", "allowed_by_rule"),
+		newViolationRecord("evt-2", "policy-abc", "echo", "run", "alice", true, "low", "allowed_by_rule"),
+	}, "small")
+
+	var outAck strings.Builder
+	var errAck strings.Builder
+	code := run([]string{
+		"cursor", "ack",
+		"--evidence", root,
+		"--segment", "evidence-000001.jsonl",
+		"--line", "0",
+	}, &outAck, &errAck)
+	if code != 0 {
+		t.Fatalf("expected ack exit code 0, got %d stderr=%s", code, errAck.String())
+	}
+
+	var ackResp map[string]interface{}
+	if err := json.Unmarshal([]byte(outAck.String()), &ackResp); err != nil {
+		t.Fatalf("unmarshal ack output: %v", err)
+	}
+	if ackResp["last_ack_hash"] == "" {
+		t.Fatalf("expected last_ack_hash in ack response")
+	}
+
+	var outShow strings.Builder
+	var errShow strings.Builder
+	code = run([]string{"cursor", "show", "--evidence", root}, &outShow, &errShow)
+	if code != 0 {
+		t.Fatalf("expected show exit code 0, got %d stderr=%s", code, errShow.String())
+	}
+
+	var showResp struct {
+		OK     bool `json:"ok"`
+		Cursor struct {
+			Segment string `json:"segment"`
+			Line    int    `json:"line"`
+		} `json:"cursor"`
+		LastAckHash string `json:"last_ack_hash"`
+	}
+	if err := json.Unmarshal([]byte(outShow.String()), &showResp); err != nil {
+		t.Fatalf("unmarshal show output: %v", err)
+	}
+	if !showResp.OK {
+		t.Fatalf("expected ok=true")
+	}
+	if showResp.Cursor.Segment != "evidence-000001.jsonl" || showResp.Cursor.Line != 0 {
+		t.Fatalf("unexpected cursor: %#v", showResp.Cursor)
+	}
+	if showResp.LastAckHash == "" {
+		t.Fatalf("expected last_ack_hash from show")
+	}
+}
+
+func TestCursorAckFailsOnTamperedChain(t *testing.T) {
+	root := writeSegmentedEvidenceRoot(t, []evidence.EvidenceRecord{
+		newViolationRecord("evt-1", "policy-abc", "echo", "run", "alice", true, "low", "allowed_by_rule"),
+		newViolationRecord("evt-2", "policy-abc", "echo", "run", "alice", true, "low", "allowed_by_rule"),
+	}, "small")
+	tamperSegmentLine(t, filepath.Join(root, "segments", "evidence-000001.jsonl"), 0)
+
+	var out strings.Builder
+	var errOut strings.Builder
+	code := run([]string{
+		"cursor", "ack",
+		"--evidence", root,
+		"--segment", "evidence-000001.jsonl",
+		"--line", "0",
+	}, &out, &errOut)
+	if code != 1 {
+		t.Fatalf("expected exit code 1, got %d stderr=%s", code, errOut.String())
+	}
+}
+
+func TestCursorAckFailsOnMissingSegmentOrOutOfRange(t *testing.T) {
+	root := writeSegmentedEvidenceRoot(t, []evidence.EvidenceRecord{
+		newViolationRecord("evt-1", "policy-abc", "echo", "run", "alice", true, "low", "allowed_by_rule"),
+	}, "small")
+
+	var out1 strings.Builder
+	var err1 strings.Builder
+	code := run([]string{
+		"cursor", "ack",
+		"--evidence", root,
+		"--segment", "evidence-000999.jsonl",
+		"--line", "0",
+	}, &out1, &err1)
+	if code != 2 {
+		t.Fatalf("expected exit code 2 for missing segment, got %d", code)
+	}
+
+	var out2 strings.Builder
+	var err2 strings.Builder
+	code = run([]string{
+		"cursor", "ack",
+		"--evidence", root,
+		"--segment", "evidence-000001.jsonl",
+		"--line", "99",
+	}, &out2, &err2)
+	if code != 2 {
+		t.Fatalf("expected exit code 2 for line out of range, got %d", code)
+	}
+}
+
 func writeEvidenceLog(t *testing.T, records []evidence.EvidenceRecord) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "evidence.log")
@@ -289,6 +480,22 @@ func writeEvidenceLog(t *testing.T, records []evidence.EvidenceRecord) string {
 		}
 	}
 	return path
+}
+
+func writeSegmentedEvidenceRoot(t *testing.T, records []evidence.EvidenceRecord, largeText string) string {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "evidence")
+	store := evidence.NewStoreWithPath(root)
+	if err := store.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	for _, rec := range records {
+		rec.Params["text"] = largeText
+		if err := store.Append(rec); err != nil {
+			t.Fatalf("Append() error = %v", err)
+		}
+	}
+	return root
 }
 
 func newRecord(eventID, policyRef string) evidence.EvidenceRecord {
@@ -341,6 +548,22 @@ func tamperEvidenceLine(t *testing.T, path string) {
 	mutated := strings.Join(lines, "\n") + "\n"
 	if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
 		t.Fatalf("WriteFile(evidence.log) error = %v", err)
+	}
+}
+
+func tamperSegmentLine(t *testing.T, path string, lineIdx int) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(segment) error = %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if lineIdx >= len(lines) {
+		t.Fatalf("line index out of range in tamper helper")
+	}
+	lines[lineIdx] = strings.Replace(lines[lineIdx], "\"success\"", "\"tampered\"", 1)
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(segment) error = %v", err)
 	}
 }
 

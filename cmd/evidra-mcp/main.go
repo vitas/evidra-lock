@@ -45,7 +45,7 @@ func main() {
 		log.Fatalf("load policy: %v", err)
 	}
 
-	evidencePath := envOrDefault("EVIDRA_EVIDENCE_PATH", "./data/evidence.log")
+	evidencePath := envOrDefault("EVIDRA_EVIDENCE_PATH", "./data/evidence")
 	evidenceStore := evidence.NewStoreWithPath(evidencePath)
 	if err := evidenceStore.Init(); err != nil {
 		log.Fatalf("init evidence store: %v", err)
@@ -54,10 +54,11 @@ func main() {
 	toolRegistry := registry.NewDefaultRegistry()
 	server := mcpserver.NewServer(
 		mcpserver.Options{
-			Name:      "evidra-mcp",
-			Version:   "v0.1.0",
-			Mode:      mode,
-			PolicyRef: mustPolicyRef(ps),
+			Name:         "evidra-mcp",
+			Version:      "v0.1.0",
+			Mode:         mode,
+			PolicyRef:    mustPolicyRef(ps),
+			EvidencePath: evidencePath,
 		},
 		toolRegistry,
 		policyEngine,

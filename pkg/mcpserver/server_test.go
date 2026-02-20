@@ -2,7 +2,6 @@ package mcpserver
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -228,6 +227,105 @@ decision := {"allow": false, "risk_level": "critical", "reason": "policy_denied_
 	}
 }
 
+func TestGetEventFound(t *testing.T) {
+	svc := newService(t)
+	out1, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
+	if err != nil {
+		t.Fatalf("Execute(one) error = %v", err)
+	}
+	_, err = svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "two"}))
+	if err != nil {
+		t.Fatalf("Execute(two) error = %v", err)
+	}
+
+	rec, err := svc.GetEvent(context.Background(), out1.EventID)
+	if err != nil {
+		t.Fatalf("GetEvent() error = %v", err)
+	}
+	if rec.EventID != out1.EventID {
+		t.Fatalf("expected event_id %q, got %q", out1.EventID, rec.EventID)
+	}
+	if rec.Tool != "echo" || rec.Operation != "run" {
+		t.Fatalf("unexpected record tool/operation: %s/%s", rec.Tool, rec.Operation)
+	}
+}
+
+func TestGetEventNotFound(t *testing.T) {
+	svc := newService(t)
+	_, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	rec, err := svc.GetEvent(context.Background(), "evt-missing")
+	if err == nil {
+		t.Fatalf("expected not found error")
+	}
+	if rec.EventID != "" {
+		t.Fatalf("expected empty record on not found")
+	}
+}
+
+func TestGetEventFailsOnInvalidChain(t *testing.T) {
+	svc := newService(t)
+	out, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	_, err = svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "two"}))
+	if err != nil {
+		t.Fatalf("Execute() second error = %v", err)
+	}
+
+	path := filepath.Join("data", "evidence", "segments", "evidence-000001.jsonl")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(segment) error = %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected at least 2 evidence lines")
+	}
+	lines[0] = strings.Replace(lines[0], "\"status\":\"success\"", "\"status\":\"tampered\"", 1)
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(segment) error = %v", err)
+	}
+
+	rec, err := svc.GetEvent(context.Background(), out.EventID)
+	if err == nil {
+		t.Fatalf("expected chain invalid error")
+	}
+	if err.Error() != "evidence_chain_invalid" {
+		t.Fatalf("expected evidence_chain_invalid error, got %v", err)
+	}
+	if rec.EventID != "" {
+		t.Fatalf("expected empty record on chain invalid")
+	}
+}
+
+func TestGetEventAcrossSegments(t *testing.T) {
+	t.Setenv("EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES", "400")
+	svc := newService(t)
+
+	first, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": strings.Repeat("a", 280)}))
+	if err != nil {
+		t.Fatalf("Execute(first) error = %v", err)
+	}
+	for i := 0; i < 4; i++ {
+		if _, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": strings.Repeat("b", 280)})); err != nil {
+			t.Fatalf("Execute(%d) error = %v", i, err)
+		}
+	}
+
+	rec, err := svc.GetEvent(context.Background(), first.EventID)
+	if err != nil {
+		t.Fatalf("GetEvent() error = %v", err)
+	}
+	if rec.EventID != first.EventID {
+		t.Fatalf("expected event_id %q, got %q", first.EventID, rec.EventID)
+	}
+}
+
 func newService(t *testing.T) *ExecuteService {
 	return newServiceWithMode(t, ModeEnforce)
 }
@@ -294,32 +392,23 @@ func baseInvocation(tool, operation string, params map[string]interface{}) invoc
 
 func countEvidenceLines(t *testing.T) int {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("data", "evidence.log"))
+	records, err := evidence.ReadAllAtPath(filepath.Join("data", "evidence"))
 	if err != nil {
 		return 0
 	}
-	trimmed := strings.TrimSpace(string(raw))
-	if trimmed == "" {
-		return 0
-	}
-	return len(strings.Split(trimmed, "\n"))
+	return len(records)
 }
 
 func readLastEvidenceRecord(t *testing.T) evidence.EvidenceRecord {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("data", "evidence.log"))
+	records, err := evidence.ReadAllAtPath(filepath.Join("data", "evidence"))
 	if err != nil {
-		t.Fatalf("ReadFile(evidence.log) error = %v", err)
+		t.Fatalf("ReadAllAtPath(evidence) error = %v", err)
 	}
-	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
-	if len(lines) == 0 {
-		t.Fatalf("no evidence lines found")
+	if len(records) == 0 {
+		t.Fatalf("no evidence records found")
 	}
-	var rec evidence.EvidenceRecord
-	if err := json.Unmarshal([]byte(lines[len(lines)-1]), &rec); err != nil {
-		t.Fatalf("Unmarshal(last evidence) error = %v", err)
-	}
-	return rec
+	return records[len(records)-1]
 }
 
 func writePolicyFile(t *testing.T, content string) string {

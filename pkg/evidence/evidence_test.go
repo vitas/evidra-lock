@@ -105,7 +105,7 @@ func TestValidateChainDetectsTamper(t *testing.T) {
 		t.Fatalf("Append(r2) error = %v", err)
 	}
 
-	path := filepath.Join("data", "evidence.log")
+	path := filepath.Join("data", "evidence", "segments", "evidence-000001.jsonl")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile(log) error = %v", err)
@@ -155,7 +155,7 @@ func TestEvidenceRecordContainsPolicyRef(t *testing.T) {
 		t.Fatalf("Append(rec) error = %v", err)
 	}
 
-	raw, err := os.ReadFile(filepath.Join("data", "evidence.log"))
+	raw, err := os.ReadFile(filepath.Join("data", "evidence", "segments", "evidence-000001.jsonl"))
 	if err != nil {
 		t.Fatalf("ReadFile(evidence.log) error = %v", err)
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func NewStore() *Store {
-	return NewStoreWithPath(defaultLogPath)
+	return NewStoreWithPath(defaultEvidenceRoot)
 }
 
 type Store struct {
@@ -19,7 +19,15 @@ func NewStoreWithPath(path string) *Store {
 }
 
 func (s *Store) Init() error {
-	return os.MkdirAll(filepath.Dir(s.path), 0o755)
+	mode, resolved, err := detectStoreMode(s.path)
+	if err != nil {
+		return err
+	}
+	if mode == "segmented" {
+		_, err := loadOrInitManifest(resolved, segmentMaxBytesFromEnv(), true)
+		return err
+	}
+	return os.MkdirAll(filepath.Dir(resolved), 0o755)
 }
 
 func (s *Store) Append(record Record) error {
@@ -32,7 +40,22 @@ func (s *Store) ValidateChain() error {
 }
 
 func (s *Store) LastHash() (string, error) {
-	last, ok, err := readLastRecord(s.path)
+	mode, resolved, err := detectStoreMode(s.path)
+	if err != nil {
+		return "", err
+	}
+	if mode == "segmented" {
+		m, err := loadOrInitManifest(resolved, segmentMaxBytesFromEnv(), false)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return "", nil
+			}
+			return "", err
+		}
+		return m.LastHash, nil
+	}
+
+	last, ok, err := readLastRecord(resolved)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil
