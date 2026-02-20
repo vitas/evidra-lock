@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/mcpserver"
+	"samebits.com/evidra-mcp/pkg/outputlimit"
 	"samebits.com/evidra-mcp/pkg/packs"
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/policysource"
@@ -24,10 +26,20 @@ type Profile string
 const (
 	ProfileOps Profile = "ops"
 	ProfileDev Profile = "dev"
+
+	defaultOpsPolicyPath = "./policy/kits/ops-v0.1/policy.rego"
+	defaultOpsDataPath   = "./policy/kits/ops-v0.1/data.example.json"
+	defaultDevPolicyPath = "./policy/policy.rego"
 )
 
 func main() {
-	if len(os.Args) > 1 && strings.TrimSpace(os.Args[1]) == "--version" {
+	fs := flag.NewFlagSet("evidra-mcp", flag.ExitOnError)
+	showVersion := fs.Bool("version", false, "Print version and exit")
+	policyFlag := fs.String("policy", "", "Path to policy rego file")
+	dataFlag := fs.String("data", "", "Path to policy data JSON file")
+	fs.Parse(os.Args[1:])
+
+	if *showVersion {
 		fmt.Printf("evidra-mcp %s\n", version.Version)
 		return
 	}
@@ -46,8 +58,7 @@ func main() {
 		log.Printf("Evidra running in OBSERVE mode. Policy violations will NOT block execution.")
 	}
 
-	policyPath := envOrDefault("EVIDRA_POLICY_PATH", "./policy/policy.rego")
-	dataPath := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_DATA_PATH"))
+	policyPath, dataPath := resolvePolicyPaths(profile, strings.TrimSpace(*policyFlag), strings.TrimSpace(*dataFlag))
 
 	ps := policysource.NewLocalFileSource(policyPath, dataPath)
 	policyBytes, err := ps.LoadPolicy()
@@ -98,6 +109,7 @@ func main() {
 			PolicyRef:                mustPolicyRef(ps),
 			EvidencePath:             evidencePath,
 			IncludeFileResourceLinks: envBool("EVIDRA_INCLUDE_FILE_RESOURCE_LINKS", false),
+			MaxOutputBytes:           outputlimit.MaxBytesFromEnv("EVIDRA_MAX_OUTPUT_BYTES", outputlimit.DefaultMaxBytes),
 		},
 		toolRegistry,
 		policyEngine,
@@ -165,10 +177,10 @@ func buildRegistryForProfile(profile Profile) (*registry.InMemoryRegistry, error
 			return nil, err
 		}
 	}
-	// Experimental Level 2 plugin registration (may move to Tool Packs as the
-	// default extension path over time). Kept enabled for backward compatibility.
-	if err := kubectlplugin.New().Register(toolRegistry); err != nil {
-		return nil, err
+	if envBool("EVIDRA_ENABLE_EXPERIMENTAL_PLUGINS", false) {
+		if err := kubectlplugin.New().Register(toolRegistry); err != nil {
+			return nil, err
+		}
 	}
 	return toolRegistry, nil
 }
@@ -179,6 +191,27 @@ func envOrDefault(key, fallback string) string {
 		return fallback
 	}
 	return v
+}
+
+func resolvePolicyPaths(profile Profile, policyFlag, dataFlag string) (string, string) {
+	if policyFlag != "" {
+		return policyFlag, dataFlag
+	}
+
+	policyEnv := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_PATH"))
+	dataEnv := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_DATA_PATH"))
+	if policyEnv != "" {
+		return policyEnv, dataEnv
+	}
+
+	switch profile {
+	case ProfileOps:
+		return defaultOpsPolicyPath, defaultOpsDataPath
+	case ProfileDev:
+		return defaultDevPolicyPath, ""
+	default:
+		return defaultDevPolicyPath, ""
+	}
 }
 
 func envBool(key string, fallback bool) bool {

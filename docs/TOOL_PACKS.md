@@ -35,6 +35,7 @@ Placeholder rules:
 - No free-form user command strings.
 - Args must be explicit and schema-validated.
 - Placeholders must match declared params.
+- Use `policy/data*.json` allowlists as the primary customization mechanism for high-risk operations (for example, approved S3 delete prefixes).
 
 ## Minimal New Pack Example
 

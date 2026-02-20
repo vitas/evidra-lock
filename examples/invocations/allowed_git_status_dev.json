@@ -1,7 +1,7 @@
 {
   "actor": {"type": "human", "id": "local-dev", "origin": "cli"},
-  "tool": "git",
-  "operation": "status",
-  "params": {"path": "."},
+  "tool": "terraform",
+  "operation": "plan",
+  "params": {"dir": "./infra"},
   "context": {"environment": "dev", "cluster": "local"}
 }

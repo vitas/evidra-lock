@@ -22,6 +22,8 @@ Manifest includes:
 - Each record links to previous via `previous_hash`.
 - Record hash excludes its own `hash` field.
 - Validation checks links across segment boundaries.
+- Execution stdout/stderr are stored with truncation flags.
+- Output truncation limit is controlled by `EVIDRA_MAX_OUTPUT_BYTES` (default `65536`).
 
 ## 4) Commands
 

@@ -1,13 +1,7 @@
 {
-  "actor": {
-    "type": "human",
-    "id": "dev-user",
-    "origin": "cli"
-  },
-  "tool": "echo",
-  "operation": "run",
-  "params": {
-    "text": "hello"
-  },
-  "context": {}
+  "actor": {"type": "human", "id": "local-dev", "origin": "cli"},
+  "tool": "kubectl",
+  "operation": "get",
+  "params": {"resource": "pods", "namespace": "default"},
+  "context": {"environment": "dev", "cluster": "local"}
 }

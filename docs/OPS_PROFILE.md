@@ -8,6 +8,8 @@
   - Production-focused
   - Excludes dev/demo tools by default
   - Default packs dir: `./packs/_core/ops`
+  - Default policy kit: `./policy/kits/ops-v0.1/policy.rego`
+  - Default policy data: `./policy/kits/ops-v0.1/data.example.json`
 
 - `dev`
   - Includes dev/demo tools
@@ -24,4 +26,10 @@ With explicit pack path:
 
 ```bash
 EVIDRA_PROFILE=ops EVIDRA_PACKS_DIR=./packs/_core/ops ./evidra-mcp
+```
+
+Experimental plugins are disabled by default. To enable:
+
+```bash
+EVIDRA_ENABLE_EXPERIMENTAL_PLUGINS=true ./evidra-mcp
 ```

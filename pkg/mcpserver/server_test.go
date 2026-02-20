@@ -154,6 +154,65 @@ func TestFileResourceLinksDisabledByDefaultAndOptIn(t *testing.T) {
 	}
 }
 
+func TestExecuteOutputTruncationStoredInEvidence(t *testing.T) {
+	temp := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("Chdir(temp) error = %v", err)
+	}
+
+	store := evidence.NewStore()
+	if err := store.Init(); err != nil {
+		t.Fatalf("store.Init() error = %v", err)
+	}
+	reg := registry.NewInMemoryRegistry([]registry.ToolDefinition{
+		{
+			Name:                "mock",
+			SupportedOperations: []string{"run"},
+			InputSchema:         "{}",
+			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
+			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
+				code := 0
+				return registry.ExecutionResult{
+					Status:   "success",
+					ExitCode: &code,
+					Stdout:   strings.Repeat("A", 200),
+					Stderr:   strings.Repeat("B", 200),
+				}, nil
+			},
+		},
+	})
+
+	svc := NewExecuteServiceWithMode(reg, allowPolicyEngine{}, store, ModeEnforce, "test-policy-ref")
+	svc.maxOutputBytes = 32
+	out := svc.Execute(context.Background(), baseInvocation("mock", "run", map[string]interface{}{}))
+	if !out.Execution.StdoutTruncated || !out.Execution.StderrTruncated {
+		t.Fatalf("expected truncation flags in response: %+v", out.Execution)
+	}
+	if !strings.Contains(out.Execution.Stdout, "[truncated]") || !strings.Contains(out.Execution.Stderr, "[truncated]") {
+		t.Fatalf("expected truncation marker in response")
+	}
+
+	records, err := evidence.ReadAllAtPath(filepath.Join("data", "evidence"))
+	if err != nil {
+		t.Fatalf("ReadAllAtPath() error = %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 evidence record, got %d", len(records))
+	}
+	rec := records[0]
+	if !rec.ExecutionResult.StdoutTruncated || !rec.ExecutionResult.StderrTruncated {
+		t.Fatalf("expected truncation flags in evidence record: %+v", rec.ExecutionResult)
+	}
+	if rec.ExecutionResult.Stdout != out.Execution.Stdout || rec.ExecutionResult.Stderr != out.Execution.Stderr {
+		t.Fatalf("expected evidence output to match response output")
+	}
+}
+
 func TestGetEventFailsOnInvalidChain(t *testing.T) {
 	svc := newService(t)
 	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
@@ -456,4 +515,14 @@ func countEvidenceLines(t *testing.T) int {
 		return 0
 	}
 	return len(records)
+}
+
+type allowPolicyEngine struct{}
+
+func (allowPolicyEngine) Evaluate(inv invocation.ToolInvocation) (policy.Decision, error) {
+	return policy.Decision{
+		Allow:     true,
+		RiskLevel: "low",
+		Reason:    "allowed_by_rule",
+	}, nil
 }

@@ -100,7 +100,9 @@ If the client does not support progress or does not send a progress token, execu
     "status": "success",
     "exit_code": 0,
     "stdout": "...",
-    "stderr": ""
+    "stderr": "",
+    "stdout_truncated": false,
+    "stderr_truncated": false
   },
   "resources": [
     {"uri": "evidra://event/evt-123", "name": "Evidence record", "mimeType": "application/json"},
@@ -128,7 +130,9 @@ If the client does not support progress or does not send a progress token, execu
     "status": "denied",
     "exit_code": null,
     "stdout": "",
-    "stderr": ""
+    "stderr": "",
+    "stdout_truncated": false,
+    "stderr_truncated": false
   },
   "resources": [
     {"uri": "evidra://event/evt-124", "name": "Evidence record", "mimeType": "application/json"}
@@ -149,6 +153,7 @@ If the client does not support progress or does not send a progress token, execu
 UIs should surface `policy.risk_level`, `policy.reason`, and `event_id` for traceability and incident review.
 
 `resources` contains MCP `ResourceLink` entries for direct UI navigation.
+`execution.stdout` and `execution.stderr` may be truncated; use `stdout_truncated` and `stderr_truncated` to detect this.
 
 ## get_event Payload
 

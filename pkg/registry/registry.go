@@ -13,10 +13,12 @@ import (
 )
 
 type ExecutionResult struct {
-	Status   string `json:"status"`
-	Stdout   string `json:"stdout,omitempty"`
-	Stderr   string `json:"stderr,omitempty"`
-	ExitCode *int   `json:"exit_code"`
+	Status          string `json:"status"`
+	Stdout          string `json:"stdout,omitempty"`
+	Stderr          string `json:"stderr,omitempty"`
+	StdoutTruncated bool   `json:"stdout_truncated,omitempty"`
+	StderrTruncated bool   `json:"stderr_truncated,omitempty"`
+	ExitCode        *int   `json:"exit_code"`
 }
 
 type Executor func(ctx context.Context, inv ToolInvocationInput) (ExecutionResult, error)

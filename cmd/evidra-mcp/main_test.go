@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"samebits.com/evidra-mcp/pkg/packs"
+	"samebits.com/evidra-mcp/pkg/policysource"
 )
 
 func TestDefaultProfileIsOps(t *testing.T) {
@@ -20,6 +21,7 @@ func TestDefaultProfileIsOps(t *testing.T) {
 }
 
 func TestBuildRegistryForProfiles(t *testing.T) {
+	t.Setenv("EVIDRA_ENABLE_EXPERIMENTAL_PLUGINS", "")
 	opReg, err := buildRegistryForProfile(ProfileOps)
 	if err != nil {
 		t.Fatalf("buildRegistryForProfile(ops) error = %v", err)
@@ -30,8 +32,8 @@ func TestBuildRegistryForProfiles(t *testing.T) {
 	if _, ok := opReg.Lookup("git"); ok {
 		t.Fatalf("ops profile must not register git")
 	}
-	if _, ok := opReg.Lookup("kubectl"); !ok {
-		t.Fatalf("ops profile expected kubectl tool")
+	if _, ok := opReg.Lookup("kubectl"); ok {
+		t.Fatalf("ops profile must not register experimental kubectl plugin by default")
 	}
 
 	devReg, err := buildRegistryForProfile(ProfileDev)
@@ -43,6 +45,17 @@ func TestBuildRegistryForProfiles(t *testing.T) {
 	}
 	if _, ok := devReg.Lookup("git"); !ok {
 		t.Fatalf("dev profile expected git")
+	}
+}
+
+func TestExperimentalPluginRegistrationFlag(t *testing.T) {
+	t.Setenv("EVIDRA_ENABLE_EXPERIMENTAL_PLUGINS", "true")
+	opReg, err := buildRegistryForProfile(ProfileOps)
+	if err != nil {
+		t.Fatalf("buildRegistryForProfile(ops) error = %v", err)
+	}
+	if _, ok := opReg.Lookup("kubectl"); !ok {
+		t.Fatalf("expected kubectl from plugin when flag is enabled")
 	}
 }
 
@@ -62,19 +75,70 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 		t.Fatalf("expected at least one ops pack tool definition")
 	}
 	foundArgoCD := false
+	foundAWS := false
+	foundHelm := false
+	foundKubectl := false
 	foundTerraform := false
 	for _, def := range defs {
 		if def.Name == "argocd" {
 			foundArgoCD = true
 		}
+		if def.Name == "aws" {
+			foundAWS = true
+		}
 		if def.Name == "terraform" {
 			foundTerraform = true
+		}
+		if def.Name == "helm" {
+			foundHelm = true
+		}
+		if def.Name == "kubectl" {
+			foundKubectl = true
 		}
 	}
 	if !foundArgoCD {
 		t.Fatalf("expected argocd tool from ops packs")
 	}
+	if !foundAWS {
+		t.Fatalf("expected aws tool from ops packs")
+	}
 	if !foundTerraform {
 		t.Fatalf("expected terraform tool from ops packs")
+	}
+	if !foundKubectl {
+		t.Fatalf("expected kubectl tool from ops packs")
+	}
+	if !foundHelm {
+		t.Fatalf("expected helm tool from ops packs")
+	}
+}
+
+func TestResolvePolicyPathsDefaults(t *testing.T) {
+	t.Setenv("EVIDRA_POLICY_PATH", "")
+	t.Setenv("EVIDRA_POLICY_DATA_PATH", "")
+	policyPath, dataPath := resolvePolicyPaths(ProfileOps, "", "")
+	if policyPath != defaultOpsPolicyPath {
+		t.Fatalf("expected ops default policy path %q, got %q", defaultOpsPolicyPath, policyPath)
+	}
+	if dataPath != defaultOpsDataPath {
+		t.Fatalf("expected ops default data path %q, got %q", defaultOpsDataPath, dataPath)
+	}
+}
+
+func TestOpsPolicyKitPolicyRefIsComputable(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	root := filepath.Clean(filepath.Join(wd, "..", ".."))
+	policyPath := filepath.Join(root, "policy", "kits", "ops-v0.1", "policy.rego")
+	dataPath := filepath.Join(root, "policy", "kits", "ops-v0.1", "data.example.json")
+	ps := policysource.NewLocalFileSource(policyPath, dataPath)
+	ref, err := ps.PolicyRef()
+	if err != nil {
+		t.Fatalf("PolicyRef() error = %v", err)
+	}
+	if ref == "" {
+		t.Fatalf("expected non-empty policy ref")
 	}
 }

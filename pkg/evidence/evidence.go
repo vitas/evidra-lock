@@ -26,8 +26,12 @@ type PolicyDecision struct {
 }
 
 type ExecutionResult struct {
-	Status   string `json:"status"`
-	ExitCode *int   `json:"exit_code"`
+	Status          string `json:"status"`
+	ExitCode        *int   `json:"exit_code"`
+	Stdout          string `json:"stdout,omitempty"`
+	Stderr          string `json:"stderr,omitempty"`
+	StdoutTruncated bool   `json:"stdout_truncated,omitempty"`
+	StderrTruncated bool   `json:"stderr_truncated,omitempty"`
 }
 
 type EvidenceRecord struct {

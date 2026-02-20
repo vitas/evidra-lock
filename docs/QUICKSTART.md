@@ -14,9 +14,6 @@ go build -o ./bin/evidra-evidence ./cmd/evidra-evidence
 
 ```bash
 EVIDRA_PROFILE=ops \
-EVIDRA_PACKS_DIR=./packs/_core/ops \
-EVIDRA_POLICY_PATH=./policy/policy.rego \
-EVIDRA_POLICY_DATA_PATH=./policy/data.json \
 EVIDRA_EVIDENCE_PATH=./data/evidence \
 ./bin/evidra-mcp
 ```
@@ -24,13 +21,16 @@ EVIDRA_EVIDENCE_PATH=./data/evidence \
 Defaults:
 - profile defaults to `ops` if unset.
 - evidence defaults to `./data/evidence`.
+- ops policy defaults to `./policy/kits/ops-v0.1/policy.rego`.
+- ops data defaults to `./policy/kits/ops-v0.1/data.example.json`.
+- ops packs default to `./packs/_core/ops`.
 
 ## 3) Offline Policy Simulation
 
 ```bash
 ./bin/evidra-policy-sim \
-  --policy ./policy/policy.rego \
-  --data ./policy/data.json \
+  --policy ./policy/kits/ops-v0.1/policy.rego \
+  --data ./policy/kits/ops-v0.1/data.example.json \
   --input ./examples/invocations/allowed_kubectl_get_dev.json
 ```
 

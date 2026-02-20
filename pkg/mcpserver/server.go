@@ -15,6 +15,7 @@ import (
 	"samebits.com/evidra-mcp/pkg/core"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/outputlimit"
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/registry"
 )
@@ -26,6 +27,7 @@ type Options struct {
 	PolicyRef                string
 	EvidencePath             string
 	IncludeFileResourceLinks bool
+	MaxOutputBytes           int
 }
 
 type Mode string
@@ -53,10 +55,12 @@ type PolicySummary struct {
 }
 
 type ExecutionSummary struct {
-	Status   string `json:"status"`
-	ExitCode *int   `json:"exit_code"`
-	Stdout   string `json:"stdout,omitempty"`
-	Stderr   string `json:"stderr,omitempty"`
+	Status          string `json:"status"`
+	ExitCode        *int   `json:"exit_code"`
+	Stdout          string `json:"stdout,omitempty"`
+	Stderr          string `json:"stderr,omitempty"`
+	StdoutTruncated bool   `json:"stdout_truncated,omitempty"`
+	StderrTruncated bool   `json:"stderr_truncated,omitempty"`
 }
 
 type ErrorSummary struct {
@@ -105,10 +109,14 @@ func NewServer(opts Options, reg registry.Registry, policyEngine core.PolicyEngi
 	if opts.EvidencePath == "" {
 		opts.EvidencePath = "./data/evidence"
 	}
+	if opts.MaxOutputBytes <= 0 {
+		opts.MaxOutputBytes = outputlimit.DefaultMaxBytes
+	}
 
 	svc := NewExecuteServiceWithMode(reg, policyEngine, evidenceStore, opts.Mode, opts.PolicyRef)
 	svc.evidencePath = opts.EvidencePath
 	svc.includeFileResourceLinks = opts.IncludeFileResourceLinks
+	svc.maxOutputBytes = opts.MaxOutputBytes
 	executeTool := &executeHandler{service: svc}
 	getEventTool := &getEventHandler{service: svc}
 
@@ -222,6 +230,7 @@ type ExecuteService struct {
 	mode                     Mode
 	policyRef                string
 	evidencePath             string
+	maxOutputBytes           int
 	includeFileResourceLinks bool
 }
 
@@ -234,12 +243,13 @@ func NewExecuteServiceWithMode(reg registry.Registry, policyEngine core.PolicyEn
 		mode = ModeEnforce
 	}
 	return &ExecuteService{
-		registry:     reg,
-		policy:       policyEngine,
-		evidence:     evidenceStore,
-		mode:         mode,
-		policyRef:    policyRef,
-		evidencePath: "./data/evidence",
+		registry:       reg,
+		policy:         policyEngine,
+		evidence:       evidenceStore,
+		mode:           mode,
+		policyRef:      policyRef,
+		evidencePath:   "./data/evidence",
+		maxOutputBytes: outputlimit.DefaultMaxBytes,
 	}
 }
 
@@ -406,6 +416,8 @@ func (s *ExecuteService) writeFinal(
 	errOut *ErrorSummary,
 	advisory bool,
 ) ExecuteOutput {
+	result = s.applyOutputLimit(result)
+
 	record := evidence.EvidenceRecord{
 		EventID:   fmt.Sprintf("evt-%d", time.Now().UnixNano()),
 		Timestamp: time.Now().UTC(),
@@ -421,8 +433,12 @@ func (s *ExecuteService) writeFinal(
 			Advisory:  advisory,
 		},
 		ExecutionResult: evidence.ExecutionResult{
-			Status:   result.Status,
-			ExitCode: result.ExitCode,
+			Status:          result.Status,
+			ExitCode:        result.ExitCode,
+			Stdout:          result.Stdout,
+			Stderr:          result.Stderr,
+			StdoutTruncated: result.StdoutTruncated,
+			StderrTruncated: result.StderrTruncated,
 		},
 	}
 
@@ -438,10 +454,12 @@ func (s *ExecuteService) writeFinal(
 				PolicyRef: s.policyRef,
 			},
 			Execution: ExecutionSummary{
-				Status:   "failed",
-				ExitCode: nil,
-				Stdout:   result.Stdout,
-				Stderr:   appendErr.Error(),
+				Status:          "failed",
+				ExitCode:        nil,
+				Stdout:          result.Stdout,
+				Stderr:          appendErr.Error(),
+				StdoutTruncated: result.StdoutTruncated,
+				StderrTruncated: result.StderrTruncated,
 			},
 			Error: &ErrorSummary{
 				Code:    "internal_error",
@@ -462,16 +480,28 @@ func (s *ExecuteService) writeFinal(
 			PolicyRef: s.policyRef,
 		},
 		Execution: ExecutionSummary{
-			Status:   result.Status,
-			ExitCode: result.ExitCode,
-			Stdout:   result.Stdout,
-			Stderr:   result.Stderr,
+			Status:          result.Status,
+			ExitCode:        result.ExitCode,
+			Stdout:          result.Stdout,
+			Stderr:          result.Stderr,
+			StdoutTruncated: result.StdoutTruncated,
+			StderrTruncated: result.StderrTruncated,
 		},
 		Resources: s.resourceLinks(record.EventID),
 		Error:     errOut,
 		Hints:     hintsForExecution(result.Status, decision.RiskLevel),
 	}
 	return out
+}
+
+func (s *ExecuteService) applyOutputLimit(in registry.ExecutionResult) registry.ExecutionResult {
+	stdout, stdoutTruncated := outputlimit.Truncate(in.Stdout, s.maxOutputBytes)
+	stderr, stderrTruncated := outputlimit.Truncate(in.Stderr, s.maxOutputBytes)
+	in.Stdout = stdout
+	in.Stderr = stderr
+	in.StdoutTruncated = in.StdoutTruncated || stdoutTruncated
+	in.StderrTruncated = in.StderrTruncated || stderrTruncated
+	return in
 }
 
 func decisionForDeny(reason string) policy.Decision {

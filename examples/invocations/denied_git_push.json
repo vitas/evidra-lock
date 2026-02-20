@@ -1,11 +1,7 @@
 {
-  "actor": {
-    "type": "human",
-    "id": "dev-user",
-    "origin": "cli"
-  },
-  "tool": "git",
-  "operation": "push",
-  "params": {},
-  "context": {}
+  "actor": {"type": "human", "id": "local-dev", "origin": "cli"},
+  "tool": "kubectl",
+  "operation": "delete",
+  "params": {"resource": "deployment", "name": "payments-api", "namespace": "default"},
+  "context": {"environment": "prod", "cluster": "remote"}
 }

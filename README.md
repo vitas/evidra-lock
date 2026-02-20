@@ -28,9 +28,9 @@ Full guide: `docs/QUICKSTART.md`
 
 ```bash
 go build ./...
-EVIDRA_PROFILE=ops EVIDRA_PACKS_DIR=./packs/_core/ops go run ./cmd/evidra-mcp
+EVIDRA_PROFILE=ops go run ./cmd/evidra-mcp
 
-go run ./cmd/evidra-policy-sim --policy ./policy/policy.rego --input ./examples/invocations/allowed_kubectl_get_dev.json --data ./policy/data.json
+go run ./cmd/evidra-policy-sim --policy ./policy/kits/ops-v0.1/policy.rego --input ./examples/invocations/allowed_kubectl_get_dev.json --data ./policy/kits/ops-v0.1/data.example.json
 go run ./cmd/evidra-evidence verify --evidence ./data/evidence
 ```
 
@@ -41,7 +41,8 @@ The ops profile uses intentionally minimal declarative tool surfaces:
 - `packs/_core/ops/argocd-basic`
 - `packs/_core/ops/terraform-basic`
 - `packs/_core/ops/helm-basic`
-- `packs/_core/ops/kubectl-basic` (if present in your checkout)
+- `packs/_core/ops/kubectl-basic`
+- `packs/_core/ops/aws-s3-basic`
 
 ## Evidence Utilities
 
@@ -70,7 +71,8 @@ Evidra enforces guardrails for MCP tool invocations. To prevent bypass, configur
 ## Extension Model
 
 - Primary in v0.1: Level 1 declarative Tool Packs (`EVIDRA_PACKS_DIR`).
-- Experimental/future: Level 2 compile-time plugins.
+- Experimental/future: Level 2 compile-time plugins (disabled by default).
+- Optional enablement: `EVIDRA_ENABLE_EXPERIMENTAL_PLUGINS=true`.
 
 ## Documentation
 
