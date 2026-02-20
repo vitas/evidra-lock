@@ -14,15 +14,6 @@ decision := {
   "reason": "allowed_read_operation",
 } if {
   input.tool == "argocd"
-  input.operation == "version"
-}
-
-decision := {
-  "allow": true,
-  "risk_level": "low",
-  "reason": "allowed_read_operation",
-} if {
-  input.tool == "argocd"
   input.operation == "app-list"
 }
 

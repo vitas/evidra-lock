@@ -31,10 +31,6 @@ decision := {"allow": false, "risk_level": "critical", "reason": "policy_denied_
 # helm
 decision := {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"} if {
   input.tool == "helm"
-  input.operation == "version"
-}
-decision := {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"} if {
-  input.tool == "helm"
   input.operation == "list"
 }
 decision := {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"} if {
@@ -55,10 +51,6 @@ decision := {"allow": true, "risk_level": "critical", "reason": "allowed_write_p
 # terraform
 decision := {"allow": true, "risk_level": "medium", "reason": "allowed_read_or_prepare"} if {
   input.tool == "terraform"
-  input.operation == "version"
-}
-decision := {"allow": true, "risk_level": "medium", "reason": "allowed_read_or_prepare"} if {
-  input.tool == "terraform"
   input.operation == "init"
 }
 decision := {"allow": true, "risk_level": "medium", "reason": "allowed_read_or_prepare"} if {
@@ -77,10 +69,6 @@ decision := {"allow": true, "risk_level": "critical", "reason": "allowed_apply_p
 }
 
 # argocd
-decision := {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"} if {
-  input.tool == "argocd"
-  input.operation == "version"
-}
 decision := {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"} if {
   input.tool == "argocd"
   input.operation == "app-list"
@@ -109,4 +97,3 @@ decision := {"allow": true, "risk_level": "critical", "reason": "allowed_write_p
   input.operation == "app-rollback"
   object.get(input.context, "environment", "") == "prod"
 }
-

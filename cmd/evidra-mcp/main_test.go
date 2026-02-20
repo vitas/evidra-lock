@@ -95,6 +95,34 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 		if def.Name == "kubectl" {
 			foundKubectl = true
 		}
+		if def.Name == "argocd" {
+			for _, op := range def.SupportedOperations {
+				if op == "version" {
+					t.Fatalf("argocd ops pack must not include version operation")
+				}
+			}
+		}
+		if def.Name == "helm" {
+			for _, op := range def.SupportedOperations {
+				if op == "version" {
+					t.Fatalf("helm ops pack must not include version operation")
+				}
+			}
+		}
+		if def.Name == "terraform" {
+			for _, op := range def.SupportedOperations {
+				if op == "version" {
+					t.Fatalf("terraform ops pack must not include version operation")
+				}
+			}
+		}
+		if def.Name == "aws" {
+			for _, op := range def.SupportedOperations {
+				if op == "sts-whoami" {
+					t.Fatalf("aws ops pack must not include sts-whoami operation")
+				}
+			}
+		}
 	}
 	if !foundArgoCD {
 		t.Fatalf("expected argocd tool from ops packs")

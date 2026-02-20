@@ -5,9 +5,6 @@ tools:
     kind: "cli"
     binary: "helm"
     operations:
-      - name: "version"
-        args: ["version"]
-        params: {}
       - name: "list"
         args: ["list", "--all-namespaces"]
         params: {}
@@ -22,4 +19,3 @@ tools:
           release: {type: "string", required: true}
           chart: {type: "string", required: true}
           namespace: {type: "string", required: true}
-

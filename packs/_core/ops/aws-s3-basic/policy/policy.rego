@@ -8,11 +8,6 @@ default decision := {
   "reason": "policy_denied_default",
 }
 
-decision := {"allow": true, "risk_level": "low", "reason": "allowed_identity_check"} if {
-  input.tool == "aws"
-  input.operation == "sts-whoami"
-}
-
 decision := {"allow": true, "risk_level": "low", "reason": "allowed_read_operation"} if {
   input.tool == "aws"
   input.operation == "s3-ls"
@@ -100,4 +95,3 @@ starts_with_allow_prefix(uri, prefixes) if {
   some p in prefixes
   startswith(uri, p)
 }
-

@@ -64,6 +64,11 @@ func TestAWSS3BasicPolicy(t *testing.T) {
 			inv:   awsInv("s3-ls", map[string]any{"uri": "https://bucket/key"}, "dev"),
 			allow: false, risk: "critical", reason: "policy_denied_default",
 		},
+		{
+			name:  "sts whoami not allowed in ops pack policy",
+			inv:   awsInv("sts-whoami", map[string]any{}, "dev"),
+			allow: false, risk: "critical", reason: "policy_denied_default",
+		},
 	}
 
 	for _, tc := range cases {

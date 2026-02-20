@@ -3,7 +3,6 @@
 Minimal declarative AWS CLI surface for S3 guardrailed operations in ops profile.
 
 Supported operations:
-- `sts-whoami`
 - `s3-ls`
 - `s3-rm-object`
 - `s3-rm-recursive`
@@ -59,4 +58,3 @@ Example ToolInvocation (denied `s3-rm-recursive` in prod):
   "context":{"environment":"prod"}
 }
 ```
-

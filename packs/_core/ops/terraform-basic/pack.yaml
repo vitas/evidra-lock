@@ -5,9 +5,6 @@ tools:
     kind: "cli"
     binary: "terraform"
     operations:
-      - name: "version"
-        args: ["version"]
-        params: {}
       - name: "init"
         args: ["-chdir={{dir}}", "init"]
         params:

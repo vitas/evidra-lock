@@ -14,15 +14,6 @@ decision := {
   "reason": "allowed_read_or_prepare",
 } if {
   input.tool == "terraform"
-  input.operation == "version"
-}
-
-decision := {
-  "allow": true,
-  "risk_level": "medium",
-  "reason": "allowed_read_or_prepare",
-} if {
-  input.tool == "terraform"
   input.operation == "init"
 }
 

@@ -71,6 +71,8 @@ Evidra enforces guardrails for MCP tool invocations. To prevent bypass, configur
 ## Extension Model
 
 - Primary in v0.1: Level 1 declarative Tool Packs (`EVIDRA_PACKS_DIR`).
+- Ops default packs intentionally exclude version/identity checks to keep runtime focused.
+- Optional debug checks are available in `packs/_contrib/debug-basic` (not loaded by default).
 - Experimental/future: Level 2 compile-time plugins (disabled by default).
 - Optional enablement: `EVIDRA_ENABLE_EXPERIMENTAL_PLUGINS=true`.
 

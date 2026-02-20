@@ -1,0 +1,32 @@
+pack: "debug-basic"
+version: "0.1"
+tools:
+  - name: "terraform-debug"
+    kind: "cli"
+    binary: "terraform"
+    operations:
+      - name: "version"
+        args: ["version"]
+        params: {}
+  - name: "helm-debug"
+    kind: "cli"
+    binary: "helm"
+    operations:
+      - name: "version"
+        args: ["version"]
+        params: {}
+  - name: "argocd-debug"
+    kind: "cli"
+    binary: "argocd"
+    operations:
+      - name: "version"
+        args: ["version"]
+        params: {}
+  - name: "aws-debug"
+    kind: "cli"
+    binary: "aws"
+    operations:
+      - name: "sts-whoami"
+        args: ["sts", "get-caller-identity"]
+        params: {}
+

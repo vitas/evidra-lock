@@ -3,7 +3,6 @@
 Minimal Argo CD operations pack for controlled runtime use.
 
 Included operations:
-- `argocd/version`
 - `argocd/app-list`
 - `argocd/app-get`
 - `argocd/app-sync`

@@ -5,9 +5,6 @@ tools:
     kind: "cli"
     binary: "aws"
     operations:
-      - name: "sts-whoami"
-        args: ["sts", "get-caller-identity"]
-        params: {}
       - name: "s3-ls"
         args: ["s3", "ls", "{{uri}}"]
         params:
@@ -20,4 +17,3 @@ tools:
         args: ["s3", "rm", "{{uri}}", "--recursive"]
         params:
           uri: {type: "string", required: true}
-

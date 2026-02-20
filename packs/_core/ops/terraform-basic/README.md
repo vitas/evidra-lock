@@ -3,7 +3,6 @@
 Minimal Terraform operations pack for controlled runtime use.
 
 Supported operations:
-- `terraform/version`
 - `terraform/init`
 - `terraform/plan`
 - `terraform/apply`

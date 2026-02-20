@@ -5,9 +5,6 @@ tools:
     kind: "cli"
     binary: "argocd"
     operations:
-      - name: "version"
-        args: ["version"]
-        params: {}
       - name: "app-list"
         args: ["app", "list"]
         params: {}
