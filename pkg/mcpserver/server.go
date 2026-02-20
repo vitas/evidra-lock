@@ -8,20 +8,26 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"samebits.com/evidra-mcp/pkg/core"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/registry"
 )
 
-type EvidenceStore interface {
-	Append(record evidence.EvidenceRecord) (evidence.EvidenceRecord, error)
+type Options struct {
+	Name      string
+	Version   string
+	Mode      Mode
+	PolicyRef string
 }
 
-type Options struct {
-	Name    string
-	Version string
-}
+type Mode string
+
+const (
+	ModeEnforce Mode = "enforce"
+	ModeObserve Mode = "observe"
+)
 
 type ExecuteOutput struct {
 	Status   string `json:"status"`
@@ -35,15 +41,18 @@ type executeHandler struct {
 	service *ExecuteService
 }
 
-func NewServer(opts Options, reg registry.Registry, policyEngine *policy.Engine, evidenceStore EvidenceStore) *mcp.Server {
+func NewServer(opts Options, reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore) *mcp.Server {
 	if opts.Name == "" {
 		opts.Name = "evidra-mcp"
 	}
 	if opts.Version == "" {
 		opts.Version = "v0.1.0"
 	}
+	if opts.Mode == "" {
+		opts.Mode = ModeEnforce
+	}
 
-	svc := NewExecuteService(reg, policyEngine, evidenceStore)
+	svc := NewExecuteServiceWithMode(reg, policyEngine, evidenceStore, opts.Mode, opts.PolicyRef)
 	handler := &executeHandler{service: svc}
 
 	server := mcp.NewServer(
@@ -70,16 +79,27 @@ func (h *executeHandler) Handle(
 }
 
 type ExecuteService struct {
-	registry registry.Registry
-	policy   *policy.Engine
-	evidence EvidenceStore
+	registry  registry.Registry
+	policy    core.PolicyEngine
+	evidence  core.EvidenceStore
+	mode      Mode
+	policyRef string
 }
 
-func NewExecuteService(reg registry.Registry, policyEngine *policy.Engine, evidenceStore EvidenceStore) *ExecuteService {
+func NewExecuteService(reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore) *ExecuteService {
+	return NewExecuteServiceWithMode(reg, policyEngine, evidenceStore, ModeEnforce, "")
+}
+
+func NewExecuteServiceWithMode(reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore, mode Mode, policyRef string) *ExecuteService {
+	if mode == "" {
+		mode = ModeEnforce
+	}
 	return &ExecuteService{
-		registry: reg,
-		policy:   policyEngine,
-		evidence: evidenceStore,
+		registry:  reg,
+		policy:    policyEngine,
+		evidence:  evidenceStore,
+		mode:      mode,
+		policyRef: policyRef,
 	}
 }
 
@@ -101,12 +121,13 @@ func (s *ExecuteService) Execute(ctx context.Context, inv invocation.ToolInvocat
 
 	decision, evalErr := s.policy.Evaluate(inv)
 	if evalErr != nil {
-		decision = policy.Decision{Allow: false, RiskLevel: "critical", Reason: "policy_evaluation_failed"}
+		decision = decisionForPolicyError()
 	}
-	if !decision.Allow {
-		return s.writeFinal(inv, decision, registry.ExecutionResult{Status: "denied", ExitCode: nil}, errors.New(decision.Reason))
+	if s.mode == ModeEnforce && !decision.Allow {
+		return s.writeFinal(inv, decision, registry.ExecutionResult{Status: "denied", ExitCode: nil}, errors.New(decision.Reason), false)
 	}
 
+	advisory := s.mode == ModeObserve
 	execResult, execErr := def.Executor(ctx, registry.ToolInvocationInput{
 		Operation: inv.Operation,
 		Params:    inv.Params,
@@ -116,18 +137,19 @@ func (s *ExecuteService) Execute(ctx context.Context, inv invocation.ToolInvocat
 		if execResult.Stderr == "" {
 			execResult.Stderr = execErr.Error()
 		}
-		return s.writeFinal(inv, decision, execResult, execErr)
+		return s.writeFinal(inv, decision, execResult, execErr, advisory)
 	}
 
-	return s.writeFinal(inv, decision, execResult, nil)
+	return s.writeFinal(inv, decision, execResult, nil, advisory)
 }
 
 func (s *ExecuteService) denyWithEvidence(inv invocation.ToolInvocation, reason string, err error) (ExecuteOutput, error) {
 	return s.writeFinal(
 		inv,
-		policy.Decision{Allow: false, RiskLevel: "critical", Reason: reason},
+		decisionForDeny(reason),
 		registry.ExecutionResult{Status: "denied", ExitCode: nil},
 		err,
+		false,
 	)
 }
 
@@ -136,10 +158,12 @@ func (s *ExecuteService) writeFinal(
 	decision policy.Decision,
 	result registry.ExecutionResult,
 	callErr error,
+	advisory bool,
 ) (ExecuteOutput, error) {
 	record := evidence.EvidenceRecord{
 		EventID:   fmt.Sprintf("evt-%d", time.Now().UnixNano()),
 		Timestamp: time.Now().UTC(),
+		PolicyRef: s.policyRef,
 		Actor:     inv.Actor,
 		Tool:      inv.Tool,
 		Operation: inv.Operation,
@@ -148,6 +172,7 @@ func (s *ExecuteService) writeFinal(
 			Allow:     decision.Allow,
 			RiskLevel: decision.RiskLevel,
 			Reason:    decision.Reason,
+			Advisory:  advisory,
 		},
 		ExecutionResult: evidence.ExecutionResult{
 			Status:   result.Status,
@@ -155,7 +180,7 @@ func (s *ExecuteService) writeFinal(
 		},
 	}
 
-	appended, appendErr := s.evidence.Append(record)
+	appendErr := s.evidence.Append(record)
 	if appendErr != nil {
 		return ExecuteOutput{
 			Status:   "failed",
@@ -171,7 +196,15 @@ func (s *ExecuteService) writeFinal(
 		Stdout:   result.Stdout,
 		Stderr:   result.Stderr,
 		ExitCode: result.ExitCode,
-		EventID:  appended.EventID,
+		EventID:  record.EventID,
 	}
 	return out, callErr
+}
+
+func decisionForDeny(reason string) policy.Decision {
+	return policy.Decision{Allow: false, RiskLevel: "critical", Reason: reason}
+}
+
+func decisionForPolicyError() policy.Decision {
+	return decisionForDeny("policy_evaluation_failed")
 }

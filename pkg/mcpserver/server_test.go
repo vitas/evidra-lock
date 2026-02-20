@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -178,9 +179,71 @@ func TestMCPInvocationFlowAndEvidenceChain(t *testing.T) {
 	}
 }
 
+func TestEnforceModePolicyDenyBlocksExecution(t *testing.T) {
+	policyPath := writePolicyFile(t, `package evidra.policy
+import rego.v1
+decision := {"allow": false, "risk_level": "critical", "reason": "policy_denied_default"}
+`)
+
+	svc := newServiceWithModeAndPolicyPath(t, ModeEnforce, policyPath)
+	out, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
+	if err == nil {
+		t.Fatalf("expected policy deny error in enforce mode")
+	}
+	if out.Status != "denied" {
+		t.Fatalf("expected denied status, got %q", out.Status)
+	}
+
+	rec := readLastEvidenceRecord(t)
+	if rec.PolicyDecision.Advisory {
+		t.Fatalf("expected advisory=false in enforce mode")
+	}
+}
+
+func TestObserveModePolicyDenyExecutesAndMarksAdvisory(t *testing.T) {
+	policyPath := writePolicyFile(t, `package evidra.policy
+import rego.v1
+decision := {"allow": false, "risk_level": "critical", "reason": "policy_denied_default"}
+`)
+
+	svc := newServiceWithModeAndPolicyPath(t, ModeObserve, policyPath)
+	out, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
+	if err != nil {
+		t.Fatalf("expected execution to proceed in observe mode, got error: %v", err)
+	}
+	if out.Status != "success" {
+		t.Fatalf("expected success status, got %q", out.Status)
+	}
+
+	rec := readLastEvidenceRecord(t)
+	if !rec.PolicyDecision.Advisory {
+		t.Fatalf("expected advisory=true in observe mode")
+	}
+	if rec.PolicyDecision.Allow {
+		t.Fatalf("expected recorded policy decision allow=false")
+	}
+}
+
 func newService(t *testing.T) *ExecuteService {
+	return newServiceWithMode(t, ModeEnforce)
+}
+
+func newServiceWithMode(t *testing.T, mode Mode) *ExecuteService {
 	t.Helper()
 
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	policyPath, err := policyPathFromWorkingDir(wd)
+	if err != nil {
+		t.Fatalf("policyPathFromWorkingDir() error = %v", err)
+	}
+	return newServiceWithModeAndPolicyPath(t, mode, policyPath)
+}
+
+func newServiceWithModeAndPolicyPath(t *testing.T, mode Mode, policyPath string) *ExecuteService {
+	t.Helper()
 	temp := t.TempDir()
 	oldWd, err := os.Getwd()
 	if err != nil {
@@ -189,11 +252,6 @@ func newService(t *testing.T) *ExecuteService {
 	t.Cleanup(func() { _ = os.Chdir(oldWd) })
 	if err := os.Chdir(temp); err != nil {
 		t.Fatalf("Chdir(temp) error = %v", err)
-	}
-
-	policyPath, err := policyPathFromWorkingDir(oldWd)
-	if err != nil {
-		t.Fatalf("filepath.Abs() error = %v", err)
 	}
 
 	policyEngine, err := policy.LoadFromFile(policyPath)
@@ -205,7 +263,7 @@ func newService(t *testing.T) *ExecuteService {
 		t.Fatalf("store.Init() error = %v", err)
 	}
 
-	return NewExecuteService(registry.NewDefaultRegistry(), policyEngine, store)
+	return NewExecuteServiceWithMode(registry.NewDefaultRegistry(), policyEngine, store, mode, "")
 }
 
 func policyPathFromWorkingDir(wd string) (string, error) {
@@ -237,4 +295,30 @@ func countEvidenceLines(t *testing.T) int {
 		return 0
 	}
 	return len(strings.Split(trimmed, "\n"))
+}
+
+func readLastEvidenceRecord(t *testing.T) evidence.EvidenceRecord {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("data", "evidence.log"))
+	if err != nil {
+		t.Fatalf("ReadFile(evidence.log) error = %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(lines) == 0 {
+		t.Fatalf("no evidence lines found")
+	}
+	var rec evidence.EvidenceRecord
+	if err := json.Unmarshal([]byte(lines[len(lines)-1]), &rec); err != nil {
+		t.Fatalf("Unmarshal(last evidence) error = %v", err)
+	}
+	return rec
+}
+
+func writePolicyFile(t *testing.T, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "policy.rego")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile(policy.rego) error = %v", err)
+	}
+	return path
 }

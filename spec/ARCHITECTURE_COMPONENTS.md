@@ -1,0 +1,20 @@
+# Architecture Components v0.1
+
+Evidra v0.1 has three core components:
+- Registry: static tool surface and operation validation.
+- Policy (OPA): deterministic allow/deny evaluation for ToolInvocation input.
+- Evidence: append-only, hash-chained audit log for every attempt.
+
+## Core Interfaces
+- `core.PolicySource`: loads policy bytes and exposes deterministic `PolicyRef()`.
+- `core.EvidenceStore`: appends records, validates chain, and exposes `LastHash()`.
+
+## Local Deployment
+- Policy source: local Rego file.
+- Policy engine: local embedded OPA using loaded policy/data bytes.
+- Evidence store: local JSONL append-only log.
+
+## Server-Driven Future (High Level)
+- PolicySource can be replaced by a remote policy source.
+- EvidenceStore can be replaced by a remote evidence backend.
+- Registry/Policy/Evidence flow remains the same; only source/store implementations change.

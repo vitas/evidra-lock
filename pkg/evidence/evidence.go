@@ -20,6 +20,7 @@ type PolicyDecision struct {
 	Allow     bool   `json:"allow"`
 	RiskLevel string `json:"risk_level"`
 	Reason    string `json:"reason"`
+	Advisory  bool   `json:"advisory"`
 }
 
 type ExecutionResult struct {
@@ -30,6 +31,7 @@ type ExecutionResult struct {
 type EvidenceRecord struct {
 	EventID         string                 `json:"event_id"`
 	Timestamp       time.Time              `json:"timestamp"`
+	PolicyRef       string                 `json:"policy_ref"`
 	Actor           invocation.Actor       `json:"actor"`
 	Tool            string                 `json:"tool"`
 	Operation       string                 `json:"operation"`
@@ -43,6 +45,7 @@ type EvidenceRecord struct {
 type canonicalEvidenceRecord struct {
 	EventID         string                 `json:"event_id"`
 	Timestamp       time.Time              `json:"timestamp"`
+	PolicyRef       string                 `json:"policy_ref"`
 	Actor           invocation.Actor       `json:"actor"`
 	Tool            string                 `json:"tool"`
 	Operation       string                 `json:"operation"`
@@ -52,7 +55,9 @@ type canonicalEvidenceRecord struct {
 	PreviousHash    string                 `json:"previous_hash"`
 }
 
-const logPath = "./data/evidence.log"
+const defaultLogPath = "./data/evidence.log"
+
+type Record = EvidenceRecord
 
 var appendMu sync.Mutex
 
@@ -60,6 +65,7 @@ func ComputeHash(record EvidenceRecord) (string, error) {
 	payload := canonicalEvidenceRecord{
 		EventID:         record.EventID,
 		Timestamp:       record.Timestamp.UTC(),
+		PolicyRef:       record.PolicyRef,
 		Actor:           record.Actor,
 		Tool:            record.Tool,
 		Operation:       record.Operation,
@@ -79,6 +85,14 @@ func ComputeHash(record EvidenceRecord) (string, error) {
 }
 
 func Append(record EvidenceRecord) (EvidenceRecord, error) {
+	return appendAtPath(defaultLogPath, record)
+}
+
+func ValidateChain() error {
+	return validateChainAtPath(defaultLogPath)
+}
+
+func appendAtPath(path string, record EvidenceRecord) (EvidenceRecord, error) {
 	appendMu.Lock()
 	defer appendMu.Unlock()
 
@@ -88,7 +102,7 @@ func Append(record EvidenceRecord) (EvidenceRecord, error) {
 		record.Timestamp = record.Timestamp.UTC()
 	}
 
-	last, ok, err := readLastRecord(logPath)
+	last, ok, err := readLastRecord(path)
 	if err != nil {
 		return EvidenceRecord{}, err
 	}
@@ -104,11 +118,11 @@ func Append(record EvidenceRecord) (EvidenceRecord, error) {
 	}
 	record.Hash = hash
 
-	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return EvidenceRecord{}, fmt.Errorf("create log directory: %w", err)
 	}
 
-	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return EvidenceRecord{}, fmt.Errorf("open evidence log: %w", err)
 	}
@@ -126,11 +140,11 @@ func Append(record EvidenceRecord) (EvidenceRecord, error) {
 	return record, nil
 }
 
-func ValidateChain() error {
+func validateChainAtPath(path string) error {
 	appendMu.Lock()
 	defer appendMu.Unlock()
 
-	records, err := readAllRecords(logPath)
+	records, err := readAllRecords(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil

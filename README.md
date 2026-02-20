@@ -32,6 +32,19 @@ Expected output:
 }
 ```
 
+## Execution Modes
+
+- `enforce` (default): policy deny blocks execution.
+- `observe`: policy is evaluated but does not block execution; decisions are advisory.
+
+Example:
+
+```bash
+EVIDRA_MODE=observe ./evidra-mcp
+```
+
+Observe mode does **not** bypass registry validation. Unknown tools and unsupported operations are still denied.
+
 `git/status`:
 
 ```json

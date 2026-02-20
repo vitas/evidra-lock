@@ -1,24 +1,46 @@
 package evidence
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 )
 
-type Store struct{}
-
 func NewStore() *Store {
-	return &Store{}
+	return NewStoreWithPath(defaultLogPath)
+}
+
+type Store struct {
+	path string
+}
+
+func NewStoreWithPath(path string) *Store {
+	return &Store{path: path}
 }
 
 func (s *Store) Init() error {
-	return os.MkdirAll(filepath.Dir(logPath), 0o755)
+	return os.MkdirAll(filepath.Dir(s.path), 0o755)
 }
 
-func (s *Store) Append(record EvidenceRecord) (EvidenceRecord, error) {
-	return Append(record)
+func (s *Store) Append(record Record) error {
+	_, err := appendAtPath(s.path, record)
+	return err
 }
 
 func (s *Store) ValidateChain() error {
-	return ValidateChain()
+	return validateChainAtPath(s.path)
+}
+
+func (s *Store) LastHash() (string, error) {
+	last, ok, err := readLastRecord(s.path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", err
+	}
+	if !ok {
+		return "", nil
+	}
+	return last.Hash, nil
 }

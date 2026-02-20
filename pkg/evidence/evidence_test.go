@@ -137,6 +137,39 @@ func TestValidateChainDetectsTamper(t *testing.T) {
 	}
 }
 
+func TestEvidenceRecordContainsPolicyRef(t *testing.T) {
+	temp := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("Chdir(temp) error = %v", err)
+	}
+
+	rec := testRecord("evt-policy-ref", "echo", "run")
+	rec.PolicyRef = "abc123policyref"
+	if _, err := Append(rec); err != nil {
+		t.Fatalf("Append(rec) error = %v", err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join("data", "evidence.log"))
+	if err != nil {
+		t.Fatalf("ReadFile(evidence.log) error = %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	var persisted EvidenceRecord
+	if err := json.Unmarshal([]byte(lines[len(lines)-1]), &persisted); err != nil {
+		t.Fatalf("Unmarshal(last record) error = %v", err)
+	}
+	if persisted.PolicyRef != rec.PolicyRef {
+		t.Fatalf("expected policy_ref %q, got %q", rec.PolicyRef, persisted.PolicyRef)
+	}
+}
+
 func testRecord(eventID, tool, operation string) EvidenceRecord {
 	return EvidenceRecord{
 		EventID:   eventID,

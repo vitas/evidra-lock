@@ -2,10 +2,13 @@ package policy
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/storage/inmem"
 
 	"samebits.com/evidra-mcp/pkg/invocation"
 )
@@ -25,20 +28,39 @@ func LoadFromFile(path string) (*Engine, error) {
 }
 
 func LoadFromFiles(policyPath string, dataPaths []string) (*Engine, error) {
-	paths := make([]string, 0, 1+len(dataPaths))
-	paths = append(paths, policyPath)
-	paths = append(paths, dataPaths...)
+	policyBytes, err := os.ReadFile(policyPath)
+	if err != nil {
+		return nil, fmt.Errorf("read policy file: %w", err)
+	}
 
-	r := rego.New(
+	var dataBytes []byte
+	if len(dataPaths) > 0 && dataPaths[0] != "" {
+		dataBytes, err = os.ReadFile(dataPaths[0])
+		if err != nil {
+			return nil, fmt.Errorf("read policy data file: %w", err)
+		}
+	}
+	return NewOPAEngine(policyBytes, dataBytes)
+}
+
+func NewOPAEngine(policyBytes []byte, dataBytes []byte) (*Engine, error) {
+	regoOpts := []func(*rego.Rego){
 		rego.Query("data.evidra.policy.decision"),
-		rego.Load(paths, nil),
-	)
+		rego.Module("policy.rego", string(policyBytes)),
+	}
+	if len(dataBytes) > 0 {
+		var dataObj map[string]interface{}
+		if err := json.Unmarshal(dataBytes, &dataObj); err != nil {
+			return nil, fmt.Errorf("parse policy data JSON: %w", err)
+		}
+		regoOpts = append(regoOpts, rego.Store(inmem.NewFromObject(dataObj)))
+	}
 
+	r := rego.New(regoOpts...)
 	query, err := r.PrepareForEval(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("prepare policy query: %w", err)
 	}
-
 	return &Engine{query: query}, nil
 }
 

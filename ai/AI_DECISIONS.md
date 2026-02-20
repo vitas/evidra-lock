@@ -68,3 +68,17 @@ Record all architectural and refactoring decisions influenced by AI, including r
 - Rationale: Aligns runtime strictly with v0.1 spec contracts and controlled tool surface.
 - Decision: Update `echo/run` executor to call system `echo` and `git/status` executor to use `git -C <path> status --porcelain`.
 - Rationale: Matches required tool executor behavior while remaining deterministic and scoped.
+
+## 2026-02-20 - Enforce/Observe Execution Modes
+- Decision: Add runtime mode switch (`enforce` default, `observe`) via `EVIDRA_MODE` env and keep flow ordering unchanged.
+- Rationale: Supports advisory policy evaluation for regulated workflows without bypassing registry validation.
+- Decision: In observe mode, policy is always evaluated but does not block execution; policy decision is recorded with `advisory=true`.
+- Rationale: Preserves deterministic governance metadata while maintaining strict tool-surface control.
+- Decision: Add env-based runtime path config (`EVIDRA_POLICY_PATH`, optional `EVIDRA_POLICY_DATA_PATH`, `EVIDRA_EVIDENCE_PATH`).
+- Rationale: Enables controlled local/runtime configuration without adding config-file complexity.
+
+## 2026-02-20 - Core Interface Boundaries for Policy/Evidence
+- Decision: Add transport-agnostic core interfaces (`core.PolicySource`, `core.PolicyEngine`, `core.EvidenceStore`) and wire runtime through these boundaries.
+- Rationale: Preserves existing behavior while enabling future server-driven policy/evidence implementations without rewriting execution flow.
+- Decision: Add local file-backed policy source with deterministic `PolicyRef()` hash and include `policy_ref` in every evidence record.
+- Rationale: Improves forensic traceability and keeps local deployment deterministic.
