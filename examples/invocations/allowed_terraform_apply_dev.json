@@ -1,0 +1,7 @@
+{
+  "actor": {"type": "human", "id": "ops-user", "origin": "cli"},
+  "tool": "terraform",
+  "operation": "apply",
+  "params": {"dir": "./infra"},
+  "context": {"environment": "dev", "cluster": "local"}
+}

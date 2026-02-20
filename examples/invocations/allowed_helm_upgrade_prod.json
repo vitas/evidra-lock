@@ -1,0 +1,11 @@
+{
+  "actor": {"type": "human", "id": "ops-user", "origin": "cli"},
+  "tool": "helm",
+  "operation": "upgrade",
+  "params": {
+    "release": "payments-api",
+    "chart": "./charts/payments-api",
+    "namespace": "payments"
+  },
+  "context": {"environment": "prod", "cluster": "remote"}
+}

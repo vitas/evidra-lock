@@ -1,0 +1,7 @@
+{
+  "actor": {"type": "human", "id": "ops-user", "origin": "cli"},
+  "tool": "argocd",
+  "operation": "app-sync",
+  "params": {"app": "payments-api"},
+  "context": {"environment": "prod", "cluster": "remote"}
+}

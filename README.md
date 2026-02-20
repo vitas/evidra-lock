@@ -1,178 +1,84 @@
-# Evidra MCP
+# Evidra - Guardrails for Operations in the AI Agent Era
 
-## Policy Simulation (offline)
+Evidra intercepts agent tool invocations through MCP, evaluates each request with OPA policy, and records tamper-evident evidence for audit and incident response.
 
-Evaluate policy for a local `ToolInvocation` JSON without MCP, execution, or evidence writes.
+## What It Is
+
+- An operations guardrail layer for AI-driven tool execution.
+- Policy-driven control using OPA/Rego with default deny.
+- Immutable forensic evidence with segmented, hash-chained logs.
+
+## What It Is Not
+
+- A CI/CD system.
+- A Kubernetes controller.
+- A SIEM replacement.
+- A generic shell wrapper.
+
+## Core Concepts
+
+- ToolInvocation: normalized request (`actor`, `tool`, `operation`, `params`, `context`).
+- Registry: only known tools and operations are executable.
+- Policy: OPA returns `allow`, `risk_level`, `reason`.
+- Evidence: segmented store with sealed segments and hash-chain validation.
+
+## Quickstart
+
+Full guide: `docs/QUICKSTART.md`
 
 ```bash
-go run ./cmd/evidra-policy-sim --policy ./policy/policy.rego --input ./examples/invocations/allowed_echo.json --data ./policy/data.json
-```
+go build ./...
+EVIDRA_PROFILE=ops EVIDRA_PACKS_DIR=./packs/_core/ops go run ./cmd/evidra-mcp
 
-Expected output:
-
-```json
-{
-  "allow": true,
-  "risk_level": "low",
-  "reason": "allowed_by_rule"
-}
-```
-
-## Evidra Evidence Utilities
-
-Verify evidence hash-chain integrity:
-
-```bash
+go run ./cmd/evidra-policy-sim --policy ./policy/policy.rego --input ./examples/invocations/allowed_kubectl_get_dev.json --data ./policy/data.json
 go run ./cmd/evidra-evidence verify --evidence ./data/evidence
 ```
 
-Export an audit pack:
+## Ops Packs Included
 
-```bash
-go run ./cmd/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/policy.rego --data ./policy/data.json
-```
+The ops profile uses intentionally minimal declarative tool surfaces:
 
-Generate a violations summary report:
+- `packs/_core/ops/argocd-basic`
+- `packs/_core/ops/terraform-basic`
+- `packs/_core/ops/helm-basic`
+- `packs/_core/ops/kubectl-basic` (if present in your checkout)
 
-```bash
-go run ./cmd/evidra-evidence violations --evidence ./data/evidence --min-risk high
-```
+## Evidence Utilities
 
-Show cursor bookmark:
+Use `evidra-evidence` for local forensics:
 
-```bash
-go run ./cmd/evidra-evidence cursor show --evidence ./data/evidence
-```
+- `verify` - validate integrity.
+- `violations` - summarize denies/high-risk actions.
+- `export` - create an audit pack.
 
-Acknowledge cursor position:
+## Runtime Profiles
 
-```bash
-go run ./cmd/evidra-evidence cursor ack --evidence ./data/evidence --segment evidence-000001.jsonl --line 0
-```
-
-Audit pack contents:
-- Segmented evidence store files: `evidence/manifest.json` and `evidence/segments/evidence-*.jsonl` (or legacy `evidence/evidence.log`).
-- `manifest.json` with record count, last hash, and policy reference.
-- Optional `policy/policy.rego` and `policy/data.json` snapshots.
-
-Violations report:
-- Includes denied actions and high-risk actions that meet `--min-risk`.
-- Requires a valid evidence hash-chain before reporting.
-- Cursor is a local bookmark for future forwarders/exporters.
-
-Default evidence store layout:
-- Root: `./data/evidence`
-- Manifest: `./data/evidence/manifest.json`
-- Segments: `./data/evidence/segments/evidence-000001.jsonl`, `evidence-000002.jsonl`, ...
-- Segment size env: `EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES` (default `5000000`)
-- Sealed segments: manifest field `sealed_segments` tracks completed immutable segments.
-- Rotation seals the previous `current_segment` and advances to the next segment file.
-- Sealed segments provide stable units for local forward/export workflows.
-
-## Local Workflow (Policy + Evidence)
-
-Offline policy tests:
-
-```bash
-make policy-sim-echo
-make policy-sim-kubectl-deny
-```
-
-Start MCP server locally:
-
-```bash
-make run-mcp
-```
-
-- MCP is the primary integration path for agents.
-- `policy-sim` is for local policy iteration without an agent.
-- `evidra-evidence` is for verification, export, and violations forensics.
-
-Evidence forensics:
-
-```bash
-make evidence-verify
-make evidence-violations
-make evidence-export
-```
-
-## Kubernetes Dev Notes (Optional)
-
-- This repo does not manage clusters.
-- To test kubectl-oriented invocations, use a local cluster (kind or minikube).
-- Set environment in `invocation.context` (for example `dev` or `prod`).
-
-## ToolInvocation Examples
-
-`echo/run`:
-
-```json
-{
-  "actor": {"type": "human", "id": "dev-user", "origin": "cli"},
-  "tool": "echo",
-  "operation": "run",
-  "params": {"text": "hello"},
-  "context": {}
-}
-```
-
-MCP tools:
-- `execute`: runs a registered tool invocation through registry, policy, and evidence.
-- `get_event`: fetches one immutable evidence record by `event_id` (chain-safe read).
-
-Tool surface extension:
-- Primary (v0.1): declarative Tool Packs (Level 1) loaded from `EVIDRA_PACKS_DIR` for local extension without new binaries.
-- Experimental / future: compile-time plugins (Level 2), registered explicitly in `cmd/evidra-mcp`.
-- `kubectl` is currently provided in this repository as an experimental compile-time plugin.
-- Core declarative packs in this repo include `packs/_core/helm-basic`.
-- Official ops pack is `packs/_core/ops/argocd-basic`.
-- Official ops pack is also `packs/_core/ops/terraform-basic`.
-- Example enablement: `EVIDRA_PACKS_DIR=./packs/_core`.
-
-Runtime profiles:
-- `ops` (default): production-focused. Dev/demo tools are not registered by default. Default packs dir: `./packs/_core/ops`.
-- `dev`: registers dev/demo tools and uses default packs dir `./packs/_core`.
+- `ops` (default): production-focused, excludes dev/demo tools by default.
+- `dev`: enables dev/demo tool registration for local development.
 
 Examples:
-- `EVIDRA_PROFILE=ops ./evidra-mcp`
-- `EVIDRA_PROFILE=dev ./evidra-mcp`
-
-Terraform apply example (ops profile):
-
-```json
-{
-  "tool": "terraform",
-  "operation": "apply",
-  "params": {"dir": "./infra"},
-  "context": {"environment": "prod"}
-}
-```
-
-Example flow:
-1. Call `execute` and capture returned `event_id`.
-2. Call `get_event` with `{"event_id":"<returned_event_id>"}` to retrieve the full record.
-
-## Execution Modes
-
-- `enforce` (default): policy deny blocks execution.
-- `observe`: policy is evaluated but does not block execution; decisions are advisory.
-
-Example:
 
 ```bash
-EVIDRA_MODE=observe ./evidra-mcp
+EVIDRA_PROFILE=ops ./evidra-mcp
+EVIDRA_PROFILE=dev ./evidra-mcp
 ```
 
-Observe mode does **not** bypass registry validation. Unknown tools and unsupported operations are still denied.
+### Enforcement Model
 
-`git/status`:
+Evidra enforces guardrails for MCP tool invocations. To prevent bypass, configure agents in Guarded Mode (no direct shell access, MCP tools via Evidra only). See `docs/MCP_GUIDE.md`.
 
-```json
-{
-  "actor": {"type": "human", "id": "dev-user", "origin": "cli"},
-  "tool": "git",
-  "operation": "status",
-  "params": {"path": "."},
-  "context": {}
-}
-```
+## Extension Model
+
+- Primary in v0.1: Level 1 declarative Tool Packs (`EVIDRA_PACKS_DIR`).
+- Experimental/future: Level 2 compile-time plugins.
+
+## Documentation
+
+- `docs/QUICKSTART.md`
+- `docs/POLICY_GUIDE.md`
+- `docs/TOOL_PACKS.md`
+- `docs/OPS_PROFILE.md`
+- `docs/EVIDENCE_GUIDE.md`
+- `docs/MCP_GUIDE.md`
+- `docs/FAQ.md`
+- `spec/ARCHITECTURE_COMPONENTS.md`
