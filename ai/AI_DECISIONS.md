@@ -62,3 +62,9 @@ Record all architectural and refactoring decisions influenced by AI, including r
 - Rationale: Enables deterministic regulated-developer policy checks without MCP, execution, or evidence side effects.
 - Decision: Extend policy loader with `LoadFromFiles(policyPath, dataPaths)` and keep `LoadFromFile` as compatibility wrapper.
 - Rationale: Reuses existing policy engine while supporting optional external data file input for simulations.
+
+## 2026-02-20 - Debt Cleanup: Remove Generic Command Path
+- Decision: Keep only registry-based execution with explicit tool operations and remove reliance on generic command patterns.
+- Rationale: Aligns runtime strictly with v0.1 spec contracts and controlled tool surface.
+- Decision: Update `echo/run` executor to call system `echo` and `git/status` executor to use `git -C <path> status --porcelain`.
+- Rationale: Matches required tool executor behavior while remaining deterministic and scoped.

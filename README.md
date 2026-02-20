@@ -17,3 +17,29 @@ Expected output:
   "reason": "allowed_by_rule"
 }
 ```
+
+## ToolInvocation Examples
+
+`echo/run`:
+
+```json
+{
+  "actor": {"type": "human", "id": "dev-user", "origin": "cli"},
+  "tool": "echo",
+  "operation": "run",
+  "params": {"text": "hello"},
+  "context": {}
+}
+```
+
+`git/status`:
+
+```json
+{
+  "actor": {"type": "human", "id": "dev-user", "origin": "cli"},
+  "tool": "git",
+  "operation": "status",
+  "params": {"path": "."},
+  "context": {}
+}
+```

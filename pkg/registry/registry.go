@@ -106,7 +106,7 @@ func ValidateParams(toolName, operation string, params map[string]interface{}) e
 	return nil
 }
 
-func executeEcho(_ context.Context, inv ToolInvocationInput) (ExecutionResult, error) {
+func executeEcho(ctx context.Context, inv ToolInvocationInput) (ExecutionResult, error) {
 	textValue, ok := inv.Params["text"]
 	if !ok {
 		return ExecutionResult{Status: "failed", ExitCode: nil}, fmt.Errorf("missing required param: text")
@@ -116,13 +116,39 @@ func executeEcho(_ context.Context, inv ToolInvocationInput) (ExecutionResult, e
 		return ExecutionResult{Status: "failed", ExitCode: nil}, fmt.Errorf("param text must be string")
 	}
 
-	code := 0
+	cmd := exec.CommandContext(ctx, "echo", text)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err == nil {
+		code := 0
+		return ExecutionResult{
+			Status:   "success",
+			Stdout:   stdout.String(),
+			Stderr:   stderr.String(),
+			ExitCode: &code,
+		}, nil
+	}
+
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		code := exitErr.ExitCode()
+		return ExecutionResult{
+			Status:   "failed",
+			Stdout:   stdout.String(),
+			Stderr:   stderr.String(),
+			ExitCode: &code,
+		}, nil
+	}
+
 	return ExecutionResult{
-		Status:   "success",
-		Stdout:   text + "\n",
-		Stderr:   "",
-		ExitCode: &code,
-	}, nil
+		Status:   "failed",
+		Stdout:   stdout.String(),
+		Stderr:   stderr.String(),
+		ExitCode: nil,
+	}, err
 }
 
 func executeGitStatus(ctx context.Context, inv ToolInvocationInput) (ExecutionResult, error) {
@@ -137,7 +163,7 @@ func executeGitStatus(ctx context.Context, inv ToolInvocationInput) (ExecutionRe
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, "git", "-C", path, "status")
+	cmd := exec.CommandContext(ctx, "git", "-C", path, "status", "--porcelain")
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
