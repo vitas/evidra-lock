@@ -18,6 +18,25 @@ Expected output:
 }
 ```
 
+## Evidra Evidence Utilities
+
+Verify evidence hash-chain integrity:
+
+```bash
+go run ./cmd/evidra-evidence verify --evidence ./data/evidence.log
+```
+
+Export an audit pack:
+
+```bash
+go run ./cmd/evidra-evidence export --evidence ./data/evidence.log --out ./audit-pack.tar.gz --policy ./policy/policy.rego --data ./policy/data.json
+```
+
+Audit pack contents:
+- `evidence/evidence.log` copied as-is.
+- `manifest.json` with record count, last hash, and policy reference.
+- Optional `policy/policy.rego` and `policy/data.json` snapshots.
+
 ## ToolInvocation Examples
 
 `echo/run`:

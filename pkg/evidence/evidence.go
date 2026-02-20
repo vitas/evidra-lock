@@ -61,6 +61,28 @@ type Record = EvidenceRecord
 
 var appendMu sync.Mutex
 
+type ChainValidationError struct {
+	Index   int
+	EventID string
+	Message string
+}
+
+func (e *ChainValidationError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.EventID != "" {
+		return fmt.Sprintf("record %d (%s): %s", e.Index, e.EventID, e.Message)
+	}
+	return fmt.Sprintf("record %d: %s", e.Index, e.Message)
+}
+
+type Metadata struct {
+	Records   int
+	LastHash  string
+	PolicyRef string
+}
+
 func ComputeHash(record EvidenceRecord) (string, error) {
 	payload := canonicalEvidenceRecord{
 		EventID:         record.EventID,
@@ -90,6 +112,39 @@ func Append(record EvidenceRecord) (EvidenceRecord, error) {
 
 func ValidateChain() error {
 	return validateChainAtPath(defaultLogPath)
+}
+
+func ValidateChainAtPath(path string) error {
+	return validateChainAtPath(path)
+}
+
+func MetadataAtPath(path string) (Metadata, error) {
+	records, err := readAllRecords(path)
+	if err != nil {
+		return Metadata{}, err
+	}
+
+	meta := Metadata{
+		Records: len(records),
+	}
+	if len(records) > 0 {
+		meta.LastHash = records[len(records)-1].Hash
+	}
+
+	for _, rec := range records {
+		if rec.PolicyRef == "" {
+			continue
+		}
+		if meta.PolicyRef == "" {
+			meta.PolicyRef = rec.PolicyRef
+			continue
+		}
+		if rec.PolicyRef != meta.PolicyRef {
+			return Metadata{}, fmt.Errorf("mixed policy_ref values detected")
+		}
+	}
+
+	return meta, nil
 }
 
 func appendAtPath(path string, record EvidenceRecord) (EvidenceRecord, error) {
@@ -156,10 +211,18 @@ func validateChainAtPath(path string) error {
 	for i, rec := range records {
 		if i == 0 {
 			if rec.PreviousHash != "" {
-				return fmt.Errorf("record %d has non-empty previous_hash in chain head", i)
+				return &ChainValidationError{
+					Index:   i,
+					EventID: rec.EventID,
+					Message: "non-empty previous_hash in chain head",
+				}
 			}
 		} else if rec.PreviousHash != prev {
-			return fmt.Errorf("record %d previous_hash mismatch", i)
+			return &ChainValidationError{
+				Index:   i,
+				EventID: rec.EventID,
+				Message: "previous_hash mismatch",
+			}
 		}
 
 		expected, err := ComputeHash(rec)
@@ -167,7 +230,11 @@ func validateChainAtPath(path string) error {
 			return fmt.Errorf("compute hash for record %d: %w", i, err)
 		}
 		if rec.Hash != expected {
-			return fmt.Errorf("record %d hash mismatch", i)
+			return &ChainValidationError{
+				Index:   i,
+				EventID: rec.EventID,
+				Message: "hash mismatch",
+			}
 		}
 		prev = rec.Hash
 	}
