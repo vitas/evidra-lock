@@ -32,6 +32,7 @@ Minimum required fields:
   "params": {},
   "policy_decision": {
     "allow": true | false,
+    "risk_level": "low|medium|high|critical",
     "reason": "string"
   },
   "execution_result": {

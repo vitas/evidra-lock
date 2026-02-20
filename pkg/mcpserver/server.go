@@ -9,18 +9,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"samebits.com/evidra-mcp/pkg/evidence"
-	"samebits.com/evidra-mcp/pkg/executor"
+	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/policy"
+	"samebits.com/evidra-mcp/pkg/registry"
 )
-
-var ErrPolicyDenied = errors.New("command denied by policy")
-
-type PolicyEngine interface {
-	IsAllowed(command string) bool
-}
-
-type CommandExecutor interface {
-	Execute(ctx context.Context, command string, args []string) (executor.Result, error)
-}
 
 type EvidenceStore interface {
 	Append(record evidence.EvidenceRecord) (evidence.EvidenceRecord, error)
@@ -31,22 +23,19 @@ type Options struct {
 	Version string
 }
 
-type ExecuteInput struct {
-	Command string   `json:"command" jsonschema:"Command to execute"`
-	Args    []string `json:"args" jsonschema:"Arguments for command"`
-}
-
 type ExecuteOutput struct {
-	Stdout   string `json:"stdout"`
-	Stderr   string `json:"stderr"`
-	ExitCode int    `json:"exit_code"`
+	Status   string `json:"status"`
+	Stdout   string `json:"stdout,omitempty"`
+	Stderr   string `json:"stderr,omitempty"`
+	ExitCode *int   `json:"exit_code"`
+	EventID  string `json:"event_id"`
 }
 
 type executeHandler struct {
 	service *ExecuteService
 }
 
-func NewServer(opts Options, policyEngine PolicyEngine, cmdExecutor CommandExecutor, evidenceStore EvidenceStore) *mcp.Server {
+func NewServer(opts Options, reg registry.Registry, policyEngine *policy.Engine, evidenceStore EvidenceStore) *mcp.Server {
 	if opts.Name == "" {
 		opts.Name = "evidra-mcp"
 	}
@@ -54,7 +43,7 @@ func NewServer(opts Options, policyEngine PolicyEngine, cmdExecutor CommandExecu
 		opts.Version = "v0.1.0"
 	}
 
-	svc := NewExecuteService(policyEngine, cmdExecutor, evidenceStore)
+	svc := NewExecuteService(reg, policyEngine, evidenceStore)
 	handler := &executeHandler{service: svc}
 
 	server := mcp.NewServer(
@@ -63,7 +52,7 @@ func NewServer(opts Options, policyEngine PolicyEngine, cmdExecutor CommandExecu
 	)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "execute",
-		Description: "Execute an allowed command with policy and evidence checks",
+		Description: "Invoke a registered tool through registry, policy, and evidence flow",
 	}, handler.Handle)
 	return server
 }
@@ -71,82 +60,118 @@ func NewServer(opts Options, policyEngine PolicyEngine, cmdExecutor CommandExecu
 func (h *executeHandler) Handle(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	input ExecuteInput,
+	input invocation.ToolInvocation,
 ) (*mcp.CallToolResult, ExecuteOutput, error) {
 	output, err := h.service.Execute(ctx, input)
 	if err != nil {
-		if errors.Is(err, ErrPolicyDenied) {
-			return nil, ExecuteOutput{}, fmt.Errorf("execute denied: %w", err)
-		}
-		return nil, ExecuteOutput{}, err
+		return nil, output, err
 	}
 	return nil, output, nil
 }
 
 type ExecuteService struct {
-	policy   PolicyEngine
-	executor CommandExecutor
+	registry registry.Registry
+	policy   *policy.Engine
 	evidence EvidenceStore
 }
 
-func NewExecuteService(policyEngine PolicyEngine, cmdExecutor CommandExecutor, evidenceStore EvidenceStore) *ExecuteService {
+func NewExecuteService(reg registry.Registry, policyEngine *policy.Engine, evidenceStore EvidenceStore) *ExecuteService {
 	return &ExecuteService{
+		registry: reg,
 		policy:   policyEngine,
-		executor: cmdExecutor,
 		evidence: evidenceStore,
 	}
 }
 
-func (s *ExecuteService) Execute(ctx context.Context, input ExecuteInput) (ExecuteOutput, error) {
-	if !s.policy.IsAllowed(input.Command) {
-		if err := s.appendEvidence(input, executor.Result{ExitCode: -1}, "denied"); err != nil {
-			return ExecuteOutput{}, err
+func (s *ExecuteService) Execute(ctx context.Context, inv invocation.ToolInvocation) (ExecuteOutput, error) {
+	if err := inv.ValidateStructure(); err != nil {
+		return s.denyWithEvidence(inv, "invalid_invocation", err)
+	}
+
+	def, ok := s.registry.Lookup(inv.Tool)
+	if !ok {
+		return s.denyWithEvidence(inv, "unregistered_tool", fmt.Errorf("tool %q is not registered", inv.Tool))
+	}
+	if !registry.SupportsOperation(def, inv.Operation) {
+		return s.denyWithEvidence(inv, "unsupported_operation", fmt.Errorf("operation %q is not supported for tool %q", inv.Operation, inv.Tool))
+	}
+	if err := registry.ValidateParams(inv.Tool, inv.Operation, inv.Params); err != nil {
+		return s.denyWithEvidence(inv, "invalid_params", err)
+	}
+
+	decision, evalErr := s.policy.Evaluate(inv)
+	if evalErr != nil {
+		decision = policy.Decision{Allow: false, RiskLevel: "critical", Reason: "policy_evaluation_failed"}
+	}
+	if !decision.Allow {
+		return s.writeFinal(inv, decision, registry.ExecutionResult{Status: "denied", ExitCode: nil}, errors.New(decision.Reason))
+	}
+
+	execResult, execErr := def.Executor(ctx, registry.ToolInvocationInput{
+		Operation: inv.Operation,
+		Params:    inv.Params,
+	})
+	if execErr != nil {
+		execResult.Status = "failed"
+		if execResult.Stderr == "" {
+			execResult.Stderr = execErr.Error()
 		}
-		return ExecuteOutput{}, ErrPolicyDenied
+		return s.writeFinal(inv, decision, execResult, execErr)
 	}
 
-	result, err := s.executor.Execute(ctx, input.Command, input.Args)
-	if err != nil {
-		if appendErr := s.appendEvidence(input, executor.Result{ExitCode: -1}, "execution_error"); appendErr != nil {
-			return ExecuteOutput{}, appendErr
-		}
-		return ExecuteOutput{}, err
+	return s.writeFinal(inv, decision, execResult, nil)
+}
+
+func (s *ExecuteService) denyWithEvidence(inv invocation.ToolInvocation, reason string, err error) (ExecuteOutput, error) {
+	return s.writeFinal(
+		inv,
+		policy.Decision{Allow: false, RiskLevel: "critical", Reason: reason},
+		registry.ExecutionResult{Status: "denied", ExitCode: nil},
+		err,
+	)
+}
+
+func (s *ExecuteService) writeFinal(
+	inv invocation.ToolInvocation,
+	decision policy.Decision,
+	result registry.ExecutionResult,
+	callErr error,
+) (ExecuteOutput, error) {
+	record := evidence.EvidenceRecord{
+		EventID:   fmt.Sprintf("evt-%d", time.Now().UnixNano()),
+		Timestamp: time.Now().UTC(),
+		Actor:     inv.Actor,
+		Tool:      inv.Tool,
+		Operation: inv.Operation,
+		Params:    inv.Params,
+		PolicyDecision: evidence.PolicyDecision{
+			Allow:     decision.Allow,
+			RiskLevel: decision.RiskLevel,
+			Reason:    decision.Reason,
+		},
+		ExecutionResult: evidence.ExecutionResult{
+			Status:   result.Status,
+			ExitCode: result.ExitCode,
+		},
 	}
 
-	status := "completed"
-	if result.TimedOut {
-		status = "timeout"
-	} else if result.ExitCode != 0 {
-		status = "failed"
-	}
-	if err := s.appendEvidence(input, result, status); err != nil {
-		return ExecuteOutput{}, err
+	appended, appendErr := s.evidence.Append(record)
+	if appendErr != nil {
+		return ExecuteOutput{
+			Status:   "failed",
+			Stdout:   result.Stdout,
+			Stderr:   appendErr.Error(),
+			ExitCode: nil,
+			EventID:  record.EventID,
+		}, fmt.Errorf("write evidence: %w", appendErr)
 	}
 
-	return ExecuteOutput{
+	out := ExecuteOutput{
+		Status:   result.Status,
 		Stdout:   result.Stdout,
 		Stderr:   result.Stderr,
 		ExitCode: result.ExitCode,
-	}, nil
-}
-
-func (s *ExecuteService) appendEvidence(input ExecuteInput, result executor.Result, status string) error {
-	details := map[string]interface{}{
-		"status":    status,
-		"command":   input.Command,
-		"args":      input.Args,
-		"stdout":    result.Stdout,
-		"stderr":    result.Stderr,
-		"exit_code": result.ExitCode,
-		"timed_out": result.TimedOut,
+		EventID:  appended.EventID,
 	}
-
-	_, err := s.evidence.Append(evidence.EvidenceRecord{
-		ID:      fmt.Sprintf("evt-%d", time.Now().UnixNano()),
-		Actor:   "mcp.execute",
-		Action:  "execute",
-		Subject: input.Command,
-		Details: details,
-	})
-	return err
+	return out, callErr
 }

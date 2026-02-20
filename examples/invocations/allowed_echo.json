@@ -1,0 +1,13 @@
+{
+  "actor": {
+    "type": "human",
+    "id": "dev-user",
+    "origin": "cli"
+  },
+  "tool": "echo",
+  "operation": "run",
+  "params": {
+    "text": "hello"
+  },
+  "context": {}
+}

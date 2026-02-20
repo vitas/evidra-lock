@@ -12,27 +12,44 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"samebits.com/evidra-mcp/pkg/invocation"
 )
 
+type PolicyDecision struct {
+	Allow     bool   `json:"allow"`
+	RiskLevel string `json:"risk_level"`
+	Reason    string `json:"reason"`
+}
+
+type ExecutionResult struct {
+	Status   string `json:"status"`
+	ExitCode *int   `json:"exit_code"`
+}
+
 type EvidenceRecord struct {
-	ID        string                 `json:"id"`
-	Timestamp time.Time              `json:"timestamp"`
-	Actor     string                 `json:"actor"`
-	Action    string                 `json:"action"`
-	Subject   string                 `json:"subject"`
-	Details   map[string]interface{} `json:"details,omitempty"`
-	PrevHash  string                 `json:"prev_hash,omitempty"`
-	Hash      string                 `json:"hash"`
+	EventID         string                 `json:"event_id"`
+	Timestamp       time.Time              `json:"timestamp"`
+	Actor           invocation.Actor       `json:"actor"`
+	Tool            string                 `json:"tool"`
+	Operation       string                 `json:"operation"`
+	Params          map[string]interface{} `json:"params"`
+	PolicyDecision  PolicyDecision         `json:"policy_decision"`
+	ExecutionResult ExecutionResult        `json:"execution_result"`
+	PreviousHash    string                 `json:"previous_hash"`
+	Hash            string                 `json:"hash"`
 }
 
 type canonicalEvidenceRecord struct {
-	ID        string                 `json:"id"`
-	Timestamp time.Time              `json:"timestamp"`
-	Actor     string                 `json:"actor"`
-	Action    string                 `json:"action"`
-	Subject   string                 `json:"subject"`
-	Details   map[string]interface{} `json:"details,omitempty"`
-	PrevHash  string                 `json:"prev_hash,omitempty"`
+	EventID         string                 `json:"event_id"`
+	Timestamp       time.Time              `json:"timestamp"`
+	Actor           invocation.Actor       `json:"actor"`
+	Tool            string                 `json:"tool"`
+	Operation       string                 `json:"operation"`
+	Params          map[string]interface{} `json:"params"`
+	PolicyDecision  PolicyDecision         `json:"policy_decision"`
+	ExecutionResult ExecutionResult        `json:"execution_result"`
+	PreviousHash    string                 `json:"previous_hash"`
 }
 
 const logPath = "./data/evidence.log"
@@ -41,13 +58,15 @@ var appendMu sync.Mutex
 
 func ComputeHash(record EvidenceRecord) (string, error) {
 	payload := canonicalEvidenceRecord{
-		ID:        record.ID,
-		Timestamp: record.Timestamp.UTC(),
-		Actor:     record.Actor,
-		Action:    record.Action,
-		Subject:   record.Subject,
-		Details:   record.Details,
-		PrevHash:  record.PrevHash,
+		EventID:         record.EventID,
+		Timestamp:       record.Timestamp.UTC(),
+		Actor:           record.Actor,
+		Tool:            record.Tool,
+		Operation:       record.Operation,
+		Params:          record.Params,
+		PolicyDecision:  record.PolicyDecision,
+		ExecutionResult: record.ExecutionResult,
+		PreviousHash:    record.PreviousHash,
 	}
 
 	b, err := json.Marshal(payload)
@@ -74,7 +93,9 @@ func Append(record EvidenceRecord) (EvidenceRecord, error) {
 		return EvidenceRecord{}, err
 	}
 	if ok {
-		record.PrevHash = last.Hash
+		record.PreviousHash = last.Hash
+	} else {
+		record.PreviousHash = ""
 	}
 
 	hash, err := ComputeHash(record)
@@ -120,11 +141,11 @@ func ValidateChain() error {
 	var prev string
 	for i, rec := range records {
 		if i == 0 {
-			if rec.PrevHash != "" {
-				return fmt.Errorf("record %d has non-empty prev_hash in chain head", i)
+			if rec.PreviousHash != "" {
+				return fmt.Errorf("record %d has non-empty previous_hash in chain head", i)
 			}
-		} else if rec.PrevHash != prev {
-			return fmt.Errorf("record %d prev_hash mismatch", i)
+		} else if rec.PreviousHash != prev {
+			return fmt.Errorf("record %d previous_hash mismatch", i)
 		}
 
 		expected, err := ComputeHash(rec)

@@ -7,32 +7,45 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"samebits.com/evidra-mcp/pkg/invocation"
 )
 
 func TestComputeHashExcludesHashField(t *testing.T) {
 	ts := time.Date(2026, 2, 19, 12, 0, 0, 0, time.UTC)
-	base := EvidenceRecord{
-		ID:        "evt-1",
+	record := EvidenceRecord{
+		EventID:   "evt-1",
 		Timestamp: ts,
-		Actor:     "user-a",
-		Action:    "create",
-		Subject:   "resource-1",
-		Details: map[string]interface{}{
-			"reason": "initial",
+		Actor: invocation.Actor{
+			Type:   "human",
+			ID:     "u1",
+			Origin: "cli",
 		},
-		PrevHash: "abc123",
+		Tool:      "echo",
+		Operation: "run",
+		Params:    map[string]interface{}{"text": "ok"},
+		PolicyDecision: PolicyDecision{
+			Allow:     true,
+			RiskLevel: "low",
+			Reason:    "allowed",
+		},
+		ExecutionResult: ExecutionResult{
+			Status:   "success",
+			ExitCode: intPtr(0),
+		},
+		PreviousHash: "abc123",
 	}
 
-	h1, err := ComputeHash(base)
+	h1, err := ComputeHash(record)
 	if err != nil {
-		t.Fatalf("ComputeHash(base) error = %v", err)
+		t.Fatalf("ComputeHash(record) error = %v", err)
 	}
 
-	withHash := base
-	withHash.Hash = "different-value-that-must-be-ignored"
-	h2, err := ComputeHash(withHash)
+	recordWithHash := record
+	recordWithHash.Hash = "ignored"
+	h2, err := ComputeHash(recordWithHash)
 	if err != nil {
-		t.Fatalf("ComputeHash(withHash) error = %v", err)
+		t.Fatalf("ComputeHash(recordWithHash) error = %v", err)
 	}
 
 	if h1 != h2 {
@@ -52,33 +65,20 @@ func TestAppendAndValidateChain(t *testing.T) {
 		t.Fatalf("Chdir(temp) error = %v", err)
 	}
 
-	r1, err := Append(EvidenceRecord{
-		ID:        "evt-1",
-		Timestamp: time.Date(2026, 2, 19, 12, 1, 0, 0, time.UTC),
-		Actor:     "user-a",
-		Action:    "create",
-		Subject:   "resource-1",
-	})
+	r1, err := Append(testRecord("evt-1", "echo", "run"))
 	if err != nil {
 		t.Fatalf("Append(r1) error = %v", err)
 	}
-
-	r2, err := Append(EvidenceRecord{
-		ID:        "evt-2",
-		Timestamp: time.Date(2026, 2, 19, 12, 2, 0, 0, time.UTC),
-		Actor:     "user-b",
-		Action:    "update",
-		Subject:   "resource-1",
-	})
+	r2, err := Append(testRecord("evt-2", "git", "status"))
 	if err != nil {
 		t.Fatalf("Append(r2) error = %v", err)
 	}
 
-	if r1.PrevHash != "" {
-		t.Fatalf("expected head record PrevHash to be empty; got %q", r1.PrevHash)
+	if r1.PreviousHash != "" {
+		t.Fatalf("expected first record previous_hash empty; got %q", r1.PreviousHash)
 	}
-	if r2.PrevHash != r1.Hash {
-		t.Fatalf("expected r2.PrevHash to match r1.Hash; got %q vs %q", r2.PrevHash, r1.Hash)
+	if r2.PreviousHash != r1.Hash {
+		t.Fatalf("expected r2.PreviousHash to match r1.Hash; got %q vs %q", r2.PreviousHash, r1.Hash)
 	}
 
 	if err := ValidateChain(); err != nil {
@@ -98,22 +98,10 @@ func TestValidateChainDetectsTamper(t *testing.T) {
 		t.Fatalf("Chdir(temp) error = %v", err)
 	}
 
-	if _, err := Append(EvidenceRecord{
-		ID:        "evt-1",
-		Timestamp: time.Date(2026, 2, 19, 12, 3, 0, 0, time.UTC),
-		Actor:     "user-a",
-		Action:    "create",
-		Subject:   "resource-1",
-	}); err != nil {
+	if _, err := Append(testRecord("evt-1", "echo", "run")); err != nil {
 		t.Fatalf("Append(r1) error = %v", err)
 	}
-	if _, err := Append(EvidenceRecord{
-		ID:        "evt-2",
-		Timestamp: time.Date(2026, 2, 19, 12, 4, 0, 0, time.UTC),
-		Actor:     "user-b",
-		Action:    "update",
-		Subject:   "resource-1",
-	}); err != nil {
+	if _, err := Append(testRecord("evt-2", "git", "status")); err != nil {
 		t.Fatalf("Append(r2) error = %v", err)
 	}
 
@@ -132,12 +120,12 @@ func TestValidateChainDetectsTamper(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &first); err != nil {
 		t.Fatalf("Unmarshal(first) error = %v", err)
 	}
-	first.Action = "tampered"
-	tamperedLine, err := json.Marshal(first)
+	first.ExecutionResult.Status = "tampered"
+	tampered, err := json.Marshal(first)
 	if err != nil {
 		t.Fatalf("Marshal(tampered first) error = %v", err)
 	}
-	lines[0] = string(tamperedLine)
+	lines[0] = string(tampered)
 
 	mutated := strings.Join(lines, "\n") + "\n"
 	if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
@@ -147,4 +135,32 @@ func TestValidateChainDetectsTamper(t *testing.T) {
 	if err := ValidateChain(); err == nil {
 		t.Fatalf("ValidateChain() expected tamper detection error, got nil")
 	}
+}
+
+func testRecord(eventID, tool, operation string) EvidenceRecord {
+	return EvidenceRecord{
+		EventID:   eventID,
+		Timestamp: time.Date(2026, 2, 19, 12, 0, 0, 0, time.UTC),
+		Actor: invocation.Actor{
+			Type:   "human",
+			ID:     "u1",
+			Origin: "cli",
+		},
+		Tool:      tool,
+		Operation: operation,
+		Params:    map[string]interface{}{"k": "v"},
+		PolicyDecision: PolicyDecision{
+			Allow:     true,
+			RiskLevel: "low",
+			Reason:    "allowed",
+		},
+		ExecutionResult: ExecutionResult{
+			Status:   "success",
+			ExitCode: intPtr(0),
+		},
+	}
+}
+
+func intPtr(v int) *int {
+	return &v
 }

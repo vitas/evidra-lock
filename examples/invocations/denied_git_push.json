@@ -1,0 +1,11 @@
+{
+  "actor": {
+    "type": "human",
+    "id": "dev-user",
+    "origin": "cli"
+  },
+  "tool": "git",
+  "operation": "push",
+  "params": {},
+  "context": {}
+}

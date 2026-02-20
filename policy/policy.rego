@@ -1,28 +1,24 @@
 package evidra.policy
+import rego.v1
 
-default allow := false
-default reason := "denied: default deny"
+allow := true if {
+	input.tool == "echo"
+	input.operation == "run"
+} else := true if {
+	input.tool == "git"
+	input.operation == "status"
+} else := false
 
-# Allow example: echo tool execution.
-allow if {
-	input.tool.name == "echo"
-	input.operation == "execute"
-}
+reason := "allowed_by_rule" if {
+	input.tool == "echo"
+	input.operation == "run"
+} else := "allowed_by_rule" if {
+	input.tool == "git"
+	input.operation == "status"
+} else := "policy_denied_default"
 
-# Allow example: git status only.
-allow if {
-	input.tool.name == "git"
-	input.operation == "execute"
-	input.params.args == ["status"]
-}
+risk_level := "low" if {
+	allow
+} else := "critical"
 
-reason := "allowed: echo execute" if {
-	input.tool.name == "echo"
-	input.operation == "execute"
-}
-
-reason := "allowed: git status execute" if {
-	input.tool.name == "git"
-	input.operation == "execute"
-	input.params.args == ["status"]
-}
+decision := {"allow": allow, "risk_level": risk_level, "reason": reason}

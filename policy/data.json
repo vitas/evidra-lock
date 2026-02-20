@@ -1,1 +1,8 @@
-{}
+{
+  "high_risk_operations": [
+    "push",
+    "delete",
+    "remove",
+    "commit"
+  ]
+}

@@ -26,3 +26,39 @@ Record all architectural and refactoring decisions influenced by AI, including r
 - Rationale: Allows dependency injection into server layer without embedding evidence logic into handlers.
 - Decision: Add dependency `gopkg.in/yaml.v3` to parse policy YAML.
 - Rationale: Required to support `config/policy.yaml` loading while maintaining simple, explicit parsing behavior.
+
+## 2026-02-20 - Registry-First + OPA + Evidence Contract Refactor
+- Decision: Replace generic `command/args` execution path with explicit static tool registry (`echo/run`, `git/status`) in `pkg/registry`.
+- Rationale: Enforces controlled tool surface and removes generic shell-style invocation path.
+- Decision: Enforce runtime flow in MCP adapter as structure validation -> registry validation (tool, operation, params) -> policy evaluation -> registered executor -> evidence write.
+- Rationale: Aligns behavior with architecture flow contract and prevents component bypass.
+- Decision: Replace YAML allowlist policy with embedded OPA/Rego policy engine loading `policy/policy.rego`.
+- Rationale: Meets v0.1 policy contract requirements (`allow`, `reason`, default deny, deterministic evaluation).
+- Decision: Align evidence schema with contract fields (`event_id`, structured actor, tool/operation/params, policy_decision, execution_result, previous_hash/hash).
+- Rationale: Ensures evidence records are contract-compatible and auditable for all attempts.
+- Decision: Remove old YAML policy file and generic executor package.
+- Rationale: Prevent parallel policy/execution paths and avoid accidental fallback to non-contract behavior.
+
+## 2026-02-20 - Policy Product Layer Hardening
+- Decision: Introduce standardized policy reason code vocabulary in `policy/reason_codes.rego`.
+- Rationale: Keeps policy decisions machine-checkable and auditable with deterministic semantics.
+- Decision: Add policy templates (`dev_safe`, `regulated_dev`, `ci_agent`) under `policy/templates/`.
+- Rationale: Provides minimal, testable policy variants without changing runtime execution flow.
+- Decision: Add OPA policy data baseline in `policy/data.json` for high-risk operation classification.
+- Rationale: Centralizes deterministic risk signals for template rules.
+- Decision: Add OPA-style template test suites under `policy/tests/` and policy template usage doc `spec/POLICY_TEMPLATES.md`.
+- Rationale: Strengthens policy quality and onboarding without adding runtime complexity.
+
+## 2026-02-20 - Policy Risk Metadata Extension
+- Decision: Extend policy decision output contract to include deterministic `risk_level` with controlled values (`low`, `medium`, `high`, `critical`).
+- Rationale: Adds governance metadata without changing allow/deny semantics or execution flow.
+- Decision: Extend evidence `policy_decision` payload to store `risk_level` pass-through from policy.
+- Rationale: Ensures risk classification is auditable in immutable evidence records.
+- Decision: Keep Go runtime behavior unchanged except policy output validation/pass-through for `risk_level`.
+- Rationale: Meets scope constraint of policy-driven metadata only, without introducing new workflow behavior.
+
+## 2026-02-20 - Offline Policy Simulation CLI
+- Decision: Add standalone local simulator command `cmd/evidra-policy-sim` using only `flag` and existing `pkg/policy` + `pkg/invocation`.
+- Rationale: Enables deterministic regulated-developer policy checks without MCP, execution, or evidence side effects.
+- Decision: Extend policy loader with `LoadFromFiles(policyPath, dataPaths)` and keep `LoadFromFile` as compatibility wrapper.
+- Rationale: Reuses existing policy engine while supporting optional external data file input for simulations.

@@ -50,12 +50,16 @@ Policy evaluation must return:
 
 {
   "allow": true | false,
+  "risk_level": "low|medium|high|critical",
   "reason": "string"
 }
 
 ### Requirements
 
 - allow must always be defined.
+- risk_level must always be defined.
+- risk_level must be one of: low, medium, high, critical.
+- risk_level must be deterministic.
 - reason must always be defined.
 - reason must be human-readable and deterministic.
 - No other fields are required in v0.1.

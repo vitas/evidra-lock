@@ -1,4 +1,0 @@
-# Allowed commands list. Matching is exact and case-sensitive.
-# Default behavior is deny when command is not listed.
-allowed_commands:
-  - /bin/echo

@@ -3,18 +3,17 @@ package main
 import (
 	"context"
 	"log"
-	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"samebits.com/evidra-mcp/pkg/evidence"
-	"samebits.com/evidra-mcp/pkg/executor"
 	"samebits.com/evidra-mcp/pkg/mcpserver"
 	"samebits.com/evidra-mcp/pkg/policy"
+	"samebits.com/evidra-mcp/pkg/registry"
 )
 
 func main() {
-	policyEngine, err := policy.LoadFromFile("config/policy.yaml")
+	policyEngine, err := policy.LoadFromFile("policy/policy.rego")
 	if err != nil {
 		log.Fatalf("load policy: %v", err)
 	}
@@ -24,11 +23,11 @@ func main() {
 		log.Fatalf("init evidence store: %v", err)
 	}
 
-	runner := executor.NewRunner(10 * time.Second)
+	toolRegistry := registry.NewDefaultRegistry()
 	server := mcpserver.NewServer(
 		mcpserver.Options{Name: "evidra-mcp", Version: "v0.1.0"},
+		toolRegistry,
 		policyEngine,
-		runner,
 		evidenceStore,
 	)
 
