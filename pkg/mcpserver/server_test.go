@@ -96,9 +96,13 @@ func TestMCPInvocationFlowAndEvidenceChain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("filepath.Abs() error = %v", err)
 	}
-	policyEngine, err := policy.LoadFromFile(policyPath)
+	policyBytes, err := os.ReadFile(policyPath)
 	if err != nil {
-		t.Fatalf("LoadFromFile() error = %v", err)
+		t.Fatalf("ReadFile(policy.rego) error = %v", err)
+	}
+	policyEngine, err := policy.NewOPAEngine(policyBytes, nil)
+	if err != nil {
+		t.Fatalf("NewOPAEngine() error = %v", err)
 	}
 	store := evidence.NewStore()
 	if err := store.Init(); err != nil {
@@ -254,9 +258,13 @@ func newServiceWithModeAndPolicyPath(t *testing.T, mode Mode, policyPath string)
 		t.Fatalf("Chdir(temp) error = %v", err)
 	}
 
-	policyEngine, err := policy.LoadFromFile(policyPath)
+	policyBytes, err := os.ReadFile(policyPath)
 	if err != nil {
-		t.Fatalf("LoadFromFile() error = %v", err)
+		t.Fatalf("ReadFile(policy.rego) error = %v", err)
+	}
+	policyEngine, err := policy.NewOPAEngine(policyBytes, nil)
+	if err != nil {
+		t.Fatalf("NewOPAEngine() error = %v", err)
 	}
 	store := evidence.NewStore()
 	if err := store.Init(); err != nil {

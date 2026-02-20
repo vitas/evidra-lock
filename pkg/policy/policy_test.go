@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -13,9 +14,14 @@ func TestEvaluateDefaultDeny(t *testing.T) {
 		t.Fatalf("filepath.Abs() error = %v", err)
 	}
 
-	engine, err := LoadFromFile(policyPath)
+	policyBytes, err := os.ReadFile(policyPath)
 	if err != nil {
-		t.Fatalf("LoadFromFile() error = %v", err)
+		t.Fatalf("ReadFile(policy.rego) error = %v", err)
+	}
+
+	engine, err := NewOPAEngine(policyBytes, nil)
+	if err != nil {
+		t.Fatalf("NewOPAEngine() error = %v", err)
 	}
 
 	decision, err := engine.Evaluate(invocation.ToolInvocation{

@@ -8,6 +8,7 @@ import (
 
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/policy"
+	"samebits.com/evidra-mcp/pkg/policysource"
 )
 
 const (
@@ -36,12 +37,19 @@ func main() {
 		os.Exit(exitInputInvalid)
 	}
 
-	dataPaths := []string{}
-	if *dataPath != "" {
-		dataPaths = append(dataPaths, *dataPath)
+	source := policysource.NewLocalFileSource(*policyPath, *dataPath)
+	policyBytes, err := source.LoadPolicy()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(exitPolicyError)
+	}
+	dataBytes, err := source.LoadData()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(exitPolicyError)
 	}
 
-	engine, err := policy.LoadFromFiles(*policyPath, dataPaths)
+	engine, err := policy.NewOPAEngine(policyBytes, dataBytes)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(exitPolicyError)

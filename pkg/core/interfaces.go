@@ -8,7 +8,8 @@ import (
 
 type PolicySource interface {
 	LoadPolicy() ([]byte, error)
-	PolicyRef() string
+	LoadData() ([]byte, error)
+	PolicyRef() (string, error)
 }
 
 type PolicyEngine interface {

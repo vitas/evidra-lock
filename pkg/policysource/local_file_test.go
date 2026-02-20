@@ -18,9 +18,15 @@ decision := {"allow": false, "risk_level": "critical", "reason": "policy_denied_
 		t.Fatalf("WriteFile(policy) error = %v", err)
 	}
 
-	src := NewLocalFilePolicySource(path)
-	ref1 := src.PolicyRef()
-	ref2 := src.PolicyRef()
+	src := NewLocalFileSource(path, "")
+	ref1, err := src.PolicyRef()
+	if err != nil {
+		t.Fatalf("PolicyRef() error = %v", err)
+	}
+	ref2, err := src.PolicyRef()
+	if err != nil {
+		t.Fatalf("PolicyRef() second call error = %v", err)
+	}
 
 	if ref1 == "" {
 		t.Fatalf("expected non-empty policy ref")

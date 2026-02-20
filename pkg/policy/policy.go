@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -21,26 +20,6 @@ type Decision struct {
 
 type Engine struct {
 	query rego.PreparedEvalQuery
-}
-
-func LoadFromFile(path string) (*Engine, error) {
-	return LoadFromFiles(path, nil)
-}
-
-func LoadFromFiles(policyPath string, dataPaths []string) (*Engine, error) {
-	policyBytes, err := os.ReadFile(policyPath)
-	if err != nil {
-		return nil, fmt.Errorf("read policy file: %w", err)
-	}
-
-	var dataBytes []byte
-	if len(dataPaths) > 0 && dataPaths[0] != "" {
-		dataBytes, err = os.ReadFile(dataPaths[0])
-		if err != nil {
-			return nil, fmt.Errorf("read policy data file: %w", err)
-		}
-	}
-	return NewOPAEngine(policyBytes, dataBytes)
 }
 
 func NewOPAEngine(policyBytes []byte, dataBytes []byte) (*Engine, error) {

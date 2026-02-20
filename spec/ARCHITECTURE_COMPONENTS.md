@@ -6,7 +6,8 @@ Evidra v0.1 has three core components:
 - Evidence: append-only, hash-chained audit log for every attempt.
 
 ## Core Interfaces
-- `core.PolicySource`: loads policy bytes and exposes deterministic `PolicyRef()`.
+- `core.PolicySource`: loads policy/data bytes and exposes deterministic `PolicyRef()`.
+- `core.PolicyEngine`: evaluates canonical `ToolInvocation` into deterministic policy decisions.
 - `core.EvidenceStore`: appends records, validates chain, and exposes `LastHash()`.
 
 ## Local Deployment

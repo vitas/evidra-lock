@@ -29,18 +29,15 @@ func main() {
 	policyPath := envOrDefault("EVIDRA_POLICY_PATH", "./policy/policy.rego")
 	dataPath := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_DATA_PATH"))
 
-	ps := policysource.NewLocalFilePolicySource(policyPath)
+	ps := policysource.NewLocalFileSource(policyPath, dataPath)
 	policyBytes, err := ps.LoadPolicy()
 	if err != nil {
 		log.Fatalf("load policy source: %v", err)
 	}
 
-	var dataBytes []byte
-	if dataPath != "" {
-		dataBytes, err = os.ReadFile(dataPath)
-		if err != nil {
-			log.Fatalf("load policy data: %v", err)
-		}
+	dataBytes, err := ps.LoadData()
+	if err != nil {
+		log.Fatalf("load policy data: %v", err)
 	}
 
 	policyEngine, err := policy.NewOPAEngine(policyBytes, dataBytes)
@@ -60,7 +57,7 @@ func main() {
 			Name:      "evidra-mcp",
 			Version:   "v0.1.0",
 			Mode:      mode,
-			PolicyRef: ps.PolicyRef(),
+			PolicyRef: mustPolicyRef(ps),
 		},
 		toolRegistry,
 		policyEngine,
@@ -70,6 +67,14 @@ func main() {
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatalf("run mcp server: %v", err)
 	}
+}
+
+func mustPolicyRef(ps *policysource.LocalFileSource) string {
+	ref, err := ps.PolicyRef()
+	if err != nil {
+		log.Fatalf("compute policy ref: %v", err)
+	}
+	return ref
 }
 
 func loadModeFromEnv() (mcpserver.Mode, error) {
