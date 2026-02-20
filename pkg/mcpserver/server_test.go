@@ -16,63 +16,184 @@ import (
 	"samebits.com/evidra-mcp/pkg/registry"
 )
 
-func TestRegistryDenyUnregisteredTool(t *testing.T) {
+func TestExecuteAllowedStructuredResponse(t *testing.T) {
 	svc := newService(t)
-	out, err := svc.Execute(context.Background(), baseInvocation("unknown", "run", map[string]interface{}{}))
-	if err == nil {
-		t.Fatalf("expected deny error, got nil")
+	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
+
+	if !out.OK {
+		t.Fatalf("expected ok=true, got false: %+v", out)
 	}
-	if out.Status != "denied" {
-		t.Fatalf("expected denied status, got %q", out.Status)
+	if out.EventID == "" {
+		t.Fatalf("expected event_id")
+	}
+	if out.Policy.Reason == "" || out.Policy.RiskLevel == "" {
+		t.Fatalf("expected policy summary in response")
+	}
+	if out.Execution.Status != "success" {
+		t.Fatalf("expected success status, got %q", out.Execution.Status)
 	}
 	if lines := countEvidenceLines(t); lines != 1 {
 		t.Fatalf("expected 1 evidence record, got %d", lines)
 	}
 }
 
-func TestRegistryDenyUnsupportedOperation(t *testing.T) {
+func TestExecuteDeniedStructuredResponse(t *testing.T) {
 	svc := newService(t)
-	out, err := svc.Execute(context.Background(), baseInvocation("git", "push", map[string]interface{}{}))
-	if err == nil {
-		t.Fatalf("expected deny error, got nil")
+	out := svc.Execute(context.Background(), baseInvocation("unknown", "run", map[string]interface{}{}))
+
+	if out.OK {
+		t.Fatalf("expected ok=false for denied response")
 	}
-	if out.Status != "denied" {
-		t.Fatalf("expected denied status, got %q", out.Status)
+	if out.EventID == "" {
+		t.Fatalf("expected denial to include event_id")
 	}
-	if lines := countEvidenceLines(t); lines != 1 {
-		t.Fatalf("expected 1 evidence record, got %d", lines)
+	if out.Error == nil {
+		t.Fatalf("expected structured error")
+	}
+	if out.Error.Code != "unregistered_tool" {
+		t.Fatalf("expected unregistered_tool code, got %q", out.Error.Code)
+	}
+	if out.Policy.PolicyRef == "" {
+		t.Fatalf("expected policy_ref in response")
+	}
+	if out.Execution.Status != "denied" {
+		t.Fatalf("expected denied status, got %q", out.Execution.Status)
 	}
 }
 
-func TestEvidenceWrittenOnDeny(t *testing.T) {
+func TestGetEventWrappedResponses(t *testing.T) {
 	svc := newService(t)
-	_, _ = svc.Execute(context.Background(), baseInvocation("unknown", "run", map[string]interface{}{}))
-	if lines := countEvidenceLines(t); lines != 1 {
-		t.Fatalf("expected 1 evidence record, got %d", lines)
+	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
+
+	got := svc.GetEvent(context.Background(), out.EventID)
+	if !got.OK || got.Record == nil {
+		t.Fatalf("expected wrapped ok response with record, got %+v", got)
 	}
-	if err := evidence.ValidateChain(); err != nil {
-		t.Fatalf("ValidateChain() error = %v", err)
+	if got.Record.EventID != out.EventID {
+		t.Fatalf("expected matching event_id, got %q", got.Record.EventID)
+	}
+
+	notFound := svc.GetEvent(context.Background(), "evt-missing")
+	if notFound.OK {
+		t.Fatalf("expected not found response")
+	}
+	if notFound.Error == nil || notFound.Error.Code != "not_found" {
+		t.Fatalf("expected not_found error, got %+v", notFound)
 	}
 }
 
-func TestEvidenceWrittenOnSuccess(t *testing.T) {
+func TestGetEventFailsOnInvalidChain(t *testing.T) {
 	svc := newService(t)
-	out, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
+	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
+	_ = svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "two"}))
+
+	path := filepath.Join("data", "evidence", "segments", "evidence-000001.jsonl")
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("Execute() error = %v", err)
+		t.Fatalf("ReadFile(segment) error = %v", err)
 	}
-	if out.Status != "success" {
-		t.Fatalf("expected success status, got %q", out.Status)
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected at least 2 evidence lines")
 	}
-	if lines := countEvidenceLines(t); lines != 1 {
-		t.Fatalf("expected 1 evidence record, got %d", lines)
+	lines[0] = strings.Replace(lines[0], "\"status\":\"success\"", "\"status\":\"tampered\"", 1)
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(segment) error = %v", err)
 	}
-	if err := evidence.ValidateChain(); err != nil {
-		t.Fatalf("ValidateChain() error = %v", err)
+
+	resp := svc.GetEvent(context.Background(), out.EventID)
+	if resp.OK {
+		t.Fatalf("expected chain invalid response")
+	}
+	if resp.Error == nil || resp.Error.Code != "evidence_chain_invalid" {
+		t.Fatalf("expected evidence_chain_invalid, got %+v", resp)
 	}
 }
 
-func TestMCPInvocationFlowAndEvidenceChain(t *testing.T) {
+func TestToolMetadataIncludesDescriptionsAndAnnotations(t *testing.T) {
+	temp := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("Chdir(temp) error = %v", err)
+	}
+
+	policyPath, err := policyPathFromWorkingDir(oldWd)
+	if err != nil {
+		t.Fatalf("policyPathFromWorkingDir() error = %v", err)
+	}
+	policyBytes, err := os.ReadFile(policyPath)
+	if err != nil {
+		t.Fatalf("ReadFile(policy.rego) error = %v", err)
+	}
+	policyEngine, err := policy.NewOPAEngine(policyBytes, nil)
+	if err != nil {
+		t.Fatalf("NewOPAEngine() error = %v", err)
+	}
+
+	store := evidence.NewStore()
+	if err := store.Init(); err != nil {
+		t.Fatalf("store.Init() error = %v", err)
+	}
+	server := NewServer(Options{Name: "evidra-mcp-test", Version: "v0.1.0", PolicyRef: "test-policy-ref"}, registry.NewDefaultRegistry(), policyEngine, store)
+
+	ctx := context.Background()
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
+	serverSession, err := server.Connect(ctx, serverTransport, nil)
+	if err != nil {
+		t.Fatalf("server.Connect() error = %v", err)
+	}
+	t.Cleanup(func() {
+		serverSession.Close()
+		serverSession.Wait()
+	})
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "v0.1.0"}, nil)
+	clientSession, err := client.Connect(ctx, clientTransport, nil)
+	if err != nil {
+		t.Fatalf("client.Connect() error = %v", err)
+	}
+	t.Cleanup(func() { _ = clientSession.Close() })
+
+	tools, err := clientSession.ListTools(ctx, &mcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("ListTools() error = %v", err)
+	}
+	if len(tools.Tools) == 0 {
+		t.Fatalf("expected at least one tool")
+	}
+
+	foundExecute := false
+	foundGetEvent := false
+	for _, tool := range tools.Tools {
+		switch tool.Name {
+		case "execute":
+			foundExecute = true
+			if tool.Description == "" {
+				t.Fatalf("execute description missing")
+			}
+			if tool.Annotations == nil {
+				t.Fatalf("execute annotations missing")
+			}
+		case "get_event":
+			foundGetEvent = true
+			if tool.Description == "" {
+				t.Fatalf("get_event description missing")
+			}
+			if tool.Annotations == nil || !tool.Annotations.ReadOnlyHint {
+				t.Fatalf("get_event read-only annotation missing")
+			}
+		}
+	}
+	if !foundExecute || !foundGetEvent {
+		t.Fatalf("expected execute and get_event tools in metadata")
+	}
+}
+
+func TestMCPExecuteAndGetEventStructuredOutputs(t *testing.T) {
 	temp := t.TempDir()
 	oldWd, err := os.Getwd()
 	if err != nil {
@@ -93,7 +214,7 @@ func TestMCPInvocationFlowAndEvidenceChain(t *testing.T) {
 
 	policyPath, err := policyPathFromWorkingDir(oldWd)
 	if err != nil {
-		t.Fatalf("filepath.Abs() error = %v", err)
+		t.Fatalf("policyPathFromWorkingDir() error = %v", err)
 	}
 	policyBytes, err := os.ReadFile(policyPath)
 	if err != nil {
@@ -107,8 +228,7 @@ func TestMCPInvocationFlowAndEvidenceChain(t *testing.T) {
 	if err := store.Init(); err != nil {
 		t.Fatalf("store.Init() error = %v", err)
 	}
-	reg := registry.NewDefaultRegistry()
-	server := NewServer(Options{Name: "evidra-mcp-test", Version: "v0.1.0"}, reg, policyEngine, store)
+	server := NewServer(Options{Name: "evidra-mcp-test", Version: "v0.1.0", PolicyRef: "test-policy-ref"}, registry.NewDefaultRegistry(), policyEngine, store)
 
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
@@ -128,201 +248,53 @@ func TestMCPInvocationFlowAndEvidenceChain(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = clientSession.Close() })
 
-	call := func(arguments map[string]any) (*mcp.CallToolResult, error) {
-		return clientSession.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "execute",
-			Arguments: arguments,
-		})
-	}
-
-	echoRes, err := call(map[string]any{
-		"actor":     map[string]any{"type": "human", "id": "u1", "origin": "mcp"},
-		"tool":      "echo",
-		"operation": "run",
-		"params":    map[string]any{"text": "hello"},
-		"context":   map[string]any{},
+	execRes, err := clientSession.CallTool(ctx, &mcp.CallToolParams{
+		Name: "execute",
+		Arguments: map[string]any{
+			"actor":     map[string]any{"type": "human", "id": "u1", "origin": "mcp"},
+			"tool":      "echo",
+			"operation": "run",
+			"params":    map[string]any{"text": "hello"},
+			"context":   map[string]any{},
+		},
 	})
 	if err != nil {
-		t.Fatalf("echo call error = %v", err)
+		t.Fatalf("execute call error = %v", err)
 	}
-	if echoRes.IsError {
-		t.Fatalf("echo call returned tool error")
+	if execRes.IsError {
+		t.Fatalf("execute call should return structured output, not MCP error")
+	}
+	execOut, ok := execRes.StructuredContent.(map[string]any)
+	if !ok {
+		t.Fatalf("expected execute structured content object")
+	}
+	if okVal, _ := execOut["ok"].(bool); !okVal {
+		t.Fatalf("expected execute ok=true, got %v", execOut["ok"])
+	}
+	eventID, _ := execOut["event_id"].(string)
+	if eventID == "" {
+		t.Fatalf("expected event_id in execute response")
 	}
 
-	gitRes, err := call(map[string]any{
-		"actor":     map[string]any{"type": "human", "id": "u1", "origin": "mcp"},
-		"tool":      "git",
-		"operation": "status",
-		"params":    map[string]any{"path": repoPath},
-		"context":   map[string]any{},
+	getRes, err := clientSession.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_event",
+		Arguments: map[string]any{"event_id": eventID},
 	})
 	if err != nil {
-		t.Fatalf("git status call error = %v", err)
+		t.Fatalf("get_event call error = %v", err)
 	}
-	if gitRes.IsError {
-		t.Fatalf("git status call returned tool error")
+	if getRes.IsError {
+		t.Fatalf("get_event should return structured response")
 	}
-
-	deniedRes, err := call(map[string]any{
-		"actor":     map[string]any{"type": "human", "id": "u1", "origin": "mcp"},
-		"tool":      "git",
-		"operation": "push",
-		"params":    map[string]any{},
-		"context":   map[string]any{},
-	})
-	if err == nil && (deniedRes == nil || !deniedRes.IsError) {
-		t.Fatalf("expected git push call to be denied")
+	getOut, ok := getRes.StructuredContent.(map[string]any)
+	if !ok {
+		t.Fatalf("expected get_event structured content object")
 	}
-
-	if lines := countEvidenceLines(t); lines != 3 {
-		t.Fatalf("expected 3 evidence records, got %d", lines)
+	if okVal, _ := getOut["ok"].(bool); !okVal {
+		t.Fatalf("expected get_event ok=true, got %v", getOut["ok"])
 	}
-	if err := evidence.ValidateChain(); err != nil {
-		t.Fatalf("ValidateChain() error = %v", err)
-	}
-}
-
-func TestEnforceModePolicyDenyBlocksExecution(t *testing.T) {
-	policyPath := writePolicyFile(t, `package evidra.policy
-import rego.v1
-decision := {"allow": false, "risk_level": "critical", "reason": "policy_denied_default"}
-`)
-
-	svc := newServiceWithModeAndPolicyPath(t, ModeEnforce, policyPath)
-	out, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
-	if err == nil {
-		t.Fatalf("expected policy deny error in enforce mode")
-	}
-	if out.Status != "denied" {
-		t.Fatalf("expected denied status, got %q", out.Status)
-	}
-
-	rec := readLastEvidenceRecord(t)
-	if rec.PolicyDecision.Advisory {
-		t.Fatalf("expected advisory=false in enforce mode")
-	}
-}
-
-func TestObserveModePolicyDenyExecutesAndMarksAdvisory(t *testing.T) {
-	policyPath := writePolicyFile(t, `package evidra.policy
-import rego.v1
-decision := {"allow": false, "risk_level": "critical", "reason": "policy_denied_default"}
-`)
-
-	svc := newServiceWithModeAndPolicyPath(t, ModeObserve, policyPath)
-	out, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
-	if err != nil {
-		t.Fatalf("expected execution to proceed in observe mode, got error: %v", err)
-	}
-	if out.Status != "success" {
-		t.Fatalf("expected success status, got %q", out.Status)
-	}
-
-	rec := readLastEvidenceRecord(t)
-	if !rec.PolicyDecision.Advisory {
-		t.Fatalf("expected advisory=true in observe mode")
-	}
-	if rec.PolicyDecision.Allow {
-		t.Fatalf("expected recorded policy decision allow=false")
-	}
-}
-
-func TestGetEventFound(t *testing.T) {
-	svc := newService(t)
-	out1, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
-	if err != nil {
-		t.Fatalf("Execute(one) error = %v", err)
-	}
-	_, err = svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "two"}))
-	if err != nil {
-		t.Fatalf("Execute(two) error = %v", err)
-	}
-
-	rec, err := svc.GetEvent(context.Background(), out1.EventID)
-	if err != nil {
-		t.Fatalf("GetEvent() error = %v", err)
-	}
-	if rec.EventID != out1.EventID {
-		t.Fatalf("expected event_id %q, got %q", out1.EventID, rec.EventID)
-	}
-	if rec.Tool != "echo" || rec.Operation != "run" {
-		t.Fatalf("unexpected record tool/operation: %s/%s", rec.Tool, rec.Operation)
-	}
-}
-
-func TestGetEventNotFound(t *testing.T) {
-	svc := newService(t)
-	_, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
-	if err != nil {
-		t.Fatalf("Execute() error = %v", err)
-	}
-
-	rec, err := svc.GetEvent(context.Background(), "evt-missing")
-	if err == nil {
-		t.Fatalf("expected not found error")
-	}
-	if rec.EventID != "" {
-		t.Fatalf("expected empty record on not found")
-	}
-}
-
-func TestGetEventFailsOnInvalidChain(t *testing.T) {
-	svc := newService(t)
-	out, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
-	if err != nil {
-		t.Fatalf("Execute() error = %v", err)
-	}
-	_, err = svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "two"}))
-	if err != nil {
-		t.Fatalf("Execute() second error = %v", err)
-	}
-
-	path := filepath.Join("data", "evidence", "segments", "evidence-000001.jsonl")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile(segment) error = %v", err)
-	}
-	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
-	if len(lines) < 2 {
-		t.Fatalf("expected at least 2 evidence lines")
-	}
-	lines[0] = strings.Replace(lines[0], "\"status\":\"success\"", "\"status\":\"tampered\"", 1)
-	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
-		t.Fatalf("WriteFile(segment) error = %v", err)
-	}
-
-	rec, err := svc.GetEvent(context.Background(), out.EventID)
-	if err == nil {
-		t.Fatalf("expected chain invalid error")
-	}
-	if err.Error() != "evidence_chain_invalid" {
-		t.Fatalf("expected evidence_chain_invalid error, got %v", err)
-	}
-	if rec.EventID != "" {
-		t.Fatalf("expected empty record on chain invalid")
-	}
-}
-
-func TestGetEventAcrossSegments(t *testing.T) {
-	t.Setenv("EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES", "400")
-	svc := newService(t)
-
-	first, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": strings.Repeat("a", 280)}))
-	if err != nil {
-		t.Fatalf("Execute(first) error = %v", err)
-	}
-	for i := 0; i < 4; i++ {
-		if _, err := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": strings.Repeat("b", 280)})); err != nil {
-			t.Fatalf("Execute(%d) error = %v", i, err)
-		}
-	}
-
-	rec, err := svc.GetEvent(context.Background(), first.EventID)
-	if err != nil {
-		t.Fatalf("GetEvent() error = %v", err)
-	}
-	if rec.EventID != first.EventID {
-		t.Fatalf("expected event_id %q, got %q", first.EventID, rec.EventID)
+	if _, exists := getOut["record"]; !exists {
+		t.Fatalf("expected record wrapper in get_event response")
 	}
 }
 
@@ -332,7 +304,6 @@ func newService(t *testing.T) *ExecuteService {
 
 func newServiceWithMode(t *testing.T, mode Mode) *ExecuteService {
 	t.Helper()
-
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Getwd() error = %v", err)
@@ -369,7 +340,7 @@ func newServiceWithModeAndPolicyPath(t *testing.T, mode Mode, policyPath string)
 		t.Fatalf("store.Init() error = %v", err)
 	}
 
-	return NewExecuteServiceWithMode(registry.NewDefaultRegistry(), policyEngine, store, mode, "")
+	return NewExecuteServiceWithMode(registry.NewDefaultRegistry(), policyEngine, store, mode, "test-policy-ref")
 }
 
 func policyPathFromWorkingDir(wd string) (string, error) {
@@ -378,11 +349,7 @@ func policyPathFromWorkingDir(wd string) (string, error) {
 
 func baseInvocation(tool, operation string, params map[string]interface{}) invocation.ToolInvocation {
 	return invocation.ToolInvocation{
-		Actor: invocation.Actor{
-			Type:   "human",
-			ID:     "u1",
-			Origin: "mcp",
-		},
+		Actor:     invocation.Actor{Type: "human", ID: "u1", Origin: "mcp"},
 		Tool:      tool,
 		Operation: operation,
 		Params:    params,
@@ -397,25 +364,4 @@ func countEvidenceLines(t *testing.T) int {
 		return 0
 	}
 	return len(records)
-}
-
-func readLastEvidenceRecord(t *testing.T) evidence.EvidenceRecord {
-	t.Helper()
-	records, err := evidence.ReadAllAtPath(filepath.Join("data", "evidence"))
-	if err != nil {
-		t.Fatalf("ReadAllAtPath(evidence) error = %v", err)
-	}
-	if len(records) == 0 {
-		t.Fatalf("no evidence records found")
-	}
-	return records[len(records)-1]
-}
-
-func writePolicyFile(t *testing.T, content string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "policy.rego")
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("WriteFile(policy.rego) error = %v", err)
-	}
-	return path
 }

@@ -46,6 +46,15 @@ In dev-oriented setups, shell may remain enabled, but enforcement becomes adviso
 - `execute`
 - `get_event`
 
+## Tool Metadata and Safety Hints
+
+Each MCP tool exposes descriptions and input schema details. Tool definitions also include safety annotations intended for UI hinting:
+- read-only operations: `side_effects=none`, `risk_hint=low`
+- write operations: `side_effects=writes`, `risk_hint=high`
+- destructive operations: `side_effects=destructive`, `risk_hint=critical`
+
+These are hints for UX only. Policy evaluation is the enforcement source of truth.
+
 ## execute Payload
 
 ```json
@@ -58,7 +67,62 @@ In dev-oriented setups, shell may remain enabled, but enforcement becomes adviso
 }
 ```
 
-Response includes `event_id`.
+## execute Response (allowed)
+
+```json
+{
+  "ok": true,
+  "event_id": "evt-123",
+  "policy": {
+    "allow": true,
+    "risk_level": "low",
+    "reason": "allowed_by_rule",
+    "policy_ref": "b4b6..."
+  },
+  "execution": {
+    "status": "success",
+    "exit_code": 0,
+    "stdout": "...",
+    "stderr": ""
+  },
+  "hints": [
+    "Execution allowed by policy."
+  ]
+}
+```
+
+## execute Response (denied)
+
+```json
+{
+  "ok": false,
+  "event_id": "evt-124",
+  "policy": {
+    "allow": false,
+    "risk_level": "critical",
+    "reason": "policy_denied_default",
+    "policy_ref": "b4b6..."
+  },
+  "execution": {
+    "status": "denied",
+    "exit_code": null,
+    "stdout": "",
+    "stderr": ""
+  },
+  "error": {
+    "code": "policy_denied_default",
+    "message": "execution denied by policy",
+    "risk_level": "critical",
+    "reason": "policy_denied_default",
+    "hint": "Adjust policy rules or invocation context (for example context.environment)."
+  },
+  "hints": [
+    "Run evidra-policy-sim to evaluate policy decisions offline."
+  ]
+}
+```
+
+UIs should surface `policy.risk_level`, `policy.reason`, and `event_id` for traceability and incident review.
 
 ## get_event Payload
 
@@ -68,7 +132,48 @@ Response includes `event_id`.
 }
 ```
 
-Use this to retrieve immutable evidence records after execution.
+## get_event Responses
+
+On success:
+
+```json
+{
+  "ok": true,
+  "record": {
+    "event_id": "evt-123",
+    "timestamp": "2026-02-20T12:00:00Z",
+    "tool": "argocd",
+    "operation": "app-get",
+    "hash": "..."
+  }
+}
+```
+
+On not found:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "not_found",
+    "message": "event_id not found"
+  }
+}
+```
+
+On chain validation failure:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "evidence_chain_invalid",
+    "message": "evidence chain validation failed"
+  }
+}
+```
+
+Use `get_event` to retrieve immutable evidence records after execution.
 
 Offline CLI tools (`policy-sim`, `evidra-evidence`) remain available for local iteration and forensics.
 

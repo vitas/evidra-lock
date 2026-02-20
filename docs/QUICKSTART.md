@@ -37,7 +37,7 @@ Defaults:
 ## 4) Invoke Through MCP
 
 Use any MCP client to call tool `execute` with canonical `ToolInvocation` JSON.
-A successful call returns `event_id`.
+A successful call returns `event_id`, plus policy and execution summaries (`risk_level`, `reason`, status, exit_code).
 
 Example payload:
 
@@ -51,6 +51,17 @@ Example payload:
 }
 ```
 
+Example success response shape:
+
+```json
+{
+  "ok": true,
+  "event_id": "evt-123",
+  "policy": {"allow": true, "risk_level": "low", "reason": "allowed_by_rule", "policy_ref": "b4b6..."},
+  "execution": {"status": "success", "exit_code": 0, "stdout": "...", "stderr": ""}
+}
+```
+
 ## 5) Fetch a Record by event_id
 
 Call MCP tool `get_event`:
@@ -58,6 +69,20 @@ Call MCP tool `get_event`:
 ```json
 {
   "event_id": "evt-..."
+}
+```
+
+Expected wrapper response:
+
+```json
+{
+  "ok": true,
+  "record": {
+    "event_id": "evt-...",
+    "tool": "argocd",
+    "operation": "app-get",
+    "hash": "..."
+  }
 }
 ```
 
