@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,6 +32,9 @@ func TestExecuteAllowedStructuredResponse(t *testing.T) {
 	}
 	if out.Execution.Status != "success" {
 		t.Fatalf("expected success status, got %q", out.Execution.Status)
+	}
+	if len(out.Resources) == 0 || out.Resources[0].URI == "" {
+		t.Fatalf("expected resource links in response")
 	}
 	if lines := countEvidenceLines(t); lines != 1 {
 		t.Fatalf("expected 1 evidence record, got %d", lines)
@@ -72,6 +76,9 @@ func TestGetEventWrappedResponses(t *testing.T) {
 	if got.Record.EventID != out.EventID {
 		t.Fatalf("expected matching event_id, got %q", got.Record.EventID)
 	}
+	if len(got.Resources) == 0 {
+		t.Fatalf("expected resource links in get_event response")
+	}
 
 	notFound := svc.GetEvent(context.Background(), "evt-missing")
 	if notFound.OK {
@@ -79,6 +86,71 @@ func TestGetEventWrappedResponses(t *testing.T) {
 	}
 	if notFound.Error == nil || notFound.Error.Code != "not_found" {
 		t.Fatalf("expected not_found error, got %+v", notFound)
+	}
+}
+
+func TestExecuteProgressReporterStages(t *testing.T) {
+	svc := newService(t)
+	var seen []string
+	reporter := func(_ float64, msg string) {
+		seen = append(seen, msg)
+	}
+
+	out := svc.ExecuteWithReporter(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}), reporter)
+	if !out.OK {
+		t.Fatalf("expected execute success, got %+v", out)
+	}
+	mustContain := []string{
+		"received",
+		"validated invocation",
+		"registry ok",
+		"policy evaluated (allow/deny)",
+		"execution started",
+		"execution finished (writing evidence)",
+		"done",
+	}
+	for _, m := range mustContain {
+		found := false
+		for _, got := range seen {
+			if got == m {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected progress stage %q in %v", m, seen)
+		}
+	}
+}
+
+func TestExecuteWithoutProgressReporterStillWorks(t *testing.T) {
+	svc := newService(t)
+	out := svc.ExecuteWithReporter(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}), nil)
+	if !out.OK {
+		t.Fatalf("expected execute to work without reporter, got %+v", out)
+	}
+}
+
+func TestFileResourceLinksDisabledByDefaultAndOptIn(t *testing.T) {
+	svc := newService(t)
+	links := svc.resourceLinks("evt-1")
+	for _, l := range links {
+		if strings.HasPrefix(l.URI, "file://") {
+			t.Fatalf("file link should be disabled by default")
+		}
+	}
+
+	svc.includeFileResourceLinks = true
+	links = svc.resourceLinks("evt-1")
+	foundFile := false
+	for _, l := range links {
+		if strings.HasPrefix(l.URI, "file://") {
+			foundFile = true
+			break
+		}
+	}
+	if !foundFile {
+		t.Fatalf("expected file:// resource link when includeFileResourceLinks is enabled")
 	}
 }
 
@@ -275,6 +347,9 @@ func TestMCPExecuteAndGetEventStructuredOutputs(t *testing.T) {
 	if eventID == "" {
 		t.Fatalf("expected event_id in execute response")
 	}
+	if len(execRes.Content) == 0 {
+		t.Fatalf("expected resource link content in execute call result")
+	}
 
 	getRes, err := clientSession.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "get_event",
@@ -295,6 +370,23 @@ func TestMCPExecuteAndGetEventStructuredOutputs(t *testing.T) {
 	}
 	if _, exists := getOut["record"]; !exists {
 		t.Fatalf("expected record wrapper in get_event response")
+	}
+
+	readRes, err := clientSession.ReadResource(ctx, &mcp.ReadResourceParams{
+		URI: "evidra://event/" + eventID,
+	})
+	if err != nil {
+		t.Fatalf("ReadResource(event) error = %v", err)
+	}
+	if len(readRes.Contents) == 0 || readRes.Contents[0].Text == "" {
+		t.Fatalf("expected event resource content")
+	}
+	var eventRecord map[string]any
+	if err := json.Unmarshal([]byte(readRes.Contents[0].Text), &eventRecord); err != nil {
+		t.Fatalf("unmarshal event resource content: %v", err)
+	}
+	if gotID, _ := eventRecord["event_id"].(string); gotID != eventID {
+		t.Fatalf("expected event_id %q in resource content, got %q", eventID, gotID)
 	}
 }
 

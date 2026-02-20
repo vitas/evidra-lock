@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"samebits.com/evidra-mcp/pkg/evidence"
+	"samebits.com/evidra-mcp/pkg/version"
 )
 
 const (
@@ -58,6 +59,10 @@ func main() {
 }
 
 func run(args []string, stdout io.Writer, stderr io.Writer) int {
+	if len(args) == 1 && strings.TrimSpace(args[0]) == "--version" {
+		fmt.Fprintf(stdout, "evidra-evidence %s\n", version.Version)
+		return exitOK
+	}
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export|violations|cursor> [flags]")
 		return exitInputError

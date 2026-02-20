@@ -15,6 +15,7 @@ import (
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/policysource"
 	"samebits.com/evidra-mcp/pkg/registry"
+	"samebits.com/evidra-mcp/pkg/version"
 	kubectlplugin "samebits.com/evidra-mcp/plugins/kubectl"
 )
 
@@ -26,6 +27,11 @@ const (
 )
 
 func main() {
+	if len(os.Args) > 1 && strings.TrimSpace(os.Args[1]) == "--version" {
+		fmt.Printf("evidra-mcp %s\n", version.Version)
+		return
+	}
+
 	mode, err := loadModeFromEnv()
 	if err != nil {
 		log.Fatalf("load mode: %v", err)
@@ -86,11 +92,12 @@ func main() {
 	}
 	server := mcpserver.NewServer(
 		mcpserver.Options{
-			Name:         "evidra-mcp",
-			Version:      "v0.1.0",
-			Mode:         mode,
-			PolicyRef:    mustPolicyRef(ps),
-			EvidencePath: evidencePath,
+			Name:                     "evidra-mcp",
+			Version:                  version.Version,
+			Mode:                     mode,
+			PolicyRef:                mustPolicyRef(ps),
+			EvidencePath:             evidencePath,
+			IncludeFileResourceLinks: envBool("EVIDRA_INCLUDE_FILE_RESOURCE_LINKS", false),
 		},
 		toolRegistry,
 		policyEngine,
@@ -172,4 +179,18 @@ func envOrDefault(key, fallback string) string {
 		return fallback
 	}
 	return v
+}
+
+func envBool(key string, fallback bool) bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	case "":
+		return fallback
+	default:
+		return fallback
+	}
 }

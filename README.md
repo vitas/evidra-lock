@@ -75,6 +75,8 @@ Evidra enforces guardrails for MCP tool invocations. To prevent bypass, configur
 ## Documentation
 
 - `docs/QUICKSTART.md`
+- `docs/DEMO.md`
+- `docs/RELEASE_CHECKLIST.md`
 - `docs/POLICY_GUIDE.md`
 - `docs/TOOL_PACKS.md`
 - `docs/OPS_PROFILE.md`

@@ -9,6 +9,7 @@ import (
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/policysource"
+	"samebits.com/evidra-mcp/pkg/version"
 )
 
 const (
@@ -17,10 +18,16 @@ const (
 )
 
 func main() {
+	showVersion := flag.Bool("version", false, "Print version and exit")
 	policyPath := flag.String("policy", "", "Path to Rego policy file")
 	inputPath := flag.String("input", "", "Path to ToolInvocation JSON file")
 	dataPath := flag.String("data", "", "Optional path to OPA data JSON file")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("evidra-policy-sim %s\n", version.Version)
+		return
+	}
 
 	if *policyPath == "" || *inputPath == "" {
 		fmt.Fprintln(os.Stderr, "usage: evidra-policy-sim --policy ./policy/policy.rego --input ./examples/invocation.json [--data ./policy/data.json]")

@@ -55,6 +55,23 @@ Each MCP tool exposes descriptions and input schema details. Tool definitions al
 
 These are hints for UX only. Policy evaluation is the enforcement source of truth.
 
+## Progress Notifications
+
+For long-running `execute` calls, Evidra emits MCP progress notifications when the client provides a progress token.
+
+Stage messages:
+- `received`
+- `validated invocation`
+- `registry ok`
+- `policy evaluated (allow/deny)`
+- `execution started`
+- `execution finished (writing evidence)`
+- `done` (or `denied (evidence written)`)
+
+For long operations (`terraform plan/apply`, `helm upgrade`, `argocd app-sync/app-rollback`, `kubectl apply/delete`), Evidra sends periodic heartbeat updates (`still running...`).
+
+If the client does not support progress or does not send a progress token, execution still works normally.
+
 ## execute Payload
 
 ```json
@@ -85,6 +102,10 @@ These are hints for UX only. Policy evaluation is the enforcement source of trut
     "stdout": "...",
     "stderr": ""
   },
+  "resources": [
+    {"uri": "evidra://event/evt-123", "name": "Evidence record", "mimeType": "application/json"},
+    {"uri": "evidra://evidence/manifest", "name": "Evidence manifest", "mimeType": "application/json"}
+  ],
   "hints": [
     "Execution allowed by policy."
   ]
@@ -109,6 +130,9 @@ These are hints for UX only. Policy evaluation is the enforcement source of trut
     "stdout": "",
     "stderr": ""
   },
+  "resources": [
+    {"uri": "evidra://event/evt-124", "name": "Evidence record", "mimeType": "application/json"}
+  ],
   "error": {
     "code": "policy_denied_default",
     "message": "execution denied by policy",
@@ -123,6 +147,8 @@ These are hints for UX only. Policy evaluation is the enforcement source of trut
 ```
 
 UIs should surface `policy.risk_level`, `policy.reason`, and `event_id` for traceability and incident review.
+
+`resources` contains MCP `ResourceLink` entries for direct UI navigation.
 
 ## get_event Payload
 
@@ -145,7 +171,10 @@ On success:
     "tool": "argocd",
     "operation": "app-get",
     "hash": "..."
-  }
+  },
+  "resources": [
+    {"uri": "evidra://event/evt-123", "name": "Evidence record", "mimeType": "application/json"}
+  ]
 }
 ```
 
@@ -174,6 +203,15 @@ On chain validation failure:
 ```
 
 Use `get_event` to retrieve immutable evidence records after execution.
+
+## Resource URIs
+
+Evidra exposes local MCP resources:
+- `evidra://event/<event_id>`: event record JSON
+- `evidra://evidence/manifest`: evidence manifest JSON (segmented store)
+- `evidra://evidence/segments`: segment summary JSON
+
+Optional `file://` resource links can be enabled with `EVIDRA_INCLUDE_FILE_RESOURCE_LINKS=true`. They are disabled by default.
 
 Offline CLI tools (`policy-sim`, `evidra-evidence`) remain available for local iteration and forensics.
 

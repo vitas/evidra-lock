@@ -2,8 +2,12 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -16,11 +20,12 @@ import (
 )
 
 type Options struct {
-	Name         string
-	Version      string
-	Mode         Mode
-	PolicyRef    string
-	EvidencePath string
+	Name                     string
+	Version                  string
+	Mode                     Mode
+	PolicyRef                string
+	EvidencePath             string
+	IncludeFileResourceLinks bool
 }
 
 type Mode string
@@ -35,6 +40,7 @@ type ExecuteOutput struct {
 	EventID   string           `json:"event_id,omitempty"`
 	Policy    PolicySummary    `json:"policy"`
 	Execution ExecutionSummary `json:"execution"`
+	Resources []ResourceLink   `json:"resources,omitempty"`
 	Hints     []string         `json:"hints,omitempty"`
 	Error     *ErrorSummary    `json:"error,omitempty"`
 }
@@ -62,9 +68,16 @@ type ErrorSummary struct {
 }
 
 type GetEventOutput struct {
-	OK     bool             `json:"ok"`
-	Record *evidence.Record `json:"record,omitempty"`
-	Error  *ErrorSummary    `json:"error,omitempty"`
+	OK        bool             `json:"ok"`
+	Record    *evidence.Record `json:"record,omitempty"`
+	Resources []ResourceLink   `json:"resources,omitempty"`
+	Error     *ErrorSummary    `json:"error,omitempty"`
+}
+
+type ResourceLink struct {
+	URI      string `json:"uri"`
+	Name     string `json:"name"`
+	MIMEType string `json:"mimeType,omitempty"`
 }
 
 type executeHandler struct {
@@ -95,6 +108,7 @@ func NewServer(opts Options, reg registry.Registry, policyEngine core.PolicyEngi
 
 	svc := NewExecuteServiceWithMode(reg, policyEngine, evidenceStore, opts.Mode, opts.PolicyRef)
 	svc.evidencePath = opts.EvidencePath
+	svc.includeFileResourceLinks = opts.IncludeFileResourceLinks
 	executeTool := &executeHandler{service: svc}
 	getEventTool := &getEventHandler{service: svc}
 
@@ -153,16 +167,41 @@ func NewServer(opts Options, reg registry.Registry, policyEngine core.PolicyEngi
 			},
 		},
 	}, getEventTool.Handle)
+
+	server.AddResourceTemplate(&mcp.ResourceTemplate{
+		Name:        "evidra-event",
+		Title:       "Evidence Event Record",
+		Description: "Read a specific evidence record by event_id.",
+		MIMEType:    "application/json",
+		URITemplate: "evidra://event/{event_id}",
+	}, svc.readResourceEvent)
+	server.AddResource(&mcp.Resource{
+		Name:        "evidra-evidence-manifest",
+		Title:       "Evidence Manifest",
+		Description: "Read evidence manifest for segmented store.",
+		MIMEType:    "application/json",
+		URI:         "evidra://evidence/manifest",
+	}, svc.readResourceManifest)
+	server.AddResource(&mcp.Resource{
+		Name:        "evidra-evidence-segments",
+		Title:       "Evidence Segments",
+		Description: "Read sealed/current segment summary.",
+		MIMEType:    "application/json",
+		URI:         "evidra://evidence/segments",
+	}, svc.readResourceSegments)
 	return server
 }
 
 func (h *executeHandler) Handle(
 	ctx context.Context,
-	_ *mcp.CallToolRequest,
+	req *mcp.CallToolRequest,
 	input invocation.ToolInvocation,
 ) (*mcp.CallToolResult, ExecuteOutput, error) {
-	output := h.service.Execute(ctx, input)
-	return nil, output, nil
+	reporter := progressReporterFromRequest(ctx, req)
+	output := h.service.ExecuteWithReporter(ctx, input, reporter)
+	return &mcp.CallToolResult{
+		Content: resourceLinksToContent(output.Resources),
+	}, output, nil
 }
 
 func (h *getEventHandler) Handle(
@@ -171,16 +210,19 @@ func (h *getEventHandler) Handle(
 	input getEventInput,
 ) (*mcp.CallToolResult, GetEventOutput, error) {
 	output := h.service.GetEvent(ctx, input.EventID)
-	return nil, output, nil
+	return &mcp.CallToolResult{
+		Content: resourceLinksToContent(output.Resources),
+	}, output, nil
 }
 
 type ExecuteService struct {
-	registry     registry.Registry
-	policy       core.PolicyEngine
-	evidence     core.EvidenceStore
-	mode         Mode
-	policyRef    string
-	evidencePath string
+	registry                 registry.Registry
+	policy                   core.PolicyEngine
+	evidence                 core.EvidenceStore
+	mode                     Mode
+	policyRef                string
+	evidencePath             string
+	includeFileResourceLinks bool
 }
 
 func NewExecuteService(reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore) *ExecuteService {
@@ -240,60 +282,102 @@ func (s *ExecuteService) GetEvent(_ context.Context, eventID string) GetEventOut
 			},
 		}
 	}
-	return GetEventOutput{OK: true, Record: &rec}
+	return GetEventOutput{
+		OK:        true,
+		Record:    &rec,
+		Resources: s.resourceLinks(rec.EventID),
+	}
 }
 
 func (s *ExecuteService) Execute(ctx context.Context, inv invocation.ToolInvocation) ExecuteOutput {
+	return s.ExecuteWithReporter(ctx, inv, nil)
+}
+
+type ProgressReporter func(progress float64, message string)
+
+func (s *ExecuteService) ExecuteWithReporter(ctx context.Context, inv invocation.ToolInvocation, reporter ProgressReporter) ExecuteOutput {
+	reporter.report(0, "received")
+
 	if err := inv.ValidateStructure(); err != nil {
-		return s.denyWithEvidence(inv, "invalid_invocation", err.Error(), "Provide actor/tool/operation and non-nil params/context.")
+		out := s.denyWithEvidence(inv, "invalid_invocation", err.Error(), "Provide actor/tool/operation and non-nil params/context.")
+		reporter.report(100, "denied (evidence written)")
+		return out
 	}
+	reporter.report(10, "validated invocation")
 
 	def, ok := s.registry.Lookup(inv.Tool)
 	if !ok {
-		return s.denyWithEvidence(inv, "unregistered_tool", fmt.Sprintf("tool %q is not registered", inv.Tool), "Install/enable the corresponding tool pack.")
+		out := s.denyWithEvidence(inv, "unregistered_tool", fmt.Sprintf("tool %q is not registered", inv.Tool), "Install/enable the corresponding tool pack.")
+		reporter.report(100, "denied (evidence written)")
+		return out
 	}
 	if !registry.SupportsOperation(def, inv.Operation) {
-		return s.denyWithEvidence(inv, "unsupported_operation", fmt.Sprintf("operation %q is not supported for tool %q", inv.Operation, inv.Tool), "Check supported operations for the registered tool.")
+		out := s.denyWithEvidence(inv, "unsupported_operation", fmt.Sprintf("operation %q is not supported for tool %q", inv.Operation, inv.Tool), "Check supported operations for the registered tool.")
+		reporter.report(100, "denied (evidence written)")
+		return out
 	}
 	if err := registry.ValidateParams(def, inv.Operation, inv.Params); err != nil {
-		return s.denyWithEvidence(inv, "invalid_params", err.Error(), "Fix params to match the operation schema.")
+		out := s.denyWithEvidence(inv, "invalid_params", err.Error(), "Fix params to match the operation schema.")
+		reporter.report(100, "denied (evidence written)")
+		return out
 	}
+	reporter.report(25, "registry ok")
 
 	decision, evalErr := s.policy.Evaluate(inv)
 	if evalErr != nil {
 		decision = decisionForPolicyError()
 	}
+	reporter.report(40, "policy evaluated (allow/deny)")
 	if s.mode == ModeEnforce && !decision.Allow {
 		hint := "Adjust policy or invocation context (e.g. context.environment), then re-run."
 		if decision.Reason == "policy_evaluation_failed" {
 			hint = "Check policy syntax and run evidra-policy-sim."
 		}
-		return s.writeFinal(inv, decision, registry.ExecutionResult{Status: "denied", ExitCode: nil}, false, &ErrorSummary{
+		out := s.writeFinal(inv, decision, registry.ExecutionResult{Status: "denied", ExitCode: nil}, false, &ErrorSummary{
 			Code:      decision.Reason,
 			Message:   "execution denied by policy",
 			RiskLevel: decision.RiskLevel,
 			Reason:    decision.Reason,
 			Hint:      hint,
 		}, false)
+		reporter.report(100, "denied (evidence written)")
+		return out
 	}
 
 	advisory := s.mode == ModeObserve
+	reporter.report(60, "execution started")
+	stopHeartbeat := startProgressHeartbeat(ctx, reporter, inv)
 	execResult, execErr := def.Executor(ctx, registry.ToolInvocationInput{
 		Operation: inv.Operation,
 		Params:    inv.Params,
 	})
+	stopHeartbeat()
+	if errors.Is(ctx.Err(), context.Canceled) || errors.Is(execErr, context.Canceled) {
+		execResult.Status = "cancelled"
+		if execResult.Stderr == "" {
+			execResult.Stderr = "execution cancelled"
+		}
+	}
+	reporter.report(90, "execution finished (writing evidence)")
 	if execErr != nil {
 		execResult.Status = "failed"
 		if execResult.Stderr == "" {
 			execResult.Stderr = execErr.Error()
 		}
-		return s.writeFinal(inv, decision, execResult, true, nil, advisory)
+		out := s.writeFinal(inv, decision, execResult, true, nil, advisory)
+		if execResult.Status == "cancelled" {
+			reporter.report(100, "cancelled")
+		} else {
+			reporter.report(100, "done")
+		}
+		return out
 	}
 
 	out := s.writeFinal(inv, decision, execResult, true, nil, advisory)
 	if advisory && !decision.Allow {
 		out.Hints = append(out.Hints, "observe mode: policy denied but execution was allowed")
 	}
+	reporter.report(100, "done")
 	return out
 }
 
@@ -383,8 +467,9 @@ func (s *ExecuteService) writeFinal(
 			Stdout:   result.Stdout,
 			Stderr:   result.Stderr,
 		},
-		Error: errOut,
-		Hints: hintsForExecution(result.Status, decision.RiskLevel),
+		Resources: s.resourceLinks(record.EventID),
+		Error:     errOut,
+		Hints:     hintsForExecution(result.Status, decision.RiskLevel),
 	}
 	return out
 }
@@ -399,6 +484,205 @@ func decisionForPolicyError() policy.Decision {
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+func progressReporterFromRequest(ctx context.Context, req *mcp.CallToolRequest) ProgressReporter {
+	if req == nil || req.Session == nil {
+		return nil
+	}
+	progressToken := req.Params.GetProgressToken()
+	if progressToken == nil {
+		return nil
+	}
+	return func(progress float64, message string) {
+		_ = req.Session.NotifyProgress(ctx, &mcp.ProgressNotificationParams{
+			ProgressToken: progressToken,
+			Progress:      progress,
+			Total:         100,
+			Message:       message,
+		})
+	}
+}
+
+func (r ProgressReporter) report(progress float64, message string) {
+	if r == nil {
+		return
+	}
+	r(progress, message)
+}
+
+func startProgressHeartbeat(ctx context.Context, reporter ProgressReporter, inv invocation.ToolInvocation) func() {
+	if reporter == nil || !isLongRunningOperation(inv.Tool, inv.Operation) {
+		return func() {}
+	}
+	done := make(chan struct{})
+	var once sync.Once
+	stop := func() {
+		once.Do(func() { close(done) })
+	}
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case <-ticker.C:
+				reporter.report(75, "still running...")
+			}
+		}
+	}()
+	return stop
+}
+
+func isLongRunningOperation(tool, operation string) bool {
+	switch tool {
+	case "terraform":
+		return operation == "plan" || operation == "apply"
+	case "helm":
+		return operation == "upgrade"
+	case "argocd":
+		return operation == "app-sync" || operation == "app-rollback"
+	case "kubectl":
+		return operation == "apply" || operation == "delete"
+	default:
+		return false
+	}
+}
+
+func (s *ExecuteService) resourceLinks(eventID string) []ResourceLink {
+	links := []ResourceLink{
+		{
+			URI:      fmt.Sprintf("evidra://event/%s", eventID),
+			Name:     "Evidence record",
+			MIMEType: "application/json",
+		},
+	}
+	mode, resolved, err := evidenceStorePathInfo(s.evidencePath)
+	if err != nil {
+		return links
+	}
+	if mode == "segmented" {
+		links = append(links,
+			ResourceLink{URI: "evidra://evidence/manifest", Name: "Evidence manifest", MIMEType: "application/json"},
+			ResourceLink{URI: "evidra://evidence/segments", Name: "Evidence segments", MIMEType: "application/json"},
+		)
+	}
+	if s.includeFileResourceLinks {
+		abs, absErr := filepath.Abs(resolved)
+		if absErr == nil {
+			links = append(links, ResourceLink{
+				URI:      "file://" + filepath.ToSlash(abs),
+				Name:     "Local evidence path",
+				MIMEType: "text/plain",
+			})
+		}
+	}
+	return links
+}
+
+func resourceLinksToContent(links []ResourceLink) []mcp.Content {
+	if len(links) == 0 {
+		return nil
+	}
+	out := make([]mcp.Content, 0, len(links))
+	for _, l := range links {
+		out = append(out, &mcp.ResourceLink{
+			URI:      l.URI,
+			Name:     l.Name,
+			MIMEType: l.MIMEType,
+		})
+	}
+	return out
+}
+
+func evidenceStorePathInfo(path string) (mode string, resolved string, err error) {
+	mode, err = evidence.StoreFormatAtPath(path)
+	if err != nil {
+		return "", "", err
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		resolved = path
+	} else {
+		resolved = abs
+	}
+	return mode, resolved, nil
+}
+
+func (s *ExecuteService) readResourceEvent(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	eventID := strings.TrimPrefix(req.Params.URI, "evidra://event/")
+	if eventID == "" || eventID == req.Params.URI {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	rec, found, err := evidence.FindByEventID(s.evidencePath, eventID)
+	if err != nil {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	if !found {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	b, err := json.MarshalIndent(rec, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.ReadResourceResult{
+		Contents: []*mcp.ResourceContents{
+			{
+				URI:      req.Params.URI,
+				MIMEType: "application/json",
+				Text:     string(b),
+			},
+		},
+	}, nil
+}
+
+func (s *ExecuteService) readResourceManifest(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	m, err := evidence.LoadManifest(s.evidencePath)
+	if err != nil {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.ReadResourceResult{
+		Contents: []*mcp.ResourceContents{
+			{
+				URI:      "evidra://evidence/manifest",
+				MIMEType: "application/json",
+				Text:     string(b),
+			},
+		},
+	}, nil
+}
+
+func (s *ExecuteService) readResourceSegments(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	m, err := evidence.LoadManifest(s.evidencePath)
+	if err != nil {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	payload := map[string]any{
+		"sealed_segments": m.SealedSegments,
+		"current_segment": m.CurrentSegment,
+		"count":           len(m.SealedSegments),
+	}
+	b, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.ReadResourceResult{
+		Contents: []*mcp.ResourceContents{
+			{
+				URI:      "evidra://evidence/segments",
+				MIMEType: "application/json",
+				Text:     string(b),
+			},
+		},
+	}, nil
 }
 
 func hintsForExecution(status, risk string) []string {
