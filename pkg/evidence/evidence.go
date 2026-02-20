@@ -147,6 +147,10 @@ func MetadataAtPath(path string) (Metadata, error) {
 	return meta, nil
 }
 
+func ReadAllAtPath(path string) ([]EvidenceRecord, error) {
+	return readAllRecords(path)
+}
+
 func appendAtPath(path string, record EvidenceRecord) (EvidenceRecord, error) {
 	appendMu.Lock()
 	defer appendMu.Unlock()

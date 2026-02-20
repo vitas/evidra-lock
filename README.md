@@ -32,10 +32,20 @@ Export an audit pack:
 go run ./cmd/evidra-evidence export --evidence ./data/evidence.log --out ./audit-pack.tar.gz --policy ./policy/policy.rego --data ./policy/data.json
 ```
 
+Generate a violations summary report:
+
+```bash
+go run ./cmd/evidra-evidence violations --evidence ./data/evidence.log --min-risk high
+```
+
 Audit pack contents:
 - `evidence/evidence.log` copied as-is.
 - `manifest.json` with record count, last hash, and policy reference.
 - Optional `policy/policy.rego` and `policy/data.json` snapshots.
+
+Violations report:
+- Includes denied actions and high-risk actions that meet `--min-risk`.
+- Requires a valid evidence hash-chain before reporting.
 
 ## ToolInvocation Examples
 

@@ -12,6 +12,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"samebits.com/evidra-mcp/pkg/evidence"
@@ -55,7 +57,7 @@ func main() {
 
 func run(args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export> [flags]")
+		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export|violations> [flags]")
 		return exitInputError
 	}
 
@@ -64,8 +66,10 @@ func run(args []string, stdout io.Writer, stderr io.Writer) int {
 		return runVerify(args[1:], stdout, stderr)
 	case "export":
 		return runExport(args[1:], stdout, stderr)
+	case "violations":
+		return runViolations(args[1:], stdout, stderr)
 	default:
-		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export> [flags]")
+		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export|violations> [flags]")
 		return exitInputError
 	}
 }
@@ -209,6 +213,208 @@ func runExport(args []string, stdout io.Writer, stderr io.Writer) int {
 	return exitOK
 }
 
+type violationsTimeWindow struct {
+	Since *string `json:"since"`
+	From  *string `json:"from"`
+	To    *string `json:"to"`
+}
+
+type violationsFilters struct {
+	MinRisk       string `json:"min_risk"`
+	IncludeDenies bool   `json:"include_denies"`
+}
+
+type reasonCount struct {
+	Reason string `json:"reason"`
+	Count  int    `json:"count"`
+}
+
+type toolCount struct {
+	Tool      string `json:"tool"`
+	Operation string `json:"operation"`
+	Count     int    `json:"count"`
+}
+
+type actorCount struct {
+	ActorID string `json:"actor_id"`
+	Count   int    `json:"count"`
+}
+
+type sampleEvent struct {
+	EventID   string `json:"event_id"`
+	Timestamp string `json:"timestamp"`
+	Tool      string `json:"tool"`
+	Operation string `json:"operation"`
+	Allow     bool   `json:"allow"`
+	RiskLevel string `json:"risk_level"`
+	Reason    string `json:"reason"`
+}
+
+type violationsReport struct {
+	OK              bool                 `json:"ok"`
+	EvidencePath    string               `json:"evidence_path"`
+	RecordsTotal    int                  `json:"records_total"`
+	RecordsScanned  int                  `json:"records_scanned"`
+	TimeWindow      violationsTimeWindow `json:"time_window"`
+	Filters         violationsFilters    `json:"filters"`
+	ViolationsTotal int                  `json:"violations_total"`
+	ByReason        []reasonCount        `json:"by_reason"`
+	ByTool          []toolCount          `json:"by_tool"`
+	TopActors       []actorCount         `json:"top_actors"`
+	Samples         []sampleEvent        `json:"samples"`
+}
+
+func runViolations(args []string, stdout io.Writer, stderr io.Writer) int {
+	fs := flag.NewFlagSet("violations", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	evidencePath := fs.String("evidence", "", "Path to evidence log")
+	since := fs.String("since", "", "Optional duration window (e.g. 24h)")
+	minRisk := fs.String("min-risk", "high", "Minimum risk level: low|medium|high|critical")
+	_ = fs.Bool("json", true, "Output JSON")
+	if err := fs.Parse(args); err != nil {
+		return exitInputError
+	}
+	if *evidencePath == "" {
+		fmt.Fprintln(stderr, "--evidence is required")
+		return exitInputError
+	}
+	if _, err := os.Stat(*evidencePath); err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		return exitInputError
+	}
+
+	minRiskRank, ok := riskRank(*minRisk)
+	if !ok {
+		fmt.Fprintln(stderr, "--min-risk must be one of: low|medium|high|critical")
+		return exitInputError
+	}
+
+	var sinceDuration time.Duration
+	var err error
+	var sincePtr *string
+	var fromPtr *string
+	if strings.TrimSpace(*since) != "" {
+		sinceDuration, err = time.ParseDuration(strings.TrimSpace(*since))
+		if err != nil {
+			fmt.Fprintln(stderr, err.Error())
+			return exitInputError
+		}
+		s := strings.TrimSpace(*since)
+		sincePtr = &s
+		from := time.Now().UTC().Add(-sinceDuration).Format(time.RFC3339)
+		fromPtr = &from
+	}
+
+	if err := evidence.ValidateChainAtPath(*evidencePath); err != nil {
+		var chainErr *evidence.ChainValidationError
+		out := map[string]interface{}{
+			"ok":    false,
+			"error": err.Error(),
+		}
+		if errors.As(err, &chainErr) {
+			out["hint"] = "evidence chain is invalid"
+			_ = writeJSON(stdout, out)
+			return exitVerifyFailed
+		}
+		out["hint"] = "evidence parse or internal error"
+		_ = writeJSON(stdout, out)
+		return exitExportFailure
+	}
+
+	records, err := evidence.ReadAllAtPath(*evidencePath)
+	if err != nil {
+		_ = writeJSON(stdout, map[string]interface{}{
+			"ok":    false,
+			"error": err.Error(),
+			"hint":  "failed to parse evidence records",
+		})
+		return exitExportFailure
+	}
+
+	now := time.Now().UTC()
+	var cutoff time.Time
+	if sincePtr != nil {
+		cutoff = now.Add(-sinceDuration)
+	}
+
+	reasonCounts := make(map[string]int)
+	toolCounts := make(map[string]int)
+	actorCounts := make(map[string]int)
+	samples := make([]sampleEvent, 0, 10)
+	recordsScanned := 0
+	violationsTotal := 0
+
+	for _, rec := range records {
+		ts := rec.Timestamp.UTC()
+		if sincePtr != nil && ts.Before(cutoff) {
+			continue
+		}
+		recordsScanned++
+
+		recRiskRank, _ := riskRank(rec.PolicyDecision.RiskLevel)
+		isCandidate := !rec.PolicyDecision.Allow || recRiskRank >= minRiskRank
+		if !isCandidate {
+			continue
+		}
+		violationsTotal++
+
+		reason := rec.PolicyDecision.Reason
+		if reason == "" {
+			reason = "unknown_reason"
+		}
+		reasonCounts[reason]++
+
+		toolKey := rec.Tool + "|" + rec.Operation
+		toolCounts[toolKey]++
+
+		actorID := rec.Actor.ID
+		if actorID == "" {
+			actorID = "unknown"
+		}
+		actorCounts[actorID]++
+
+		if len(samples) < 10 {
+			samples = append(samples, sampleEvent{
+				EventID:   rec.EventID,
+				Timestamp: ts.Format(time.RFC3339),
+				Tool:      rec.Tool,
+				Operation: rec.Operation,
+				Allow:     rec.PolicyDecision.Allow,
+				RiskLevel: normalizedRiskLevel(rec.PolicyDecision.RiskLevel),
+				Reason:    reason,
+			})
+		}
+	}
+
+	byReason := buildReasonCounts(reasonCounts, 50)
+	byTool := buildToolCounts(toolCounts, 50)
+	topActors := buildActorCounts(actorCounts, 10)
+
+	to := now.Format(time.RFC3339)
+	report := violationsReport{
+		OK:             true,
+		EvidencePath:   *evidencePath,
+		RecordsTotal:   len(records),
+		RecordsScanned: recordsScanned,
+		TimeWindow: violationsTimeWindow{
+			Since: sincePtr,
+			From:  fromPtr,
+			To:    &to,
+		},
+		Filters: violationsFilters{
+			MinRisk:       normalizedRiskLevel(*minRisk),
+			IncludeDenies: true,
+		},
+		ViolationsTotal: violationsTotal,
+		ByReason:        byReason,
+		ByTool:          byTool,
+		TopActors:       topActors,
+		Samples:         samples,
+	}
+	_ = writeJSON(stdout, report)
+	return exitOK
+}
+
 func writeAuditPack(outPath, evidencePath string, policyBytes []byte, dataBytes []byte, m manifest) error {
 	outFile, err := os.Create(outPath)
 	if err != nil {
@@ -303,4 +509,86 @@ func writeJSON(w io.Writer, v interface{}) error {
 func sha256Hex(b []byte) string {
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
+}
+
+func riskRank(level string) (int, bool) {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "low":
+		return 0, true
+	case "medium":
+		return 1, true
+	case "high":
+		return 2, true
+	case "critical":
+		return 3, true
+	default:
+		return 3, false
+	}
+}
+
+func normalizedRiskLevel(level string) string {
+	if _, ok := riskRank(level); !ok {
+		return "critical"
+	}
+	return strings.ToLower(strings.TrimSpace(level))
+}
+
+func buildReasonCounts(input map[string]int, limit int) []reasonCount {
+	out := make([]reasonCount, 0, len(input))
+	for reason, count := range input {
+		out = append(out, reasonCount{Reason: reason, Count: count})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count == out[j].Count {
+			return out[i].Reason < out[j].Reason
+		}
+		return out[i].Count > out[j].Count
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}
+
+func buildToolCounts(input map[string]int, limit int) []toolCount {
+	out := make([]toolCount, 0, len(input))
+	for key, count := range input {
+		parts := strings.SplitN(key, "|", 2)
+		tool := parts[0]
+		op := ""
+		if len(parts) == 2 {
+			op = parts[1]
+		}
+		out = append(out, toolCount{Tool: tool, Operation: op, Count: count})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count == out[j].Count {
+			if out[i].Tool == out[j].Tool {
+				return out[i].Operation < out[j].Operation
+			}
+			return out[i].Tool < out[j].Tool
+		}
+		return out[i].Count > out[j].Count
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}
+
+func buildActorCounts(input map[string]int, limit int) []actorCount {
+	out := make([]actorCount, 0, len(input))
+	for actorID, count := range input {
+		out = append(out, actorCount{ActorID: actorID, Count: count})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count == out[j].Count {
+			return out[i].ActorID < out[j].ActorID
+		}
+		return out[i].Count > out[j].Count
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
 }

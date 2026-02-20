@@ -173,6 +173,109 @@ func TestExportFailsOnMixedPolicyRef(t *testing.T) {
 	}
 }
 
+func TestViolationsReportCountsDeniesAndHighRisk(t *testing.T) {
+	logPath := writeEvidenceLog(t, []evidence.EvidenceRecord{
+		newViolationRecord("evt-deny", "policy-abc", "git", "push", "alice", false, "high", "policy_denied_default"),
+		newViolationRecord("evt-high", "policy-abc", "git", "status", "bob", true, "high", "allowed_by_rule"),
+		newViolationRecord("evt-low", "policy-abc", "echo", "run", "charlie", true, "low", "allowed_by_rule"),
+	})
+
+	var out strings.Builder
+	var errOut strings.Builder
+	code := run([]string{"violations", "--evidence", logPath}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
+	}
+
+	var resp struct {
+		OK              bool `json:"ok"`
+		ViolationsTotal int  `json:"violations_total"`
+		ByReason        []struct {
+			Reason string `json:"reason"`
+			Count  int    `json:"count"`
+		} `json:"by_reason"`
+	}
+	if err := json.Unmarshal([]byte(out.String()), &resp); err != nil {
+		t.Fatalf("unmarshal output: %v", err)
+	}
+	if !resp.OK {
+		t.Fatalf("expected ok=true")
+	}
+	if resp.ViolationsTotal != 2 {
+		t.Fatalf("expected violations_total=2, got %d", resp.ViolationsTotal)
+	}
+	if len(resp.ByReason) == 0 || resp.ByReason[0].Reason != "allowed_by_rule" || resp.ByReason[0].Count != 1 {
+		t.Fatalf("unexpected by_reason breakdown: %#v", resp.ByReason)
+	}
+}
+
+func TestViolationsMinRiskFilter(t *testing.T) {
+	logPath := writeEvidenceLog(t, []evidence.EvidenceRecord{
+		newViolationRecord("evt-medium", "policy-abc", "git", "status", "alice", true, "medium", "allowed_by_rule"),
+		newViolationRecord("evt-critical", "policy-abc", "git", "push", "alice", true, "critical", "allowed_by_rule"),
+	})
+
+	var out strings.Builder
+	var errOut strings.Builder
+	code := run([]string{"violations", "--evidence", logPath, "--min-risk", "critical"}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
+	}
+
+	var resp struct {
+		ViolationsTotal int `json:"violations_total"`
+	}
+	if err := json.Unmarshal([]byte(out.String()), &resp); err != nil {
+		t.Fatalf("unmarshal output: %v", err)
+	}
+	if resp.ViolationsTotal != 1 {
+		t.Fatalf("expected violations_total=1, got %d", resp.ViolationsTotal)
+	}
+}
+
+func TestViolationsSortingDeterministic(t *testing.T) {
+	logPath := writeEvidenceLog(t, []evidence.EvidenceRecord{
+		newViolationRecord("evt-1", "policy-abc", "git", "status", "beta", false, "high", "zzz_reason"),
+		newViolationRecord("evt-2", "policy-abc", "echo", "run", "alpha", false, "high", "aaa_reason"),
+	})
+
+	var out strings.Builder
+	var errOut strings.Builder
+	code := run([]string{"violations", "--evidence", logPath}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
+	}
+
+	var resp struct {
+		ByReason []struct {
+			Reason string `json:"reason"`
+			Count  int    `json:"count"`
+		} `json:"by_reason"`
+		ByTool []struct {
+			Tool      string `json:"tool"`
+			Operation string `json:"operation"`
+			Count     int    `json:"count"`
+		} `json:"by_tool"`
+		TopActors []struct {
+			ActorID string `json:"actor_id"`
+			Count   int    `json:"count"`
+		} `json:"top_actors"`
+	}
+	if err := json.Unmarshal([]byte(out.String()), &resp); err != nil {
+		t.Fatalf("unmarshal output: %v", err)
+	}
+
+	if len(resp.ByReason) < 2 || resp.ByReason[0].Reason != "aaa_reason" || resp.ByReason[1].Reason != "zzz_reason" {
+		t.Fatalf("by_reason not deterministic: %#v", resp.ByReason)
+	}
+	if len(resp.ByTool) < 2 || resp.ByTool[0].Tool != "echo" || resp.ByTool[1].Tool != "git" {
+		t.Fatalf("by_tool not deterministic: %#v", resp.ByTool)
+	}
+	if len(resp.TopActors) < 2 || resp.TopActors[0].ActorID != "alpha" || resp.TopActors[1].ActorID != "beta" {
+		t.Fatalf("top_actors not deterministic: %#v", resp.TopActors)
+	}
+}
+
 func writeEvidenceLog(t *testing.T, records []evidence.EvidenceRecord) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "evidence.log")
@@ -211,6 +314,17 @@ func newRecord(eventID, policyRef string) evidence.EvidenceRecord {
 			ExitCode: intPtr(0),
 		},
 	}
+}
+
+func newViolationRecord(eventID, policyRef, tool, operation, actorID string, allow bool, riskLevel, reason string) evidence.EvidenceRecord {
+	rec := newRecord(eventID, policyRef)
+	rec.Tool = tool
+	rec.Operation = operation
+	rec.Actor.ID = actorID
+	rec.PolicyDecision.Allow = allow
+	rec.PolicyDecision.RiskLevel = riskLevel
+	rec.PolicyDecision.Reason = reason
+	return rec
 }
 
 func tamperEvidenceLine(t *testing.T, path string) {
