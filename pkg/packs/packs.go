@@ -39,6 +39,7 @@ type PackSpec struct {
 }
 
 var tokenPattern = regexp.MustCompile(`^\{\{([a-zA-Z0-9_]+)(\?)?\}\}$`)
+var inlineTokenPattern = regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)(\?)?\}\}`)
 
 func LoadToolDefinitions(dir string, existingTools []string) ([]registry.ToolDefinition, error) {
 	if strings.TrimSpace(dir) == "" {
@@ -175,18 +176,35 @@ func toParamRules(in map[string]ParamSpec) (map[string]registry.ParamRule, error
 func validateArgsAndParams(args []string, params map[string]registry.ParamRule) error {
 	used := map[string]struct{}{}
 	for _, arg := range args {
-		m := tokenPattern.FindStringSubmatch(arg)
-		if len(m) == 0 {
-			if strings.Contains(arg, "{{") || strings.Contains(arg, "}}") {
+		full := tokenPattern.FindStringSubmatch(arg)
+		if len(full) > 0 {
+			name := full[1]
+			if _, ok := params[name]; !ok {
+				return fmt.Errorf("placeholder %q not declared in params", name)
+			}
+			used[name] = struct{}{}
+			continue
+		}
+
+		inline := inlineTokenPattern.FindAllStringSubmatch(arg, -1)
+		if len(inline) > 0 {
+			for _, m := range inline {
+				name := m[1]
+				if _, ok := params[name]; !ok {
+					return fmt.Errorf("placeholder %q not declared in params", name)
+				}
+				used[name] = struct{}{}
+			}
+			if strings.Contains(strings.ReplaceAll(strings.ReplaceAll(arg, "{{", ""), "}}", ""), "{{") ||
+				strings.Contains(strings.ReplaceAll(strings.ReplaceAll(arg, "{{", ""), "}}", ""), "}}") {
 				return fmt.Errorf("invalid template token %q", arg)
 			}
 			continue
 		}
-		name := m[1]
-		if _, ok := params[name]; !ok {
-			return fmt.Errorf("placeholder %q not declared in params", name)
+
+		if strings.Contains(arg, "{{") || strings.Contains(arg, "}}") {
+			return fmt.Errorf("invalid template token %q", arg)
 		}
-		used[name] = struct{}{}
 	}
 	for name := range params {
 		if _, ok := used[name]; !ok {

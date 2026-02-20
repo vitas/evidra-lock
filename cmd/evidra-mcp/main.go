@@ -18,11 +18,23 @@ import (
 	kubectlplugin "samebits.com/evidra-mcp/plugins/kubectl"
 )
 
+type Profile string
+
+const (
+	ProfileOps Profile = "ops"
+	ProfileDev Profile = "dev"
+)
+
 func main() {
 	mode, err := loadModeFromEnv()
 	if err != nil {
 		log.Fatalf("load mode: %v", err)
 	}
+	profile, err := loadProfileFromEnv()
+	if err != nil {
+		log.Fatalf("load profile: %v", err)
+	}
+	log.Printf("Evidra profile: %s", profile)
 	log.Printf("Evidra mode: %s", mode)
 	if mode == mcpserver.ModeObserve {
 		log.Printf("Evidra running in OBSERVE mode. Policy violations will NOT block execution.")
@@ -53,13 +65,14 @@ func main() {
 		log.Fatalf("init evidence store: %v", err)
 	}
 
-	toolRegistry := registry.NewDefaultRegistry()
-	// Experimental Level 2 plugin registration (may move to Tool Packs as the
-	// default extension path over time). Kept enabled for backward compatibility.
-	if err := kubectlplugin.New().Register(toolRegistry); err != nil {
-		log.Fatalf("register kubectl plugin: %v", err)
+	toolRegistry, err := buildRegistryForProfile(profile)
+	if err != nil {
+		log.Fatalf("build registry: %v", err)
 	}
 	packsDir := strings.TrimSpace(os.Getenv("EVIDRA_PACKS_DIR"))
+	if packsDir == "" {
+		packsDir = defaultPacksDirForProfile(profile)
+	}
 	if packsDir != "" {
 		defs, err := packs.LoadToolDefinitions(packsDir, toolRegistry.ToolNames())
 		if err != nil {
@@ -110,6 +123,47 @@ func loadModeFromEnv() (mcpserver.Mode, error) {
 	default:
 		return "", fmt.Errorf("invalid EVIDRA_MODE %q (allowed: enforce, observe)", raw)
 	}
+}
+
+func loadProfileFromEnv() (Profile, error) {
+	raw := strings.TrimSpace(os.Getenv("EVIDRA_PROFILE"))
+	if raw == "" {
+		return ProfileOps, nil
+	}
+	switch strings.ToLower(raw) {
+	case string(ProfileOps):
+		return ProfileOps, nil
+	case string(ProfileDev):
+		return ProfileDev, nil
+	default:
+		return "", fmt.Errorf("invalid EVIDRA_PROFILE %q (allowed: ops, dev)", raw)
+	}
+}
+
+func defaultPacksDirForProfile(profile Profile) string {
+	switch profile {
+	case ProfileDev:
+		return "./packs/_core"
+	case ProfileOps:
+		return "./packs/_core/ops"
+	default:
+		return ""
+	}
+}
+
+func buildRegistryForProfile(profile Profile) (*registry.InMemoryRegistry, error) {
+	toolRegistry := registry.NewInMemoryRegistry(nil)
+	if profile == ProfileDev {
+		if err := registry.RegisterDevTools(toolRegistry); err != nil {
+			return nil, err
+		}
+	}
+	// Experimental Level 2 plugin registration (may move to Tool Packs as the
+	// default extension path over time). Kept enabled for backward compatibility.
+	if err := kubectlplugin.New().Register(toolRegistry); err != nil {
+		return nil, err
+	}
+	return toolRegistry, nil
 }
 
 func envOrDefault(key, fallback string) string {

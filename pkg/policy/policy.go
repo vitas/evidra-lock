@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/storage/inmem"
 
 	"samebits.com/evidra-mcp/pkg/invocation"
 )

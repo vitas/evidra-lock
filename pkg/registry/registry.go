@@ -60,21 +60,28 @@ func NewInMemoryRegistry(defs []ToolDefinition) *InMemoryRegistry {
 
 func NewDefaultRegistry() *InMemoryRegistry {
 	r := NewInMemoryRegistry(nil)
-	_ = r.RegisterTool(ToolDefinition{
+	_ = RegisterDevTools(r)
+	return r
+}
+
+// RegisterDevTools registers development/demo core tools.
+func RegisterDevTools(r Registry) error {
+	if err := r.RegisterTool(ToolDefinition{
 		Name:                "echo",
 		SupportedOperations: []string{"run"},
 		InputSchema:         `{"text":"string"}`,
 		Executor:            executeEcho,
 		ValidateParams:      validateEchoParams,
-	})
-	_ = r.RegisterTool(ToolDefinition{
+	}); err != nil {
+		return err
+	}
+	return r.RegisterTool(ToolDefinition{
 		Name:                "git",
 		SupportedOperations: []string{"status"},
 		InputSchema:         `{"path":"string (optional, default '.') "}`,
 		Executor:            executeGitStatus,
 		ValidateParams:      validateGitParams,
 	})
-	return r
 }
 
 func (r *InMemoryRegistry) Lookup(toolName string) (ToolDefinition, bool) {
@@ -144,6 +151,7 @@ type CLIToolSpec struct {
 }
 
 var placeholderPattern = regexp.MustCompile(`^\{\{([a-zA-Z0-9_]+)(\?)?\}\}$`)
+var inlinePlaceholderPattern = regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)(\?)?\}\}`)
 
 func NewDeclarativeCLIToolDefinition(name, inputSchema string, spec CLIToolSpec) (ToolDefinition, error) {
 	if strings.TrimSpace(name) == "" {
@@ -212,6 +220,14 @@ func BuildDeclarativeCLIArgs(spec CLIToolSpec, operation string, params map[stri
 			return nil, err
 		}
 		if !isPlaceholder {
+			expanded, expandedOK, expErr := expandInlineTemplateToken(token, op.Params, params)
+			if expErr != nil {
+				return nil, expErr
+			}
+			if expandedOK {
+				out = append(out, expanded)
+				continue
+			}
 			if strings.Contains(token, "{{") || strings.Contains(token, "}}") {
 				return nil, fmt.Errorf("invalid template token: %s", token)
 			}
@@ -249,6 +265,45 @@ func BuildDeclarativeCLIArgs(spec CLIToolSpec, operation string, params map[stri
 		}
 	}
 	return out, nil
+}
+
+func expandInlineTemplateToken(token string, rules map[string]ParamRule, params map[string]interface{}) (string, bool, error) {
+	matches := inlinePlaceholderPattern.FindAllStringSubmatchIndex(token, -1)
+	if len(matches) == 0 {
+		return "", false, nil
+	}
+	cursor := 0
+	var b strings.Builder
+	for _, m := range matches {
+		b.WriteString(token[cursor:m[0]])
+		name := token[m[2]:m[3]]
+		optional := m[4] >= 0 && m[5] >= 0
+		rule, ok := rules[name]
+		if !ok {
+			return "", false, fmt.Errorf("placeholder %q is not declared in params", name)
+		}
+		v, exists := params[name]
+		if !exists {
+			if optional || !rule.Required {
+				return "", true, nil
+			}
+			return "", false, fmt.Errorf("missing required param: %s", name)
+		}
+		arg, err := convertParamToArg(name, v, rule.Type)
+		if err != nil {
+			return "", false, err
+		}
+		if arg == "" && (optional || !rule.Required) {
+			return "", true, nil
+		}
+		b.WriteString(arg)
+		cursor = m[1]
+	}
+	b.WriteString(token[cursor:])
+	if strings.Contains(b.String(), "{{") || strings.Contains(b.String(), "}}") {
+		return "", false, fmt.Errorf("invalid template token: %s", token)
+	}
+	return b.String(), true, nil
 }
 
 func resolveTemplateToken(token string) (name string, optional bool, isPlaceholder bool, err error) {

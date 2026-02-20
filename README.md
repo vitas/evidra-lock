@@ -124,6 +124,29 @@ Tool surface extension:
 - Primary (v0.1): declarative Tool Packs (Level 1) loaded from `EVIDRA_PACKS_DIR` for local extension without new binaries.
 - Experimental / future: compile-time plugins (Level 2), registered explicitly in `cmd/evidra-mcp`.
 - `kubectl` is currently provided in this repository as an experimental compile-time plugin.
+- Core declarative packs in this repo include `packs/_core/helm-basic`.
+- Official ops pack is `packs/_core/ops/argocd-basic`.
+- Official ops pack is also `packs/_core/ops/terraform-basic`.
+- Example enablement: `EVIDRA_PACKS_DIR=./packs/_core`.
+
+Runtime profiles:
+- `ops` (default): production-focused. Dev/demo tools are not registered by default. Default packs dir: `./packs/_core/ops`.
+- `dev`: registers dev/demo tools and uses default packs dir `./packs/_core`.
+
+Examples:
+- `EVIDRA_PROFILE=ops ./evidra-mcp`
+- `EVIDRA_PROFILE=dev ./evidra-mcp`
+
+Terraform apply example (ops profile):
+
+```json
+{
+  "tool": "terraform",
+  "operation": "apply",
+  "params": {"dir": "./infra"},
+  "context": {"environment": "prod"}
+}
+```
 
 Example flow:
 1. Call `execute` and capture returned `event_id`.

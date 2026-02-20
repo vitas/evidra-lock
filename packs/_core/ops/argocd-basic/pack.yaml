@@ -1,0 +1,25 @@
+pack: "argocd-basic"
+version: "0.1"
+tools:
+  - name: "argocd"
+    kind: "cli"
+    binary: "argocd"
+    operations:
+      - name: "version"
+        args: ["version"]
+        params: {}
+      - name: "app-list"
+        args: ["app", "list"]
+        params: {}
+      - name: "app-get"
+        args: ["app", "get", "{{app}}"]
+        params:
+          app: {type: "string", required: true}
+      - name: "app-sync"
+        args: ["app", "sync", "{{app}}"]
+        params:
+          app: {type: "string", required: true}
+      - name: "app-rollback"
+        args: ["app", "rollback", "{{app}}"]
+        params:
+          app: {type: "string", required: true}

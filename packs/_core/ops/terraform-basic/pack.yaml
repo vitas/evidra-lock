@@ -1,0 +1,22 @@
+pack: "terraform-basic"
+version: "0.1"
+tools:
+  - name: "terraform"
+    kind: "cli"
+    binary: "terraform"
+    operations:
+      - name: "version"
+        args: ["version"]
+        params: {}
+      - name: "init"
+        args: ["-chdir={{dir}}", "init"]
+        params:
+          dir: {type: "string", required: true}
+      - name: "plan"
+        args: ["-chdir={{dir}}", "plan"]
+        params:
+          dir: {type: "string", required: true}
+      - name: "apply"
+        args: ["-chdir={{dir}}", "apply", "-auto-approve"]
+        params:
+          dir: {type: "string", required: true}
