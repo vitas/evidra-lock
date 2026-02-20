@@ -58,16 +58,17 @@ type canonicalEvidenceRecord struct {
 }
 
 type StoreManifest struct {
-	Format          string `json:"format"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
-	SegmentsDir     string `json:"segments_dir"`
-	CurrentSegment  string `json:"current_segment"`
-	SegmentMaxBytes int64  `json:"segment_max_bytes"`
-	RecordsTotal    int    `json:"records_total"`
-	LastHash        string `json:"last_hash"`
-	PolicyRef       string `json:"policy_ref"`
-	Notes           string `json:"notes"`
+	Format          string   `json:"format"`
+	CreatedAt       string   `json:"created_at"`
+	UpdatedAt       string   `json:"updated_at"`
+	SegmentsDir     string   `json:"segments_dir"`
+	CurrentSegment  string   `json:"current_segment"`
+	SealedSegments  []string `json:"sealed_segments"`
+	SegmentMaxBytes int64    `json:"segment_max_bytes"`
+	RecordsTotal    int      `json:"records_total"`
+	LastHash        string   `json:"last_hash"`
+	PolicyRef       string   `json:"policy_ref"`
+	Notes           string   `json:"notes"`
 }
 
 type ForwarderCursor struct {
@@ -470,6 +471,7 @@ func appendSegmented(root string, record EvidenceRecord) (EvidenceRecord, error)
 	if manifest.CurrentSegment == "" {
 		manifest.CurrentSegment = segmentName(1)
 	}
+	manifest.SealedSegments = normalizeSealedSegments(manifest.SealedSegments)
 
 	if record.Timestamp.IsZero() {
 		record.Timestamp = time.Now().UTC()
@@ -503,6 +505,8 @@ func appendSegmented(root string, record EvidenceRecord) (EvidenceRecord, error)
 
 	info, err := os.Stat(segPath)
 	if err == nil && info.Size() > manifest.SegmentMaxBytes {
+		manifest.SealedSegments = append(manifest.SealedSegments, manifest.CurrentSegment)
+		manifest.SealedSegments = normalizeSealedSegments(manifest.SealedSegments)
 		_, names, listErr := orderedSegmentNames(root)
 		if listErr != nil {
 			return EvidenceRecord{}, listErr
@@ -516,6 +520,7 @@ func appendSegmented(root string, record EvidenceRecord) (EvidenceRecord, error)
 			next = lastIndex + 1
 		}
 		manifest.CurrentSegment = segmentName(next)
+		manifest.SealedSegments = removeSegment(manifest.SealedSegments, manifest.CurrentSegment)
 		nextPath := filepath.Join(root, segmentsDirName, manifest.CurrentSegment)
 		if _, err := os.Stat(nextPath); errors.Is(err, os.ErrNotExist) {
 			if err := os.WriteFile(nextPath, []byte(""), 0o644); err != nil {
@@ -576,6 +581,9 @@ func validateSegmentedChain(root string) error {
 
 	_, names, err := orderedSegmentNames(root)
 	if err != nil {
+		return err
+	}
+	if err := validateManifestSealedInvariants(root, manifest); err != nil {
 		return err
 	}
 	if len(names) == 0 {
@@ -852,6 +860,7 @@ func loadOrInitManifest(root string, segmentMaxBytes int64, createIfMissing bool
 		if m.CurrentSegment == "" {
 			m.CurrentSegment = segmentName(1)
 		}
+		m.SealedSegments = normalizeSealedSegments(m.SealedSegments)
 		return m, nil
 	}
 	if !errors.Is(err, os.ErrNotExist) {
@@ -868,6 +877,7 @@ func loadOrInitManifest(root string, segmentMaxBytes int64, createIfMissing bool
 		UpdatedAt:       now,
 		SegmentsDir:     segmentsDirName,
 		CurrentSegment:  segmentName(1),
+		SealedSegments:  []string{},
 		SegmentMaxBytes: segmentMaxBytes,
 		RecordsTotal:    0,
 		LastHash:        "",
@@ -898,6 +908,8 @@ func writeManifestAtomic(root string, manifest StoreManifest) error {
 	if manifest.CurrentSegment == "" {
 		manifest.CurrentSegment = segmentName(1)
 	}
+	manifest.SealedSegments = normalizeSealedSegments(manifest.SealedSegments)
+	manifest.SealedSegments = removeSegment(manifest.SealedSegments, manifest.CurrentSegment)
 
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return fmt.Errorf("create evidence root: %w", err)
@@ -920,6 +932,79 @@ func writeManifestAtomic(root string, manifest StoreManifest) error {
 		return fmt.Errorf("rename manifest tmp: %w", err)
 	}
 	return nil
+}
+
+func normalizeSealedSegments(in []string) []string {
+	if len(in) == 0 {
+		return []string{}
+	}
+	out := make([]string, 0, len(in))
+	seen := make(map[string]struct{}, len(in))
+	for _, s := range in {
+		if s == "" {
+			continue
+		}
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func removeSegment(in []string, segment string) []string {
+	if len(in) == 0 {
+		return in
+	}
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if s == segment {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func validateManifestSealedInvariants(root string, manifest StoreManifest) error {
+	if manifest.CurrentSegment == "" {
+		return fmt.Errorf("manifest current_segment is empty")
+	}
+	if containsSegment(manifest.SealedSegments, manifest.CurrentSegment) {
+		return fmt.Errorf("manifest corruption: current_segment is listed in sealed_segments")
+	}
+
+	expected := normalizeSealedSegments(manifest.SealedSegments)
+	if len(expected) != len(manifest.SealedSegments) {
+		return fmt.Errorf("manifest sealed_segments must be unique and ordered")
+	}
+	for i := range expected {
+		if expected[i] != manifest.SealedSegments[i] {
+			return fmt.Errorf("manifest sealed_segments must be unique and ordered")
+		}
+	}
+
+	for _, sealed := range manifest.SealedSegments {
+		segPath := filepath.Join(root, segmentsDirName, sealed)
+		if _, err := os.Stat(segPath); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("sealed segment missing: %s", sealed)
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func containsSegment(in []string, segment string) bool {
+	for _, s := range in {
+		if s == segment {
+			return true
+		}
+	}
+	return false
 }
 
 func readLastRecord(path string) (EvidenceRecord, bool, error) {

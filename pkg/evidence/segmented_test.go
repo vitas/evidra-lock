@@ -35,6 +35,17 @@ func TestSegmentedStoreRotationAndValidateAcrossSegments(t *testing.T) {
 		t.Fatalf("expected rotation to create at least 2 segments, got %d", len(segments))
 	}
 
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	if len(manifest.SealedSegments) == 0 {
+		t.Fatalf("expected sealed_segments to be populated after rotation")
+	}
+	if containsSegment(manifest.SealedSegments, manifest.CurrentSegment) {
+		t.Fatalf("current_segment must not be in sealed_segments")
+	}
+
 	if err := ValidateChainAtPath(root); err != nil {
 		t.Fatalf("ValidateChainAtPath() error = %v", err)
 	}
@@ -80,6 +91,38 @@ func TestSegmentedValidateFailsOnMiddleSegmentTamper(t *testing.T) {
 
 	if err := ValidateChainAtPath(root); err == nil {
 		t.Fatalf("expected ValidateChainAtPath() to fail on tampered middle segment")
+	}
+}
+
+func TestSegmentedValidateFailsWhenSealedSegmentMissing(t *testing.T) {
+	t.Setenv("EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES", "400")
+	root := filepath.Join(t.TempDir(), "evidence")
+	store := NewStoreWithPath(root)
+	if err := store.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	for i := 0; i < 6; i++ {
+		rec := segmentedTestRecord("evt-seg-missing-"+strconv.Itoa(i), strings.Repeat("m", 280))
+		if err := store.Append(rec); err != nil {
+			t.Fatalf("Append() error = %v", err)
+		}
+	}
+
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	if len(manifest.SealedSegments) == 0 {
+		t.Fatalf("expected at least one sealed segment")
+	}
+	missing := manifest.SealedSegments[0]
+	if err := os.Remove(filepath.Join(root, "segments", missing)); err != nil {
+		t.Fatalf("Remove(sealed segment) error = %v", err)
+	}
+
+	if err := ValidateChainAtPath(root); err == nil {
+		t.Fatalf("expected ValidateChainAtPath() to fail when sealed segment is missing")
 	}
 }
 

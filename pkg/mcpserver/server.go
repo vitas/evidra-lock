@@ -165,7 +165,7 @@ func (s *ExecuteService) Execute(ctx context.Context, inv invocation.ToolInvocat
 	if !registry.SupportsOperation(def, inv.Operation) {
 		return s.denyWithEvidence(inv, "unsupported_operation", fmt.Errorf("operation %q is not supported for tool %q", inv.Operation, inv.Tool))
 	}
-	if err := registry.ValidateParams(inv.Tool, inv.Operation, inv.Params); err != nil {
+	if err := registry.ValidateParams(def, inv.Operation, inv.Params); err != nil {
 		return s.denyWithEvidence(inv, "invalid_params", err)
 	}
 

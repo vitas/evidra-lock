@@ -14,6 +14,7 @@ import (
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/policysource"
 	"samebits.com/evidra-mcp/pkg/registry"
+	kubectlplugin "samebits.com/evidra-mcp/plugins/kubectl"
 )
 
 func main() {
@@ -52,6 +53,9 @@ func main() {
 	}
 
 	toolRegistry := registry.NewDefaultRegistry()
+	if err := kubectlplugin.New().Register(toolRegistry); err != nil {
+		log.Fatalf("register kubectl plugin: %v", err)
+	}
 	server := mcpserver.NewServer(
 		mcpserver.Options{
 			Name:         "evidra-mcp",

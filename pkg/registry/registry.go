@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"sort"
 	"strings"
 )
 
@@ -22,8 +23,9 @@ type ToolDefinition struct {
 	Name                string
 	SupportedOperations []string
 	// InputSchema is a minimal schema description for v0.1.
-	InputSchema string
-	Executor    Executor
+	InputSchema    string
+	Executor       Executor
+	ValidateParams func(operation string, params map[string]interface{}) error
 }
 
 type ToolInvocationInput struct {
@@ -33,40 +35,71 @@ type ToolInvocationInput struct {
 
 type Registry interface {
 	Lookup(toolName string) (ToolDefinition, bool)
+	RegisterTool(def ToolDefinition) error
 }
 
 type InMemoryRegistry struct {
 	tools map[string]ToolDefinition
+	order []string
 }
 
 func NewInMemoryRegistry(defs []ToolDefinition) *InMemoryRegistry {
-	tools := make(map[string]ToolDefinition, len(defs))
-	for _, d := range defs {
-		tools[d.Name] = d
+	r := &InMemoryRegistry{
+		tools: make(map[string]ToolDefinition, len(defs)),
+		order: make([]string, 0, len(defs)),
 	}
-	return &InMemoryRegistry{tools: tools}
+	for _, d := range defs {
+		_ = r.RegisterTool(d)
+	}
+	return r
 }
 
 func NewDefaultRegistry() *InMemoryRegistry {
-	return NewInMemoryRegistry([]ToolDefinition{
-		{
-			Name:                "echo",
-			SupportedOperations: []string{"run"},
-			InputSchema:         `{"text":"string"}`,
-			Executor:            executeEcho,
-		},
-		{
-			Name:                "git",
-			SupportedOperations: []string{"status"},
-			InputSchema:         `{"path":"string (optional, default '.') "}`,
-			Executor:            executeGitStatus,
-		},
+	r := NewInMemoryRegistry(nil)
+	_ = r.RegisterTool(ToolDefinition{
+		Name:                "echo",
+		SupportedOperations: []string{"run"},
+		InputSchema:         `{"text":"string"}`,
+		Executor:            executeEcho,
+		ValidateParams:      validateEchoParams,
 	})
+	_ = r.RegisterTool(ToolDefinition{
+		Name:                "git",
+		SupportedOperations: []string{"status"},
+		InputSchema:         `{"path":"string (optional, default '.') "}`,
+		Executor:            executeGitStatus,
+		ValidateParams:      validateGitParams,
+	})
+	return r
 }
 
 func (r *InMemoryRegistry) Lookup(toolName string) (ToolDefinition, bool) {
 	def, ok := r.tools[toolName]
 	return def, ok
+}
+
+func (r *InMemoryRegistry) RegisterTool(def ToolDefinition) error {
+	name := strings.TrimSpace(def.Name)
+	if name == "" {
+		return fmt.Errorf("tool name is required")
+	}
+	if _, exists := r.tools[name]; exists {
+		return fmt.Errorf("tool %q already registered", name)
+	}
+	if len(def.SupportedOperations) == 0 {
+		return fmt.Errorf("tool %q must define supported operations", name)
+	}
+	if def.Executor == nil {
+		return fmt.Errorf("tool %q must define executor", name)
+	}
+	if def.ValidateParams == nil {
+		return fmt.Errorf("tool %q must define param validator", name)
+	}
+	def.Name = name
+	r.tools[name] = def
+	r.order = append(r.order, name)
+	sort.Strings(r.order)
+	return nil
 }
 
 func SupportsOperation(def ToolDefinition, operation string) bool {
@@ -78,30 +111,35 @@ func SupportsOperation(def ToolDefinition, operation string) bool {
 	return false
 }
 
-func ValidateParams(toolName, operation string, params map[string]interface{}) error {
-	switch toolName {
-	case "echo":
-		if operation != "run" {
-			return fmt.Errorf("unsupported operation")
+func ValidateParams(def ToolDefinition, operation string, params map[string]interface{}) error {
+	if def.ValidateParams == nil {
+		return fmt.Errorf("tool %q has no param validator", def.Name)
+	}
+	return def.ValidateParams(operation, params)
+}
+
+func validateEchoParams(operation string, params map[string]interface{}) error {
+	if operation != "run" {
+		return fmt.Errorf("unsupported operation")
+	}
+	text, ok := params["text"]
+	if !ok {
+		return fmt.Errorf("missing required param: text")
+	}
+	if _, ok := text.(string); !ok {
+		return fmt.Errorf("param text must be string")
+	}
+	return nil
+}
+
+func validateGitParams(operation string, params map[string]interface{}) error {
+	if operation != "status" {
+		return fmt.Errorf("unsupported operation")
+	}
+	if path, ok := params["path"]; ok {
+		if _, ok := path.(string); !ok {
+			return fmt.Errorf("param path must be string")
 		}
-		text, ok := params["text"]
-		if !ok {
-			return fmt.Errorf("missing required param: text")
-		}
-		if _, ok := text.(string); !ok {
-			return fmt.Errorf("param text must be string")
-		}
-	case "git":
-		if operation != "status" {
-			return fmt.Errorf("unsupported operation")
-		}
-		if path, ok := params["path"]; ok {
-			if _, ok := path.(string); !ok {
-				return fmt.Errorf("param path must be string")
-			}
-		}
-	default:
-		return fmt.Errorf("unsupported tool")
 	}
 	return nil
 }

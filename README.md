@@ -65,6 +65,9 @@ Default evidence store layout:
 - Manifest: `./data/evidence/manifest.json`
 - Segments: `./data/evidence/segments/evidence-000001.jsonl`, `evidence-000002.jsonl`, ...
 - Segment size env: `EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES` (default `5000000`)
+- Sealed segments: manifest field `sealed_segments` tracks completed immutable segments.
+- Rotation seals the previous `current_segment` and advances to the next segment file.
+- Sealed segments provide stable units for local forward/export workflows.
 
 ## Local Workflow (Policy + Evidence)
 
@@ -116,6 +119,10 @@ make evidence-export
 MCP tools:
 - `execute`: runs a registered tool invocation through registry, policy, and evidence.
 - `get_event`: fetches one immutable evidence record by `event_id` (chain-safe read).
+
+Tool surface extension:
+- Additional tools are added via compile-time plugins (Level 2), registered explicitly in `cmd/evidra-mcp`.
+- `kubectl` is provided in this repository as a compile-time plugin.
 
 Example flow:
 1. Call `execute` and capture returned `event_id`.
