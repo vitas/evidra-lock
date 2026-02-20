@@ -1,0 +1,12 @@
+{
+  "podman": {
+    "allowed_registries": [
+      "registry.example.com/",
+      "ghcr.io/my-org/"
+    ],
+    "deny_tags": [
+      "latest"
+    ]
+  }
+}
+

@@ -78,6 +78,7 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 	foundAWS := false
 	foundHelm := false
 	foundKubectl := false
+	foundPodman := false
 	foundTerraform := false
 	for _, def := range defs {
 		if def.Name == "argocd" {
@@ -85,6 +86,9 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 		}
 		if def.Name == "aws" {
 			foundAWS = true
+		}
+		if def.Name == "podman" {
+			foundPodman = true
 		}
 		if def.Name == "terraform" {
 			foundTerraform = true
@@ -129,6 +133,9 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 	}
 	if !foundAWS {
 		t.Fatalf("expected aws tool from ops packs")
+	}
+	if !foundPodman {
+		t.Fatalf("expected podman tool from ops packs")
 	}
 	if !foundTerraform {
 		t.Fatalf("expected terraform tool from ops packs")

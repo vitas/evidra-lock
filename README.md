@@ -43,6 +43,7 @@ The ops profile uses intentionally minimal declarative tool surfaces:
 - `packs/_core/ops/helm-basic`
 - `packs/_core/ops/kubectl-basic`
 - `packs/_core/ops/aws-s3-basic`
+- `packs/_core/ops/podman-basic`
 
 ## Evidence Utilities
 
