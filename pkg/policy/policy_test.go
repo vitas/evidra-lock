@@ -9,11 +9,11 @@ import (
 )
 
 func TestEvaluateDefaultDeny(t *testing.T) {
-	policyPath, err := filepath.Abs(filepath.Join("..", "..", "policy", "kits", "ops-v0.1", "policy.rego"))
+	policyPath, err := filepath.Abs(filepath.Join("..", "..", "policy", "profiles", "ops-v0.1", "policy.rego"))
 	if err != nil {
 		t.Fatalf("filepath.Abs() error = %v", err)
 	}
-	dataPath, err := filepath.Abs(filepath.Join("..", "..", "policy", "kits", "ops-v0.1", "data.json"))
+	dataPath, err := filepath.Abs(filepath.Join("..", "..", "policy", "profiles", "ops-v0.1", "data.json"))
 	if err != nil {
 		t.Fatalf("filepath.Abs(data) error = %v", err)
 	}

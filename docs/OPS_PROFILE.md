@@ -8,8 +8,8 @@
   - Production-focused
   - Excludes dev/demo tools by default
   - Default packs dir: `./packs/_core/ops`
-  - Default policy kit: `./policy/kits/ops-v0.1/policy.rego`
-  - Default policy data: `./policy/kits/ops-v0.1/data.json`
+  - Default policy profile: `./policy/profiles/ops-v0.1/policy.rego`
+  - Default policy data: `./policy/profiles/ops-v0.1/data.json`
 
 - `dev`
   - Includes dev/demo tools

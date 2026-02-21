@@ -65,6 +65,38 @@ func TestExecuteDeniedStructuredResponse(t *testing.T) {
 	}
 }
 
+func TestExecuteEvidenceBusyReturnsStructuredBusyError(t *testing.T) {
+	reg := registry.NewInMemoryRegistry([]registry.ToolDefinition{
+		{
+			Name:                "echo",
+			SupportedOperations: []string{"run"},
+			ValidateParams: func(_ string, params map[string]interface{}) error {
+				_, _ = params["text"].(string)
+				return nil
+			},
+			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
+				code := 0
+				return registry.ExecutionResult{
+					Status:   "success",
+					ExitCode: &code,
+					Stdout:   "ok",
+				}, nil
+			},
+		},
+	})
+	svc := NewExecuteServiceWithMode(reg, allowPolicyEngine{}, busyEvidenceStore{}, ModeEnforce, "test-policy-ref")
+	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
+	if out.OK {
+		t.Fatalf("expected ok=false when evidence store is busy")
+	}
+	if out.Error == nil {
+		t.Fatalf("expected structured error")
+	}
+	if out.Error.Code != evidence.ErrorCodeStoreBusy {
+		t.Fatalf("expected error code %q, got %q", evidence.ErrorCodeStoreBusy, out.Error.Code)
+	}
+}
+
 func TestGetEventWrappedResponses(t *testing.T) {
 	svc := newService(t)
 	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
@@ -525,4 +557,21 @@ func (allowPolicyEngine) Evaluate(inv invocation.ToolInvocation) (policy.Decisio
 		RiskLevel: "low",
 		Reason:    "allowed_by_rule",
 	}, nil
+}
+
+type busyEvidenceStore struct{}
+
+func (busyEvidenceStore) Append(rec evidence.Record) error {
+	return &evidence.StoreError{
+		Code:    evidence.ErrorCodeStoreBusy,
+		Message: "Evidence store is busy (another writer is running)",
+	}
+}
+
+func (busyEvidenceStore) ValidateChain() error {
+	return nil
+}
+
+func (busyEvidenceStore) LastHash() (string, error) {
+	return "", nil
 }

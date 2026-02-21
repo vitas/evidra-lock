@@ -5,6 +5,7 @@ go 1.24.6
 require (
 	github.com/modelcontextprotocol/go-sdk v1.3.1
 	github.com/open-policy-agent/opa v1.13.2
+	go.yaml.in/yaml/v3 v3.0.4
 )
 
 require (
@@ -47,7 +48,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect

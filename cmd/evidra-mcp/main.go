@@ -26,8 +26,8 @@ const (
 	ProfileOps Profile = "ops"
 	ProfileDev Profile = "dev"
 
-	defaultOpsPolicyPath = "./policy/kits/ops-v0.1/policy.rego"
-	defaultOpsDataPath   = "./policy/kits/ops-v0.1/data.json"
+	defaultOpsPolicyPath = "./policy/profiles/ops-v0.1/policy.rego"
+	defaultOpsDataPath   = "./policy/profiles/ops-v0.1/data.json"
 )
 
 func main() {

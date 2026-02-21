@@ -1,4 +1,4 @@
-package opskit_test
+package opsprofile_test
 
 import (
 	"os"
@@ -90,7 +90,7 @@ func TestOpsPolicyKitDecisions(t *testing.T) {
 
 func inv(tool, op string, params map[string]any, env string) invocation.ToolInvocation {
 	return invocation.ToolInvocation{
-		Actor: invocation.Actor{Type: "human", ID: "test", Origin: "unit"},
+		Actor:     invocation.Actor{Type: "human", ID: "test", Origin: "unit"},
 		Tool:      tool,
 		Operation: op,
 		Params:    params,

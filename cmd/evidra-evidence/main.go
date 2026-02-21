@@ -35,6 +35,7 @@ type verifyOKOutput struct {
 
 type verifyFailOutput struct {
 	OK       bool        `json:"ok"`
+	Code     string      `json:"code,omitempty"`
 	Error    string      `json:"error"`
 	FailedAt interface{} `json:"failed_at,omitempty"`
 }
@@ -104,6 +105,9 @@ func runVerify(args []string, stdout io.Writer, stderr io.Writer) int {
 			OK:    false,
 			Error: err.Error(),
 		}
+		if code := evidence.ErrorCode(err); code != "" {
+			out.Code = code
+		}
 		var chainErr *evidence.ChainValidationError
 		if errors.As(err, &chainErr) {
 			if chainErr.EventID != "" {
@@ -161,28 +165,40 @@ func runExport(args []string, stdout io.Writer, stderr io.Writer) int {
 	}
 
 	if err := evidence.ValidateChainAtPath(*evidencePath); err != nil {
-		_ = writeJSON(stdout, verifyFailOutput{
+		out := verifyFailOutput{
 			OK:    false,
 			Error: err.Error(),
-		})
+		}
+		if code := evidence.ErrorCode(err); code != "" {
+			out.Code = code
+		}
+		_ = writeJSON(stdout, out)
 		return exitVerifyFailed
 	}
 
 	meta, err := evidence.MetadataAtPath(*evidencePath)
 	if err != nil {
-		_ = writeJSON(stdout, verifyFailOutput{
+		out := verifyFailOutput{
 			OK:    false,
 			Error: err.Error(),
-		})
+		}
+		if code := evidence.ErrorCode(err); code != "" {
+			out.Code = code
+		}
+		_ = writeJSON(stdout, out)
 		return exitVerifyFailed
 	}
 
 	storeFormat, err := evidence.StoreFormatAtPath(*evidencePath)
 	if err != nil {
-		_ = writeJSON(stdout, verifyFailOutput{
+		out := verifyFailOutput{
 			OK:    false,
 			Error: err.Error(),
-		})
+		}
+		if code := evidence.ErrorCode(err); code != "" {
+			out.Code = code
+		}
+		_ = writeJSON(stdout, out)
 		return exitExportFailure
 	}
 
@@ -210,10 +226,14 @@ func runExport(args []string, stdout io.Writer, stderr io.Writer) int {
 		evidenceFileRef = "evidence/manifest.json"
 		storeManifest, err := evidence.LoadManifest(*evidencePath)
 		if err != nil {
-			_ = writeJSON(stdout, verifyFailOutput{
+			out := verifyFailOutput{
 				OK:    false,
 				Error: err.Error(),
-			})
+			}
+			if code := evidence.ErrorCode(err); code != "" {
+				out.Code = code
+			}
+			_ = writeJSON(stdout, out)
 			return exitExportFailure
 		}
 		storeManifestLastHash = storeManifest.LastHash

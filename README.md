@@ -2,6 +2,10 @@
 
 Evidra intercepts agent tool invocations through MCP, evaluates each request with OPA policy, and records tamper-evident evidence for audit and incident response.
 
+Start here: `docs/INDEX.md`
+
+Requirements: Go 1.22+ (recommended 1.23)
+
 ## What It Is
 
 - An operations guardrail layer for AI-driven tool execution.
@@ -30,7 +34,7 @@ Full guide: `docs/QUICKSTART.md`
 go build ./...
 EVIDRA_PROFILE=ops go run ./cmd/evidra-mcp
 
-go run ./cmd/evidra-policy-sim --policy ./policy/kits/ops-v0.1/policy.rego --input ./examples/invocations/allowed_kubectl_get_dev.json --data ./policy/kits/ops-v0.1/data.json
+go run ./cmd/evidra-policy-sim --policy ./policy/profiles/ops-v0.1/policy.rego --input ./examples/invocations/allowed_kubectl_get_dev.json --data ./policy/profiles/ops-v0.1/data.json
 go run ./cmd/evidra-evidence verify --evidence ./data/evidence
 ```
 
@@ -79,6 +83,7 @@ Evidra enforces guardrails for MCP tool invocations. To prevent bypass, configur
 
 ## Documentation
 
+- `docs/INDEX.md`
 - `docs/QUICKSTART.md`
 - `docs/DEMO.md`
 - `docs/RELEASE_CHECKLIST.md`

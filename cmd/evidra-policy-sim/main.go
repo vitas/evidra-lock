@@ -30,7 +30,7 @@ func main() {
 	}
 
 	if *policyPath == "" || *inputPath == "" {
-		fmt.Fprintln(os.Stderr, "usage: evidra-policy-sim --policy ./policy/kits/ops-v0.1/policy.rego --input ./examples/invocation.json [--data ./policy/kits/ops-v0.1/data.json]")
+		fmt.Fprintln(os.Stderr, "usage: evidra-policy-sim --policy ./policy/profiles/ops-v0.1/policy.rego --input ./examples/invocation.json [--data ./policy/profiles/ops-v0.1/data.json]")
 		os.Exit(exitInputInvalid)
 	}
 

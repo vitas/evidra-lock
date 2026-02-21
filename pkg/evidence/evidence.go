@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"samebits.com/evidra-mcp/pkg/evlock"
 	"samebits.com/evidra-mcp/pkg/invocation"
 )
 
@@ -110,6 +111,9 @@ const (
 	manifestFileName             = "manifest.json"
 	segmentsDirName              = "segments"
 	forwarderStateFileName       = "forwarder_state.json"
+	lockFileName                 = ".evidra.lock"
+	defaultLockTimeoutMS         = 2000
+	lockTimeoutEnv               = "EVIDRA_EVIDENCE_LOCK_TIMEOUT_MS"
 )
 
 var appendMu sync.Mutex
@@ -117,6 +121,43 @@ var ErrChainInvalid = errors.New("evidence_chain_invalid")
 var ErrCursorSegmentNotFound = errors.New("cursor_segment_not_found")
 var ErrCursorLineOutOfRange = errors.New("cursor_line_out_of_range")
 var errCursorResolved = errors.New("cursor_resolved")
+
+const (
+	ErrorCodeStoreBusy               = "evidence_store_busy"
+	ErrorCodeLockNotSupportedWindows = "evidence_lock_not_supported_on_windows"
+)
+
+type StoreError struct {
+	Code    string
+	Message string
+	Err     error
+}
+
+func (e *StoreError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return e.Message
+}
+
+func (e *StoreError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
+func ErrorCode(err error) string {
+	var se *StoreError
+	if errors.As(err, &se) {
+		return se.Code
+	}
+	return ""
+}
+
+func IsStoreBusyError(err error) bool {
+	return ErrorCode(err) == ErrorCodeStoreBusy
+}
 
 type ChainValidationError struct {
 	Index   int
@@ -170,6 +211,19 @@ func ValidateChainAtPath(path string) error {
 }
 
 func MetadataAtPath(path string) (Metadata, error) {
+	var out Metadata
+	err := withStoreLock(path, func() error {
+		var err error
+		out, err = metadataAtPathUnlocked(path)
+		return err
+	})
+	if err != nil {
+		return Metadata{}, err
+	}
+	return out, nil
+}
+
+func metadataAtPathUnlocked(path string) (Metadata, error) {
 	mode, resolved, err := detectStoreMode(path)
 	if err != nil {
 		return Metadata{}, err
@@ -202,6 +256,12 @@ func ReadAllAtPath(path string) ([]EvidenceRecord, error) {
 }
 
 func ForEachRecordAtPath(path string, fn func(Record) error) error {
+	return withStoreLock(path, func() error {
+		return forEachRecordAtPathUnlocked(path, fn)
+	})
+}
+
+func forEachRecordAtPathUnlocked(path string, fn func(Record) error) error {
 	mode, resolved, err := detectStoreMode(path)
 	if err != nil {
 		return err
@@ -218,28 +278,31 @@ func ForEachRecordAtPath(path string, fn func(Record) error) error {
 }
 
 func FindByEventID(path string, eventID string) (Record, bool, error) {
-	if err := ValidateChainAtPath(path); err != nil {
-		return Record{}, false, fmt.Errorf("%w: %v", ErrChainInvalid, err)
-	}
-
-	var foundRec Record
+	var out Record
 	found := false
-	errFound := errors.New("record_found")
-	err := ForEachRecordAtPath(path, func(rec Record) error {
-		if rec.EventID == eventID {
-			foundRec = rec
-			found = true
-			return errFound
+	err := withStoreLock(path, func() error {
+		if err := validateChainAtPathUnlocked(path); err != nil {
+			return fmt.Errorf("%w: %v", ErrChainInvalid, err)
+		}
+
+		errFound := errors.New("record_found")
+		err := forEachRecordAtPathUnlocked(path, func(rec Record) error {
+			if rec.EventID == eventID {
+				out = rec
+				found = true
+				return errFound
+			}
+			return nil
+		})
+		if err != nil && !errors.Is(err, errFound) {
+			return err
 		}
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, errFound) {
-			return foundRec, true, nil
-		}
 		return Record{}, false, err
 	}
-	return Record{}, found, nil
+	return out, found, nil
 }
 
 func StoreFormatAtPath(path string) (string, error) {
@@ -259,96 +322,134 @@ func ForwarderStatePath(root string) string {
 }
 
 func LoadManifest(path string) (StoreManifest, error) {
-	mode, resolved, err := detectStoreMode(path)
+	var out StoreManifest
+	err := withStoreLock(path, func() error {
+		mode, resolved, err := detectStoreMode(path)
+		if err != nil {
+			return err
+		}
+		if mode != "segmented" {
+			return fmt.Errorf("manifest not available for legacy evidence store")
+		}
+		out, err = loadOrInitManifest(resolved, segmentMaxBytesFromEnv(), false)
+		return err
+	})
 	if err != nil {
 		return StoreManifest{}, err
 	}
-	if mode != "segmented" {
-		return StoreManifest{}, fmt.Errorf("manifest not available for legacy evidence store")
-	}
-	return loadOrInitManifest(resolved, segmentMaxBytesFromEnv(), false)
+	return out, nil
 }
 
 func SegmentFiles(root string) ([]string, error) {
-	mode, resolved, err := detectStoreMode(root)
+	var files []string
+	err := withStoreLock(root, func() error {
+		mode, resolved, err := detectStoreMode(root)
+		if err != nil {
+			return err
+		}
+		if mode != "segmented" {
+			return fmt.Errorf("segments not available for legacy evidence store")
+		}
+		_, names, err := orderedSegmentNames(resolved)
+		if err != nil {
+			return err
+		}
+		files = make([]string, 0, len(names))
+		for _, n := range names {
+			files = append(files, filepath.Join(resolved, segmentsDirName, n))
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
-	}
-	if mode != "segmented" {
-		return nil, fmt.Errorf("segments not available for legacy evidence store")
-	}
-	_, names, err := orderedSegmentNames(resolved)
-	if err != nil {
-		return nil, err
-	}
-	files := make([]string, 0, len(names))
-	for _, n := range names {
-		files = append(files, filepath.Join(resolved, segmentsDirName, n))
 	}
 	return files, nil
 }
 
 func LoadForwarderState(root string) (ForwarderState, bool, error) {
-	mode, resolved, err := detectStoreMode(root)
-	if err != nil {
-		return ForwarderState{}, false, err
-	}
-	if mode != "segmented" {
-		return ForwarderState{}, false, fmt.Errorf("cursor not supported for legacy evidence")
-	}
-
-	raw, err := os.ReadFile(ForwarderStatePath(resolved))
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return ForwarderState{}, false, nil
-		}
-		return ForwarderState{}, false, err
-	}
-
 	var state ForwarderState
-	if err := json.Unmarshal(raw, &state); err != nil {
-		return ForwarderState{}, false, fmt.Errorf("parse forwarder state: %w", err)
+	found := false
+	err := withStoreLock(root, func() error {
+		mode, resolved, err := detectStoreMode(root)
+		if err != nil {
+			return err
+		}
+		if mode != "segmented" {
+			return fmt.Errorf("cursor not supported for legacy evidence")
+		}
+
+		raw, err := os.ReadFile(ForwarderStatePath(resolved))
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
+
+		if err := json.Unmarshal(raw, &state); err != nil {
+			return fmt.Errorf("parse forwarder state: %w", err)
+		}
+		found = true
+		return nil
+	})
+	if err != nil {
+		return ForwarderState{}, false, err
 	}
-	return state, true, nil
+	return state, found, nil
 }
 
 func SaveForwarderState(root string, state ForwarderState) error {
-	mode, resolved, err := detectStoreMode(root)
-	if err != nil {
-		return err
-	}
-	if mode != "segmented" {
-		return fmt.Errorf("cursor not supported for legacy evidence")
-	}
+	return withStoreLock(root, func() error {
+		mode, resolved, err := detectStoreMode(root)
+		if err != nil {
+			return err
+		}
+		if mode != "segmented" {
+			return fmt.Errorf("cursor not supported for legacy evidence")
+		}
 
-	if state.Format == "" {
-		state.Format = "evidra-forwarder-state-v0.1"
-	}
-	if state.Destination.Type == "" {
-		state.Destination.Type = "none"
-	}
+		if state.Format == "" {
+			state.Format = "evidra-forwarder-state-v0.1"
+		}
+		if state.Destination.Type == "" {
+			state.Destination.Type = "none"
+		}
 
-	if err := os.MkdirAll(resolved, 0o755); err != nil {
-		return fmt.Errorf("create evidence root: %w", err)
-	}
+		if err := os.MkdirAll(resolved, 0o755); err != nil {
+			return fmt.Errorf("create evidence root: %w", err)
+		}
 
-	b, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal forwarder state: %w", err)
-	}
+		b, err := json.MarshalIndent(state, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal forwarder state: %w", err)
+		}
 
-	path := ForwarderStatePath(resolved)
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil {
-		return fmt.Errorf("write forwarder state tmp: %w", err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		return fmt.Errorf("rename forwarder state tmp: %w", err)
-	}
-	return nil
+		path := ForwarderStatePath(resolved)
+		tmp := path + ".tmp"
+		if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil {
+			return fmt.Errorf("write forwarder state tmp: %w", err)
+		}
+		if err := os.Rename(tmp, path); err != nil {
+			return fmt.Errorf("rename forwarder state tmp: %w", err)
+		}
+		return nil
+	})
 }
 
 func ResolveCursorRecord(root, segment string, line int) (Record, error) {
+	var out Record
+	err := withStoreLock(root, func() error {
+		var err error
+		out, err = resolveCursorRecordUnlocked(root, segment, line)
+		return err
+	})
+	if err != nil {
+		return Record{}, err
+	}
+	return out, nil
+}
+
+func resolveCursorRecordUnlocked(root, segment string, line int) (Record, error) {
 	if line < 0 {
 		return Record{}, ErrCursorLineOutOfRange
 	}
@@ -394,6 +495,19 @@ func ResolveCursorRecord(root, segment string, line int) (Record, error) {
 }
 
 func appendAtPath(path string, record EvidenceRecord) (EvidenceRecord, error) {
+	var out EvidenceRecord
+	err := withStoreLock(path, func() error {
+		var err error
+		out, err = appendAtPathUnlocked(path, record)
+		return err
+	})
+	if err != nil {
+		return EvidenceRecord{}, err
+	}
+	return out, nil
+}
+
+func appendAtPathUnlocked(path string, record EvidenceRecord) (EvidenceRecord, error) {
 	appendMu.Lock()
 	defer appendMu.Unlock()
 
@@ -413,6 +527,12 @@ func appendAtPath(path string, record EvidenceRecord) (EvidenceRecord, error) {
 }
 
 func validateChainAtPath(path string) error {
+	return withStoreLock(path, func() error {
+		return validateChainAtPathUnlocked(path)
+	})
+}
+
+func validateChainAtPathUnlocked(path string) error {
 	appendMu.Lock()
 	defer appendMu.Unlock()
 
@@ -449,6 +569,57 @@ func detectStoreMode(path string) (string, string, error) {
 		return "legacy", clean, nil
 	}
 	return "segmented", clean, nil
+}
+
+func lockTimeoutFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv(lockTimeoutEnv))
+	if raw == "" {
+		return time.Duration(defaultLockTimeoutMS) * time.Millisecond
+	}
+	ms, err := strconv.Atoi(raw)
+	if err != nil || ms <= 0 {
+		return time.Duration(defaultLockTimeoutMS) * time.Millisecond
+	}
+	return time.Duration(ms) * time.Millisecond
+}
+
+func lockRootForPath(path string) (string, error) {
+	mode, resolved, err := detectStoreMode(path)
+	if err != nil {
+		return "", err
+	}
+	if mode == "legacy" {
+		return filepath.Dir(resolved), nil
+	}
+	return resolved, nil
+}
+
+func withStoreLock(path string, fn func() error) error {
+	root, err := lockRootForPath(path)
+	if err != nil {
+		return err
+	}
+	lockPath := filepath.Join(root, lockFileName)
+	lock, err := evlock.Acquire(lockPath, lockTimeoutFromEnv())
+	if err != nil {
+		if errors.Is(err, evlock.ErrBusy) {
+			return &StoreError{
+				Code:    ErrorCodeStoreBusy,
+				Message: "Evidence store is busy (another writer is running)",
+				Err:     err,
+			}
+		}
+		if errors.Is(err, evlock.ErrNotSupported) {
+			return &StoreError{
+				Code:    ErrorCodeLockNotSupportedWindows,
+				Message: "Evidence locking is not supported on windows in v0.1",
+				Err:     err,
+			}
+		}
+		return err
+	}
+	defer func() { _ = lock.Release() }()
+	return fn()
 }
 
 func segmentMaxBytesFromEnv() int64 {
@@ -1027,7 +1198,7 @@ func readLastRecord(path string) (EvidenceRecord, bool, error) {
 
 func readAllRecords(path string) ([]EvidenceRecord, error) {
 	records := make([]EvidenceRecord, 0)
-	err := ForEachRecordAtPath(path, func(rec Record) error {
+	err := forEachRecordAtPathUnlocked(path, func(rec Record) error {
 		records = append(records, rec)
 		return nil
 	})

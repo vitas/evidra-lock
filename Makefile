@@ -1,5 +1,5 @@
-POLICY_PATH ?= ./policy/kits/ops-v0.1/policy.rego
-POLICY_DATA_PATH ?= ./policy/kits/ops-v0.1/data.json
+POLICY_PATH ?= ./policy/profiles/ops-v0.1/policy.rego
+POLICY_DATA_PATH ?= ./policy/profiles/ops-v0.1/data.json
 EVIDENCE_PATH ?= ./data/evidence
 DATA_ARG := $(if $(wildcard $(POLICY_DATA_PATH)),--data $(POLICY_DATA_PATH),)
 

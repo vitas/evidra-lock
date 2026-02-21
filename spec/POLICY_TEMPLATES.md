@@ -1,10 +1,10 @@
 # Policy Templates v0.1
 
-This repository standardizes on the ops policy kit for v0.1.
+This repository standardizes on the ops policy profile for v0.1.
 
 ## Status
 - Legacy template files are removed from runtime policy paths.
-- Active policy source is `policy/kits/ops-v0.1/`.
+- Active policy source is `policy/profiles/ops-v0.1/`.
 
 ## Guidance
 - Keep policy deterministic.

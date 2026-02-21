@@ -30,7 +30,7 @@ Manifest includes:
 ```bash
 go run ./cmd/evidra-evidence verify --evidence ./data/evidence
 go run ./cmd/evidra-evidence violations --evidence ./data/evidence --min-risk high
-go run ./cmd/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/kits/ops-v0.1/policy.rego --data ./policy/kits/ops-v0.1/data.json
+go run ./cmd/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/profiles/ops-v0.1/policy.rego --data ./policy/profiles/ops-v0.1/data.json
 go run ./cmd/evidra-evidence cursor show --evidence ./data/evidence
 go run ./cmd/evidra-evidence cursor ack --evidence ./data/evidence --segment evidence-000001.jsonl --line 0
 ```
@@ -39,3 +39,10 @@ go run ./cmd/evidra-evidence cursor ack --evidence ./data/evidence --segment evi
 
 Audit export includes evidence files and manifest plus policy snapshot hashes.
 Always run `verify` before sharing artifacts.
+
+## 6) Single Writer
+
+- Evidra supports one writer process per evidence path.
+- The store uses an inter-process lock file: `.evidra.lock`.
+- If another process is writing, operations fail fast with `evidence_store_busy`.
+- Windows note: lock enforcement is not supported in v0.1 (`evidence_lock_not_supported_on_windows`).

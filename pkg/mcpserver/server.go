@@ -444,6 +444,14 @@ func (s *ExecuteService) writeFinal(
 
 	appendErr := s.evidence.Append(record)
 	if appendErr != nil {
+		errCode := "internal_error"
+		errMessage := "failed to write evidence"
+		errHint := "Check evidence path permissions and disk state."
+		if evidence.IsStoreBusyError(appendErr) {
+			errCode = evidence.ErrorCodeStoreBusy
+			errMessage = "evidence store is busy"
+			errHint = "Wait for the active writer to finish and retry."
+		}
 		return ExecuteOutput{
 			OK:      false,
 			EventID: record.EventID,
@@ -462,9 +470,9 @@ func (s *ExecuteService) writeFinal(
 				StderrTruncated: result.StderrTruncated,
 			},
 			Error: &ErrorSummary{
-				Code:    "internal_error",
-				Message: "failed to write evidence",
-				Hint:    "Check evidence path permissions and disk state.",
+				Code:    errCode,
+				Message: errMessage,
+				Hint:    errHint,
 			},
 			Hints: []string{"evidence write failed; result treated as failed"},
 		}

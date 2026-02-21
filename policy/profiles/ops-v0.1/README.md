@@ -1,6 +1,6 @@
-# Ops Policy Kit v0.1
+# Ops Policy Profile v0.1
 
-This is the default policy kit used by Evidra in `ops` profile.
+This is the default policy profile used by Evidra in `ops` profile.
 
 Files:
 - `policy.rego`: stable decision engine

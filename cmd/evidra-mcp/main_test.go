@@ -166,14 +166,14 @@ func TestResolvePolicyPathsDefaults(t *testing.T) {
 	}
 }
 
-func TestOpsPolicyKitPolicyRefIsComputable(t *testing.T) {
+func TestOpsPolicyProfilePolicyRefIsComputable(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Getwd() error = %v", err)
 	}
 	root := filepath.Clean(filepath.Join(wd, "..", ".."))
-	policyPath := filepath.Join(root, "policy", "kits", "ops-v0.1", "policy.rego")
-	dataPath := filepath.Join(root, "policy", "kits", "ops-v0.1", "data.json")
+	policyPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "policy.rego")
+	dataPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "data.json")
 	ps := policysource.NewLocalFileSource(policyPath, dataPath)
 	ref, err := ps.PolicyRef()
 	if err != nil {

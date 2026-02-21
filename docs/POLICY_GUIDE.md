@@ -1,8 +1,8 @@
 # Policy Guide
 
-Evidra v0.1 uses the ops policy kit:
-- `policy/kits/ops-v0.1/policy.rego`
-- `policy/kits/ops-v0.1/data.json`
+Evidra v0.1 uses the ops policy profile:
+- `policy/profiles/ops-v0.1/policy.rego`
+- `policy/profiles/ops-v0.1/data.json`
 
 Rego logic is stable; local customization should happen in `data.json`.
 
@@ -57,8 +57,8 @@ Policies use request context for risk and permission decisions:
 
 ```bash
 go run ./cmd/evidra-policy-sim \
-  --policy ./policy/kits/ops-v0.1/policy.rego \
-  --data ./policy/kits/ops-v0.1/data.json \
+  --policy ./policy/profiles/ops-v0.1/policy.rego \
+  --data ./policy/profiles/ops-v0.1/data.json \
   --input ./examples/invocations/allowed_kubectl_get_dev.json
 ```
 

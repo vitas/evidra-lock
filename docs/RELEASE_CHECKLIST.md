@@ -8,7 +8,7 @@
   - [ ] `go build -o ./bin/evidra-policy-sim ./cmd/evidra-policy-sim`
   - [ ] `go build -o ./bin/evidra-evidence ./cmd/evidra-evidence`
 - [ ] Start MCP in ops profile:
-  - [ ] `EVIDRA_PROFILE=ops EVIDRA_PACKS_DIR=./packs/_core/ops EVIDRA_POLICY_PATH=./policy/kits/ops-v0.1/policy.rego EVIDRA_POLICY_DATA_PATH=./policy/kits/ops-v0.1/data.json EVIDRA_EVIDENCE_PATH=./data/evidence ./bin/evidra-mcp`
+  - [ ] `EVIDRA_PROFILE=ops EVIDRA_PACKS_DIR=./packs/_core/ops EVIDRA_POLICY_PATH=./policy/profiles/ops-v0.1/policy.rego EVIDRA_POLICY_DATA_PATH=./policy/profiles/ops-v0.1/data.json EVIDRA_EVIDENCE_PATH=./data/evidence ./bin/evidra-mcp`
 - [ ] Confirm startup logs show profile and evidence path.
 
 ## B) MCP Functionality
@@ -23,9 +23,10 @@
 - [ ] Evidence store writes segmented files and manifest.
 - [ ] Rotation seals previous segments in manifest.
 - [ ] `./bin/evidra-evidence verify --evidence ./data/evidence` passes.
+- [ ] Starting two `evidra-mcp` processes on the same evidence path fails fast with `evidence_store_busy` for the second writer.
 - [ ] Manual tamper check noted: edit a record and verify fails.
 - [ ] `./bin/evidra-evidence violations --evidence ./data/evidence --min-risk high` shows expected entries.
-- [ ] `./bin/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/kits/ops-v0.1/policy.rego --data ./policy/kits/ops-v0.1/data.json` creates pack containing:
+- [ ] `./bin/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/profiles/ops-v0.1/policy.rego --data ./policy/profiles/ops-v0.1/data.json` creates pack containing:
   - [ ] `evidence/manifest.json`
   - [ ] `evidence/segments/*`
   - [ ] `manifest.json` (audit pack manifest)
@@ -46,4 +47,3 @@
   - [ ] `./bin/evidra-policy-sim --version`
   - [ ] `./bin/evidra-evidence --version`
 - [ ] Release tag planned: `v0.1.0`.
-

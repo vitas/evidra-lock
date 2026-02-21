@@ -19,15 +19,17 @@ func NewStoreWithPath(path string) *Store {
 }
 
 func (s *Store) Init() error {
-	mode, resolved, err := detectStoreMode(s.path)
-	if err != nil {
-		return err
-	}
-	if mode == "segmented" {
-		_, err := loadOrInitManifest(resolved, segmentMaxBytesFromEnv(), true)
-		return err
-	}
-	return os.MkdirAll(filepath.Dir(resolved), 0o755)
+	return withStoreLock(s.path, func() error {
+		mode, resolved, err := detectStoreMode(s.path)
+		if err != nil {
+			return err
+		}
+		if mode == "segmented" {
+			_, err := loadOrInitManifest(resolved, segmentMaxBytesFromEnv(), true)
+			return err
+		}
+		return os.MkdirAll(filepath.Dir(resolved), 0o755)
+	})
 }
 
 func (s *Store) Append(record Record) error {
@@ -40,30 +42,42 @@ func (s *Store) ValidateChain() error {
 }
 
 func (s *Store) LastHash() (string, error) {
-	mode, resolved, err := detectStoreMode(s.path)
-	if err != nil {
-		return "", err
-	}
-	if mode == "segmented" {
-		m, err := loadOrInitManifest(resolved, segmentMaxBytesFromEnv(), false)
+	var out string
+	err := withStoreLock(s.path, func() error {
+		mode, resolved, err := detectStoreMode(s.path)
+		if err != nil {
+			return err
+		}
+		if mode == "segmented" {
+			m, err := loadOrInitManifest(resolved, segmentMaxBytesFromEnv(), false)
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					out = ""
+					return nil
+				}
+				return err
+			}
+			out = m.LastHash
+			return nil
+		}
+
+		last, ok, err := readLastRecord(resolved)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return "", nil
+				out = ""
+				return nil
 			}
-			return "", err
+			return err
 		}
-		return m.LastHash, nil
-	}
-
-	last, ok, err := readLastRecord(resolved)
+		if !ok {
+			out = ""
+			return nil
+		}
+		out = last.Hash
+		return nil
+	})
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", nil
-		}
 		return "", err
 	}
-	if !ok {
-		return "", nil
-	}
-	return last.Hash, nil
+	return out, nil
 }
