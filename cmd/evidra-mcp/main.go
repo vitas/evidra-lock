@@ -10,6 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"samebits.com/evidra-mcp/internal/version"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/mcpserver"
 	"samebits.com/evidra-mcp/pkg/outputlimit"
@@ -17,7 +18,6 @@ import (
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/policysource"
 	"samebits.com/evidra-mcp/pkg/registry"
-	"samebits.com/evidra-mcp/internal/version"
 )
 
 type Profile string
@@ -35,6 +35,7 @@ func main() {
 	showVersion := fs.Bool("version", false, "Print version and exit")
 	policyFlag := fs.String("policy", "", "Path to policy rego file")
 	dataFlag := fs.String("data", "", "Path to policy data JSON file")
+	guardedFlag := fs.Bool("guarded", false, "Enable guarded mode strict enforcement")
 	fs.Parse(os.Args[1:])
 
 	if *showVersion {
@@ -52,6 +53,9 @@ func main() {
 	}
 	log.Printf("Evidra profile: %s", profile)
 	log.Printf("Evidra mode: %s", mode)
+	if *guardedFlag {
+		log.Printf("Running in GUARDED MODE (strict enforcement)")
+	}
 	if mode == mcpserver.ModeObserve {
 		log.Printf("Evidra running in OBSERVE mode. Policy violations will NOT block execution.")
 	}
@@ -104,6 +108,7 @@ func main() {
 			Name:                     "evidra-mcp",
 			Version:                  version.Version,
 			Mode:                     mode,
+			Guarded:                  *guardedFlag,
 			PolicyRef:                mustPolicyRef(ps),
 			EvidencePath:             evidencePath,
 			IncludeFileResourceLinks: envBool("EVIDRA_INCLUDE_FILE_RESOURCE_LINKS", false),

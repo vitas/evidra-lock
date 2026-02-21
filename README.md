@@ -10,6 +10,25 @@ Evidra is a monorepo with a shared core policy/evidence runtime and bundle-speci
 - `bundles/ops/`: AI-first scenario validation flow for infrastructure changes.
 - `bundles/regulated/`: controlled environment validation flow for compliance-oriented operations.
 
+## Guarded Mode
+
+Guarded Mode enables strict gateway enforcement for MCP execution:
+
+- only registered tools/operations may run,
+- bypass-style invocations (shell/script/binary-path patterns) are denied,
+- denials are recorded in evidence with explicit reason codes.
+
+Use Guarded Mode for production and regulated environments:
+
+```bash
+go run ./cmd/evidra-mcp --guarded
+```
+
+Limitations:
+
+- it protects only flows that pass through Evidra-MCP,
+- direct host execution channels outside the gateway are out of scope.
+
 ## 5-Minute Demo
 
 Requirements: Go 1.22+ (recommended 1.23)

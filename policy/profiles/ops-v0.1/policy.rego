@@ -2,18 +2,26 @@ package evidra.policy
 
 import rego.v1
 
-default decision := {
+default raw_decision := {
   "allow": false,
   "risk_level": "critical",
   "reason": "policy_denied_default",
 }
 
-decision := override_decision if {
+raw_decision := override_decision if {
   has_override
 }
 
-decision := class_decision if {
+raw_decision := class_decision if {
   not has_override
+}
+
+decision := {
+  "allow": object.get(raw_decision, "allow", false),
+  "risk_level": object.get(raw_decision, "risk_level", "critical"),
+  "reason": object.get(raw_decision, "reason", "policy_denied_default"),
+  "hint": decision_hint,
+  "long_running": is_long_running,
 }
 
 default_unknown := object.get(data.defaults, "unknown_operation", {
@@ -136,5 +144,14 @@ is_write_op if {
 
 is_destructive_op if {
   some v in data.operation_classes.destructive
+  v == op_key
+}
+
+decision_hint := object.get(data.reason_hints, object.get(raw_decision, "reason", ""), "")
+
+default is_long_running := false
+
+is_long_running if {
+  some v in data.long_running_ops
   v == op_key
 }

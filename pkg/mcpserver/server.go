@@ -24,6 +24,7 @@ type Options struct {
 	Name                     string
 	Version                  string
 	Mode                     Mode
+	Guarded                  bool
 	PolicyRef                string
 	EvidencePath             string
 	IncludeFileResourceLinks bool
@@ -114,6 +115,7 @@ func NewServer(opts Options, reg registry.Registry, policyEngine core.PolicyEngi
 	}
 
 	svc := NewExecuteServiceWithMode(reg, policyEngine, evidenceStore, opts.Mode, opts.PolicyRef)
+	svc.guarded = opts.Guarded
 	svc.evidencePath = opts.EvidencePath
 	svc.includeFileResourceLinks = opts.IncludeFileResourceLinks
 	svc.maxOutputBytes = opts.MaxOutputBytes
@@ -228,6 +230,7 @@ type ExecuteService struct {
 	policy                   core.PolicyEngine
 	evidence                 core.EvidenceStore
 	mode                     Mode
+	guarded                  bool
 	policyRef                string
 	evidencePath             string
 	maxOutputBytes           int
@@ -305,107 +308,51 @@ func (s *ExecuteService) Execute(ctx context.Context, inv invocation.ToolInvocat
 
 type ProgressReporter func(progress float64, message string)
 
-func (s *ExecuteService) ExecuteWithReporter(ctx context.Context, inv invocation.ToolInvocation, reporter ProgressReporter) ExecuteOutput {
-	reporter.report(0, "received")
+type executeStep func(*execContext) error
 
-	if err := inv.ValidateStructure(); err != nil {
-		out := s.denyWithEvidence(inv, "invalid_invocation", err.Error(), "Provide actor/tool/operation and non-nil params/context.")
-		reporter.report(100, "denied (evidence written)")
-		return out
-	}
-	reporter.report(10, "validated invocation")
+type execContext struct {
+	ctx      context.Context
+	service  *ExecuteService
+	inv      invocation.ToolInvocation
+	reporter ProgressReporter
 
-	def, ok := s.registry.Lookup(inv.Tool)
-	if !ok {
-		out := s.denyWithEvidence(inv, "unregistered_tool", fmt.Sprintf("tool %q is not registered", inv.Tool), "Install/enable the corresponding tool pack.")
-		reporter.report(100, "denied (evidence written)")
-		return out
-	}
-	if !registry.SupportsOperation(def, inv.Operation) {
-		out := s.denyWithEvidence(inv, "unsupported_operation", fmt.Sprintf("operation %q is not supported for tool %q", inv.Operation, inv.Tool), "Check supported operations for the registered tool.")
-		reporter.report(100, "denied (evidence written)")
-		return out
-	}
-	if err := registry.ValidateParams(def, inv.Operation, inv.Params); err != nil {
-		out := s.denyWithEvidence(inv, "invalid_params", err.Error(), "Fix params to match the operation schema.")
-		reporter.report(100, "denied (evidence written)")
-		return out
-	}
-	reporter.report(25, "registry ok")
-
-	decision, evalErr := s.policy.Evaluate(inv)
-	if evalErr != nil {
-		decision = decisionForPolicyError()
-	}
-	reporter.report(40, "policy evaluated (allow/deny)")
-	if s.mode == ModeEnforce && !decision.Allow {
-		hint := "Adjust policy or invocation context (e.g. context.environment), then re-run."
-		if decision.Reason == "policy_evaluation_failed" {
-			hint = "Check policy syntax and run evidra-policy-sim."
-		}
-		out := s.writeFinal(inv, decision, registry.ExecutionResult{Status: "denied", ExitCode: nil}, false, &ErrorSummary{
-			Code:      decision.Reason,
-			Message:   "execution denied by policy",
-			RiskLevel: decision.RiskLevel,
-			Reason:    decision.Reason,
-			Hint:      hint,
-		}, false)
-		reporter.report(100, "denied (evidence written)")
-		return out
-	}
-
-	advisory := s.mode == ModeObserve
-	reporter.report(60, "execution started")
-	stopHeartbeat := startProgressHeartbeat(ctx, reporter, inv)
-	execResult, execErr := def.Executor(ctx, registry.ToolInvocationInput{
-		Operation: inv.Operation,
-		Params:    inv.Params,
-	})
-	stopHeartbeat()
-	if errors.Is(ctx.Err(), context.Canceled) || errors.Is(execErr, context.Canceled) {
-		execResult.Status = "cancelled"
-		if execResult.Stderr == "" {
-			execResult.Stderr = "execution cancelled"
-		}
-	}
-	reporter.report(90, "execution finished (writing evidence)")
-	if execErr != nil {
-		execResult.Status = "failed"
-		if execResult.Stderr == "" {
-			execResult.Stderr = execErr.Error()
-		}
-		out := s.writeFinal(inv, decision, execResult, true, nil, advisory)
-		if execResult.Status == "cancelled" {
-			reporter.report(100, "cancelled")
-		} else {
-			reporter.report(100, "done")
-		}
-		return out
-	}
-
-	out := s.writeFinal(inv, decision, execResult, true, nil, advisory)
-	if advisory && !decision.Allow {
-		out.Hints = append(out.Hints, "observe mode: policy denied but execution was allowed")
-	}
-	reporter.report(100, "done")
-	return out
+	def           registry.ToolDefinition
+	decision      policy.Decision
+	result        registry.ExecutionResult
+	errOut        *ErrorSummary
+	advisory      bool
+	deny          bool
+	violationType string
+	out           ExecuteOutput
 }
 
-func (s *ExecuteService) denyWithEvidence(inv invocation.ToolInvocation, reason, msg, hint string) ExecuteOutput {
-	return s.writeFinal(
-		inv,
-		decisionForDeny(reason),
-		registry.ExecutionResult{Status: "denied", ExitCode: nil},
-		false,
-		&ErrorSummary{
-			Code:      reason,
-			Message:   msg,
-			RiskLevel: "critical",
-			Reason:    reason,
-			Hint:      hint,
-		},
-		false,
-	)
+func (s *ExecuteService) ExecuteWithReporter(ctx context.Context, inv invocation.ToolInvocation, reporter ProgressReporter) ExecuteOutput {
+	ec := &execContext{
+		ctx:      ctx,
+		service:  s,
+		inv:      inv,
+		reporter: reporter,
+		result:   registry.ExecutionResult{Status: "denied", ExitCode: nil},
+		decision: decisionForDeny("invalid_invocation"),
+	}
+	steps := []executeStep{
+		stepParseAndValidateInvocation,
+		stepDetectBypassAttempt,
+		stepResolveToolFromRegistry,
+		stepEvaluatePolicy,
+		stepExecuteTool,
+		stepWriteEvidence,
+		stepBuildResponse,
+	}
+	for _, step := range steps {
+		if err := step(ec); err != nil {
+			return s.writeFinal(inv, decisionForPolicyError(), registry.ExecutionResult{Status: "failed", ExitCode: nil, Stderr: err.Error()}, false, &ErrorSummary{
+				Code:    "internal_error",
+				Message: "execution pipeline failed",
+			}, false)
+		}
+	}
+	return ec.out
 }
 
 func (s *ExecuteService) writeFinal(
@@ -440,6 +387,12 @@ func (s *ExecuteService) writeFinal(
 			StdoutTruncated: result.StdoutTruncated,
 			StderrTruncated: result.StderrTruncated,
 		},
+	}
+	if errOut != nil && errOut.Code == "bypass_attempt" {
+		if record.Params == nil {
+			record.Params = map[string]interface{}{}
+		}
+		record.Params["violation_type"] = "bypass_attempt"
 	}
 
 	appendErr := s.evidence.Append(record)
@@ -549,8 +502,8 @@ func (r ProgressReporter) report(progress float64, message string) {
 	r(progress, message)
 }
 
-func startProgressHeartbeat(ctx context.Context, reporter ProgressReporter, inv invocation.ToolInvocation) func() {
-	if reporter == nil || !isLongRunningOperation(inv.Tool, inv.Operation) {
+func startProgressHeartbeat(ctx context.Context, reporter ProgressReporter, enabled bool) func() {
+	if reporter == nil || !enabled {
 		return func() {}
 	}
 	done := make(chan struct{})
@@ -574,21 +527,6 @@ func startProgressHeartbeat(ctx context.Context, reporter ProgressReporter, inv 
 		}
 	}()
 	return stop
-}
-
-func isLongRunningOperation(tool, operation string) bool {
-	switch tool {
-	case "terraform":
-		return operation == "plan" || operation == "apply"
-	case "helm":
-		return operation == "upgrade"
-	case "argocd":
-		return operation == "app-sync" || operation == "app-rollback"
-	case "kubectl":
-		return operation == "apply" || operation == "delete"
-	default:
-		return false
-	}
 }
 
 func (s *ExecuteService) resourceLinks(eventID string) []ResourceLink {
@@ -737,4 +675,184 @@ func hintsForExecution(status, risk string) []string {
 		hints = append(hints, "critical risk operation; require explicit review in production workflows")
 	}
 	return hints
+}
+
+func stepParseAndValidateInvocation(ec *execContext) error {
+	ec.reporter.report(0, "received")
+	if err := ec.inv.ValidateStructure(); err != nil {
+		ec.setDeny("invalid_invocation", err.Error(), "Provide actor/tool/operation and non-nil params/context.")
+		return nil
+	}
+	ec.reporter.report(10, "validated invocation")
+	return nil
+}
+
+func stepDetectBypassAttempt(ec *execContext) error {
+	if !ec.service.guarded || ec.deny {
+		return nil
+	}
+	if !looksLikeBypass(ec.inv) {
+		return nil
+	}
+	ec.setDeny("bypass_attempt", "guarded mode blocked bypass attempt", "Use a registered tool and operation through the registry.")
+	ec.violationType = "bypass_attempt"
+	return nil
+}
+
+func stepResolveToolFromRegistry(ec *execContext) error {
+	if ec.deny {
+		return nil
+	}
+	def, ok := ec.service.registry.Lookup(ec.inv.Tool)
+	if !ok {
+		reason := "unregistered_tool"
+		if ec.service.guarded {
+			reason = "tool_not_registered"
+		}
+		ec.setDeny(reason, fmt.Sprintf("tool %q is not registered", ec.inv.Tool), "Install/enable the corresponding tool pack.")
+		return nil
+	}
+	if !registry.SupportsOperation(def, ec.inv.Operation) {
+		ec.setDeny("unsupported_operation", fmt.Sprintf("operation %q is not supported for tool %q", ec.inv.Operation, ec.inv.Tool), "Check supported operations for the registered tool.")
+		return nil
+	}
+	if err := registry.ValidateParams(def, ec.inv.Operation, ec.inv.Params); err != nil {
+		ec.setDeny("invalid_params", err.Error(), "Fix params to match the operation schema.")
+		return nil
+	}
+	ec.def = def
+	ec.reporter.report(25, "registry ok")
+	return nil
+}
+
+func stepEvaluatePolicy(ec *execContext) error {
+	if ec.deny {
+		return nil
+	}
+	decision, evalErr := ec.service.policy.Evaluate(ec.inv)
+	if evalErr != nil {
+		decision = decisionForPolicyError()
+	}
+	ec.decision = decision
+	ec.reporter.report(40, "policy evaluated (allow/deny)")
+	if ec.service.mode == ModeEnforce && !decision.Allow {
+		hint := decision.Hint
+		if hint == "" {
+			hint = "Adjust policy or invocation context (e.g. context.environment), then re-run."
+		}
+		ec.result = registry.ExecutionResult{Status: "denied", ExitCode: nil}
+		ec.errOut = &ErrorSummary{
+			Code:      decision.Reason,
+			Message:   "execution denied by policy",
+			RiskLevel: decision.RiskLevel,
+			Reason:    decision.Reason,
+			Hint:      hint,
+		}
+		ec.deny = true
+		return nil
+	}
+	ec.advisory = ec.service.mode == ModeObserve
+	return nil
+}
+
+func stepExecuteTool(ec *execContext) error {
+	if ec.deny {
+		return nil
+	}
+	ec.reporter.report(60, "execution started")
+	stopHeartbeat := startProgressHeartbeat(ec.ctx, ec.reporter, ec.decision.LongRunning)
+	execResult, execErr := ec.def.Executor(ec.ctx, registry.ToolInvocationInput{
+		Operation: ec.inv.Operation,
+		Params:    ec.inv.Params,
+	})
+	stopHeartbeat()
+	if errors.Is(ec.ctx.Err(), context.Canceled) || errors.Is(execErr, context.Canceled) {
+		execResult.Status = "cancelled"
+		if execResult.Stderr == "" {
+			execResult.Stderr = "execution cancelled"
+		}
+	}
+	if execErr != nil {
+		execResult.Status = "failed"
+		if execResult.Stderr == "" {
+			execResult.Stderr = execErr.Error()
+		}
+	}
+	ec.result = execResult
+	ec.reporter.report(90, "execution finished (writing evidence)")
+	return nil
+}
+
+func stepWriteEvidence(ec *execContext) error {
+	ok := !ec.deny
+	ec.out = ec.service.writeFinal(ec.inv, ec.decision, ec.result, ok, ec.errOut, ec.advisory)
+	return nil
+}
+
+func stepBuildResponse(ec *execContext) error {
+	if ec.advisory && !ec.decision.Allow {
+		ec.out.Hints = append(ec.out.Hints, "observe mode: policy denied but execution was allowed")
+	}
+	if ec.result.Status == "cancelled" {
+		ec.reporter.report(100, "cancelled")
+		return nil
+	}
+	if ec.deny {
+		ec.reporter.report(100, "denied (evidence written)")
+		return nil
+	}
+	ec.reporter.report(100, "done")
+	return nil
+}
+
+func (ec *execContext) setDeny(reason, msg, hint string) {
+	ec.decision = decisionForDeny(reason)
+	ec.result = registry.ExecutionResult{Status: "denied", ExitCode: nil}
+	ec.errOut = &ErrorSummary{
+		Code:      reason,
+		Message:   msg,
+		RiskLevel: "critical",
+		Reason:    reason,
+		Hint:      hint,
+	}
+	ec.deny = true
+}
+
+func looksLikeBypass(inv invocation.ToolInvocation) bool {
+	tool := strings.ToLower(strings.TrimSpace(inv.Tool))
+	op := strings.ToLower(strings.TrimSpace(inv.Operation))
+
+	if isShellToken(tool) || isShellToken(op) {
+		return true
+	}
+	if strings.Contains(tool, "/") || strings.Contains(tool, "\\") || strings.HasPrefix(tool, ".") {
+		return true
+	}
+	for k, raw := range inv.Params {
+		key := strings.ToLower(strings.TrimSpace(k))
+		v, ok := raw.(string)
+		if !ok {
+			continue
+		}
+		val := strings.ToLower(strings.TrimSpace(v))
+		if val == "" {
+			continue
+		}
+		if key == "command" || key == "cmd" || key == "script" || key == "shell" || key == "binary" || key == "executable" {
+			return true
+		}
+		if (key == "path" || key == "binary_path") && (strings.Contains(val, "/") || strings.Contains(val, "\\") || strings.HasPrefix(val, ".")) {
+			return true
+		}
+	}
+	return false
+}
+
+func isShellToken(v string) bool {
+	switch v {
+	case "sh", "bash", "zsh", "shell", "cmd", "powershell", "pwsh":
+		return true
+	default:
+		return false
+	}
 }

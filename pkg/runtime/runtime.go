@@ -5,21 +5,32 @@ import (
 	"fmt"
 	"os"
 
-	coreif "samebits.com/evidra-mcp/core/interfaces"
-	corepolicy "samebits.com/evidra-mcp/core/policy"
-	corepolicysource "samebits.com/evidra-mcp/core/policysource"
 	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/policy"
+	"samebits.com/evidra-mcp/pkg/policysource"
 )
 
-// TODO(monorepo-split): move core/runtime evaluator and contracts into standalone core module.
+// TODO(monorepo-split): move runtime evaluator and contracts into standalone core module.
+
+type ScenarioDecision struct {
+	Allow     bool   `json:"allow"`
+	RiskLevel string `json:"risk_level"`
+	Reason    string `json:"reason"`
+	PolicyRef string `json:"policy_ref,omitempty"`
+	Hint      string `json:"hint,omitempty"`
+}
+
+type ScenarioEvaluator interface {
+	EvaluateInvocation(inv invocation.ToolInvocation) (ScenarioDecision, error)
+}
 
 type Evaluator struct {
-	engine    *corepolicy.Engine
+	engine    *policy.Engine
 	policyRef string
 }
 
 func NewEvaluator(policyPath, dataPath string) (*Evaluator, error) {
-	src := corepolicysource.NewLocalFileSource(policyPath, dataPath)
+	src := policysource.NewLocalFileSource(policyPath, dataPath)
 	policyBytes, err := src.LoadPolicy()
 	if err != nil {
 		return nil, err
@@ -28,7 +39,7 @@ func NewEvaluator(policyPath, dataPath string) (*Evaluator, error) {
 	if err != nil {
 		return nil, err
 	}
-	eng, err := corepolicy.NewOPAEngine(policyBytes, dataBytes)
+	eng, err := policy.NewOPAEngine(policyBytes, dataBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -39,15 +50,21 @@ func NewEvaluator(policyPath, dataPath string) (*Evaluator, error) {
 	return &Evaluator{engine: eng, policyRef: ref}, nil
 }
 
-func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (coreif.ScenarioDecision, error) {
+func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (ScenarioDecision, error) {
 	if err := inv.ValidateStructure(); err != nil {
-		return coreif.ScenarioDecision{}, err
+		return ScenarioDecision{}, err
 	}
 	d, err := e.engine.Evaluate(inv)
 	if err != nil {
-		return coreif.ScenarioDecision{}, err
+		return ScenarioDecision{}, err
 	}
-	return coreif.ScenarioDecision{Allow: d.Allow, RiskLevel: d.RiskLevel, Reason: d.Reason, PolicyRef: e.policyRef}, nil
+	return ScenarioDecision{
+		Allow:     d.Allow,
+		RiskLevel: d.RiskLevel,
+		Reason:    d.Reason,
+		PolicyRef: e.policyRef,
+		Hint:      d.Hint,
+	}, nil
 }
 
 func ReadInvocationFile(path string) (invocation.ToolInvocation, error) {

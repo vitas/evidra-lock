@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
 
 	"samebits.com/evidra-mcp/pkg/registry"
+	"samebits.com/evidra-mcp/pkg/tokens"
 )
 
 type ParamSpec struct {
@@ -37,9 +37,6 @@ type PackSpec struct {
 	Version string     `yaml:"version"`
 	Tools   []ToolSpec `yaml:"tools"`
 }
-
-var tokenPattern = regexp.MustCompile(`^\{\{([a-zA-Z0-9_]+)(\?)?\}\}$`)
-var inlineTokenPattern = regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)(\?)?\}\}`)
 
 func LoadToolDefinitions(dir string, existingTools []string) ([]registry.ToolDefinition, error) {
 	if strings.TrimSpace(dir) == "" {
@@ -175,35 +172,16 @@ func toParamRules(in map[string]ParamSpec) (map[string]registry.ParamRule, error
 
 func validateArgsAndParams(args []string, params map[string]registry.ParamRule) error {
 	used := map[string]struct{}{}
+	allowed := map[string]bool{}
+	for name := range params {
+		allowed[name] = true
+	}
 	for _, arg := range args {
-		full := tokenPattern.FindStringSubmatch(arg)
-		if len(full) > 0 {
-			name := full[1]
-			if _, ok := params[name]; !ok {
-				return fmt.Errorf("placeholder %q not declared in params", name)
-			}
-			used[name] = struct{}{}
-			continue
+		if err := tokens.ValidateTemplate(arg, allowed); err != nil {
+			return err
 		}
-
-		inline := inlineTokenPattern.FindAllStringSubmatch(arg, -1)
-		if len(inline) > 0 {
-			for _, m := range inline {
-				name := m[1]
-				if _, ok := params[name]; !ok {
-					return fmt.Errorf("placeholder %q not declared in params", name)
-				}
-				used[name] = struct{}{}
-			}
-			if strings.Contains(strings.ReplaceAll(strings.ReplaceAll(arg, "{{", ""), "}}", ""), "{{") ||
-				strings.Contains(strings.ReplaceAll(strings.ReplaceAll(arg, "{{", ""), "}}", ""), "}}") {
-				return fmt.Errorf("invalid template token %q", arg)
-			}
-			continue
-		}
-
-		if strings.Contains(arg, "{{") || strings.Contains(arg, "}}") {
-			return fmt.Errorf("invalid template token %q", arg)
+		for _, ph := range tokens.Placeholders(arg) {
+			used[ph.Name] = struct{}{}
 		}
 	}
 	for name := range params {

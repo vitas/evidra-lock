@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"math"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"samebits.com/evidra-mcp/pkg/tokens"
 )
 
 type ExecutionResult struct {
@@ -152,9 +153,6 @@ type CLIToolSpec struct {
 	Operations map[string]CLIOperationSpec
 }
 
-var placeholderPattern = regexp.MustCompile(`^\{\{([a-zA-Z0-9_]+)(\?)?\}\}$`)
-var inlinePlaceholderPattern = regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)(\?)?\}\}`)
-
 func NewDeclarativeCLIToolDefinition(name, inputSchema string, spec CLIToolSpec) (ToolDefinition, error) {
 	if strings.TrimSpace(name) == "" {
 		return ToolDefinition{}, fmt.Errorf("tool name is required")
@@ -216,46 +214,57 @@ func BuildDeclarativeCLIArgs(spec CLIToolSpec, operation string, params map[stri
 	}
 
 	out := []string{spec.Binary}
+	allowed := map[string]bool{}
+	for k := range op.Params {
+		allowed[k] = true
+	}
 	for _, token := range op.Args {
-		val, optional, isPlaceholder, err := resolveTemplateToken(token)
-		if err != nil {
+		if err := tokens.ValidateTemplate(token, allowed); err != nil {
 			return nil, err
 		}
-		if !isPlaceholder {
-			expanded, expandedOK, expErr := expandInlineTemplateToken(token, op.Params, params)
-			if expErr != nil {
-				return nil, expErr
-			}
-			if expandedOK {
-				out = append(out, expanded)
-				continue
-			}
-			if strings.Contains(token, "{{") || strings.Contains(token, "}}") {
-				return nil, fmt.Errorf("invalid template token: %s", token)
-			}
+		placeholders := tokens.Placeholders(token)
+		if len(placeholders) == 0 {
 			out = append(out, token)
 			continue
 		}
 
-		rule, exists := op.Params[val]
-		if !exists {
-			return nil, fmt.Errorf("placeholder %q is not declared in params", val)
-		}
-		paramVal, exists := params[val]
-		if !exists {
-			if optional || !rule.Required {
-				continue
+		values := make(map[string]string, len(placeholders))
+		skip := false
+		for _, ph := range placeholders {
+			rule, exists := op.Params[ph.Name]
+			if !exists {
+				return nil, fmt.Errorf("placeholder %q is not declared in params", ph.Name)
 			}
-			return nil, fmt.Errorf("missing required param: %s", val)
+			paramVal, exists := params[ph.Name]
+			if !exists {
+				if ph.Optional || !rule.Required {
+					skip = true
+					break
+				}
+				return nil, fmt.Errorf("missing required param: %s", ph.Name)
+			}
+			arg, convErr := convertParamToArg(ph.Name, paramVal, rule.Type)
+			if convErr != nil {
+				return nil, convErr
+			}
+			if arg == "" && (ph.Optional || !rule.Required) {
+				skip = true
+				break
+			}
+			values[ph.Name] = arg
 		}
-		arg, convErr := convertParamToArg(val, paramVal, rule.Type)
-		if convErr != nil {
-			return nil, convErr
-		}
-		if arg == "" && (optional || !rule.Required) {
+		if skip {
 			continue
 		}
-		out = append(out, arg)
+
+		expanded, err := tokens.ExpandTemplate(token, values)
+		if err != nil {
+			return nil, err
+		}
+		if expanded == "" {
+			continue
+		}
+		out = append(out, expanded)
 	}
 
 	for name, rule := range op.Params {
@@ -267,53 +276,6 @@ func BuildDeclarativeCLIArgs(spec CLIToolSpec, operation string, params map[stri
 		}
 	}
 	return out, nil
-}
-
-func expandInlineTemplateToken(token string, rules map[string]ParamRule, params map[string]interface{}) (string, bool, error) {
-	matches := inlinePlaceholderPattern.FindAllStringSubmatchIndex(token, -1)
-	if len(matches) == 0 {
-		return "", false, nil
-	}
-	cursor := 0
-	var b strings.Builder
-	for _, m := range matches {
-		b.WriteString(token[cursor:m[0]])
-		name := token[m[2]:m[3]]
-		optional := m[4] >= 0 && m[5] >= 0
-		rule, ok := rules[name]
-		if !ok {
-			return "", false, fmt.Errorf("placeholder %q is not declared in params", name)
-		}
-		v, exists := params[name]
-		if !exists {
-			if optional || !rule.Required {
-				return "", true, nil
-			}
-			return "", false, fmt.Errorf("missing required param: %s", name)
-		}
-		arg, err := convertParamToArg(name, v, rule.Type)
-		if err != nil {
-			return "", false, err
-		}
-		if arg == "" && (optional || !rule.Required) {
-			return "", true, nil
-		}
-		b.WriteString(arg)
-		cursor = m[1]
-	}
-	b.WriteString(token[cursor:])
-	if strings.Contains(b.String(), "{{") || strings.Contains(b.String(), "}}") {
-		return "", false, fmt.Errorf("invalid template token: %s", token)
-	}
-	return b.String(), true, nil
-}
-
-func resolveTemplateToken(token string) (name string, optional bool, isPlaceholder bool, err error) {
-	m := placeholderPattern.FindStringSubmatch(token)
-	if len(m) == 0 {
-		return "", false, false, nil
-	}
-	return m[1], m[2] == "?", true, nil
 }
 
 func convertParamToArg(name string, value interface{}, typ string) (string, error) {

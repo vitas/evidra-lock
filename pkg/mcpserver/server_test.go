@@ -163,6 +163,112 @@ func TestExecuteWithoutProgressReporterStillWorks(t *testing.T) {
 	}
 }
 
+func TestStepResolveToolFromRegistryUnknownToolSetsDeny(t *testing.T) {
+	svc := newService(t)
+	ec := &execContext{
+		ctx:      context.Background(),
+		service:  svc,
+		inv:      baseInvocation("unknown-tool", "run", map[string]interface{}{}),
+		reporter: nil,
+		result:   registry.ExecutionResult{Status: "denied", ExitCode: nil},
+		decision: decisionForDeny("invalid_invocation"),
+	}
+	if err := stepParseAndValidateInvocation(ec); err != nil {
+		t.Fatalf("stepParseAndValidateInvocation() error = %v", err)
+	}
+	if err := stepResolveToolFromRegistry(ec); err != nil {
+		t.Fatalf("stepResolveToolFromRegistry() error = %v", err)
+	}
+	if !ec.deny {
+		t.Fatalf("expected deny=true")
+	}
+	if ec.errOut == nil || ec.errOut.Code != "unregistered_tool" {
+		t.Fatalf("expected unregistered_tool error, got %+v", ec.errOut)
+	}
+}
+
+func TestStepEvaluatePolicyDenyUsesPolicyHint(t *testing.T) {
+	svc := NewExecuteServiceWithMode(registry.NewDefaultRegistry(), denyWithHintPolicyEngine{}, evidence.NewStore(), ModeEnforce, "test-policy-ref")
+	ec := &execContext{
+		ctx:      context.Background(),
+		service:  svc,
+		inv:      baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}),
+		reporter: nil,
+		result:   registry.ExecutionResult{Status: "denied", ExitCode: nil},
+		decision: decisionForDeny("invalid_invocation"),
+	}
+	if err := stepParseAndValidateInvocation(ec); err != nil {
+		t.Fatalf("stepParseAndValidateInvocation() error = %v", err)
+	}
+	if err := stepResolveToolFromRegistry(ec); err != nil {
+		t.Fatalf("stepResolveToolFromRegistry() error = %v", err)
+	}
+	if err := stepEvaluatePolicy(ec); err != nil {
+		t.Fatalf("stepEvaluatePolicy() error = %v", err)
+	}
+	if !ec.deny {
+		t.Fatalf("expected policy deny")
+	}
+	if ec.errOut == nil || ec.errOut.Hint != "use approved context" {
+		t.Fatalf("expected policy hint propagated, got %+v", ec.errOut)
+	}
+}
+
+func TestGuardedModeDeniesUnregisteredToolAndWritesEvidence(t *testing.T) {
+	svc := newService(t)
+	svc.guarded = true
+	out := svc.Execute(context.Background(), baseInvocation("not-registered", "run", map[string]interface{}{}))
+	if out.OK {
+		t.Fatalf("expected denied output")
+	}
+	if out.Error == nil || out.Error.Code != "tool_not_registered" {
+		t.Fatalf("expected tool_not_registered, got %+v", out.Error)
+	}
+	if out.Execution.Status != "denied" {
+		t.Fatalf("expected denied status, got %q", out.Execution.Status)
+	}
+	if lines := countEvidenceLines(t); lines != 1 {
+		t.Fatalf("expected denial evidence record, got %d lines", lines)
+	}
+}
+
+func TestGuardedModeDeniesShellBypassAttempt(t *testing.T) {
+	svc := newService(t)
+	svc.guarded = true
+	out := svc.Execute(context.Background(), invocation.ToolInvocation{
+		Actor:     invocation.Actor{Type: "human", ID: "u1", Origin: "mcp"},
+		Tool:      "bash",
+		Operation: "run",
+		Params:    map[string]interface{}{"command": "echo bypass"},
+		Context:   map[string]interface{}{},
+	})
+	if out.OK {
+		t.Fatalf("expected bypass denial")
+	}
+	if out.Error == nil || out.Error.Code != "bypass_attempt" {
+		t.Fatalf("expected bypass_attempt code, got %+v", out.Error)
+	}
+	records, err := evidence.ReadAllAtPath(filepath.Join("data", "evidence"))
+	if err != nil {
+		t.Fatalf("ReadAllAtPath() error = %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected one record, got %d", len(records))
+	}
+	if vt, _ := records[0].Params["violation_type"].(string); vt != "bypass_attempt" {
+		t.Fatalf("expected violation_type=bypass_attempt, got %v", records[0].Params["violation_type"])
+	}
+}
+
+func TestNormalModeRegisteredToolStillWorks(t *testing.T) {
+	svc := newService(t)
+	svc.guarded = false
+	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "ok"}))
+	if !out.OK {
+		t.Fatalf("expected normal mode success, got %+v", out)
+	}
+}
+
 func TestFileResourceLinksDisabledByDefaultAndOptIn(t *testing.T) {
 	svc := newService(t)
 	links := svc.resourceLinks("evt-1")
@@ -574,4 +680,15 @@ func (busyEvidenceStore) ValidateChain() error {
 
 func (busyEvidenceStore) LastHash() (string, error) {
 	return "", nil
+}
+
+type denyWithHintPolicyEngine struct{}
+
+func (denyWithHintPolicyEngine) Evaluate(inv invocation.ToolInvocation) (policy.Decision, error) {
+	return policy.Decision{
+		Allow:     false,
+		RiskLevel: "critical",
+		Reason:    "policy_denied_default",
+		Hint:      "use approved context",
+	}, nil
 }

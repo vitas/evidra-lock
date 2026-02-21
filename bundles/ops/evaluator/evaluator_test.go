@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"samebits.com/evidra-mcp/bundles/ops/schema"
-	"samebits.com/evidra-mcp/core/runtime"
+	"samebits.com/evidra-mcp/pkg/runtime"
 )
 
 func TestPolicyRuleBlocksK8sApplyKubeSystemWithoutBreakglass(t *testing.T) {

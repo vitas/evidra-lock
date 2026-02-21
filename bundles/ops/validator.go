@@ -14,9 +14,9 @@ import (
 	"samebits.com/evidra-mcp/bundles/ops/evaluator"
 	"samebits.com/evidra-mcp/bundles/ops/scenario"
 	"samebits.com/evidra-mcp/bundles/ops/validators"
-	coreevidence "samebits.com/evidra-mcp/core/evidence"
-	"samebits.com/evidra-mcp/core/runtime"
+	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/runtime"
 )
 
 // TODO(monorepo-split): publish bundles/ops as a standalone bundle repository.
@@ -93,13 +93,13 @@ func ValidateFileWithOptions(path string, opts ValidateOptions) (ValidationOutpu
 	finalReasons := append([]string{}, evalResult.Reasons...)
 	finalReasons = append(finalReasons, validatorResult.Reasons...)
 
-	store := coreevidence.NewStoreWithPath(evidencePath())
+	store := evidence.NewStoreWithPath(evidencePath())
 	if err := store.Init(); err != nil {
 		return ValidationOutput{}, err
 	}
 
 	evidenceID := fmt.Sprintf("evt-%d", time.Now().UTC().UnixNano())
-	rec := coreevidence.EvidenceRecord{
+	rec := evidence.EvidenceRecord{
 		EventID:   evidenceID,
 		Timestamp: time.Now().UTC(),
 		PolicyRef: evalResult.PolicyRef,
@@ -122,13 +122,13 @@ func ValidateFileWithOptions(path string, opts ValidateOptions) (ValidationOutpu
 			"action_count":   len(sc.Actions),
 			"bundle_profile": "ops",
 		},
-		PolicyDecision: coreevidence.PolicyDecision{
+		PolicyDecision: evidence.PolicyDecision{
 			Allow:     finalPass,
 			RiskLevel: evidenceRiskLevel(finalRisk),
 			Reason:    primaryReason(finalReasons),
 			Advisory:  false,
 		},
-		ExecutionResult: coreevidence.ExecutionResult{
+		ExecutionResult: evidence.ExecutionResult{
 			Status: passStatus(finalPass),
 		},
 	}

@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"samebits.com/evidra-mcp/bundles/ops/schema"
-	coreif "samebits.com/evidra-mcp/core/interfaces"
 	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/runtime"
 )
 
 type Result struct {
@@ -18,10 +18,10 @@ type Result struct {
 }
 
 type Evaluator struct {
-	scenarioEvaluator coreif.ScenarioEvaluator
+	scenarioEvaluator runtime.ScenarioEvaluator
 }
 
-func New(scenarioEvaluator coreif.ScenarioEvaluator) *Evaluator {
+func New(scenarioEvaluator runtime.ScenarioEvaluator) *Evaluator {
 	return &Evaluator{scenarioEvaluator: scenarioEvaluator}
 }
 

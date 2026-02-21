@@ -13,9 +13,11 @@ import (
 )
 
 type Decision struct {
-	Allow     bool   `json:"allow"`
-	RiskLevel string `json:"risk_level"`
-	Reason    string `json:"reason"`
+	Allow       bool   `json:"allow"`
+	RiskLevel   string `json:"risk_level"`
+	Reason      string `json:"reason"`
+	Hint        string `json:"hint,omitempty"`
+	LongRunning bool   `json:"long_running,omitempty"`
 }
 
 type Engine struct {
@@ -91,6 +93,12 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 	decision.Allow = allow
 	decision.RiskLevel = riskLevel
 	decision.Reason = reason
+	if hint, ok := out["hint"].(string); ok {
+		decision.Hint = hint
+	}
+	if longRunning, ok := out["long_running"].(bool); ok {
+		decision.LongRunning = longRunning
+	}
 	return decision, nil
 }
 
