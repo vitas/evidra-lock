@@ -13,11 +13,14 @@ import (
 )
 
 type Decision struct {
-	Allow       bool   `json:"allow"`
-	RiskLevel   string `json:"risk_level"`
-	Reason      string `json:"reason"`
-	Hint        string `json:"hint,omitempty"`
-	LongRunning bool   `json:"long_running,omitempty"`
+	Allow       bool     `json:"allow"`
+	RiskLevel   string   `json:"risk_level"`
+	Reason      string   `json:"reason"`
+	Reasons     []string `json:"reasons,omitempty"`
+	Hints       []string `json:"hints,omitempty"`
+	Hits        []string `json:"hits,omitempty"`
+	Hint        string   `json:"hint,omitempty"`
+	LongRunning bool     `json:"long_running,omitempty"`
 }
 
 type Engine struct {
@@ -93,13 +96,48 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 	decision.Allow = allow
 	decision.RiskLevel = riskLevel
 	decision.Reason = reason
+	if reasons, ok := readStringSlice(out, "reasons"); ok {
+		decision.Reasons = reasons
+	}
+	if hints, ok := readStringSlice(out, "hints"); ok {
+		decision.Hints = hints
+	}
+	if hits, ok := readStringSlice(out, "hits"); ok {
+		decision.Hits = hits
+	}
 	if hint, ok := out["hint"].(string); ok {
 		decision.Hint = hint
+	}
+	if decision.Hint == "" && len(decision.Hints) > 0 {
+		decision.Hint = decision.Hints[0]
+	}
+	if len(decision.Reasons) == 0 && decision.Reason != "" {
+		decision.Reasons = []string{decision.Reason}
 	}
 	if longRunning, ok := out["long_running"].(bool); ok {
 		decision.LongRunning = longRunning
 	}
 	return decision, nil
+}
+
+func readStringSlice(m map[string]interface{}, key string) ([]string, bool) {
+	raw, exists := m[key]
+	if !exists {
+		return nil, false
+	}
+	arr, ok := raw.([]interface{})
+	if !ok {
+		return nil, false
+	}
+	out := make([]string, 0, len(arr))
+	for _, item := range arr {
+		s, ok := item.(string)
+		if !ok || s == "" {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out, true
 }
 
 func isValidRiskLevel(level string) bool {

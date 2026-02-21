@@ -222,7 +222,10 @@ func BuildDeclarativeCLIArgs(spec CLIToolSpec, operation string, params map[stri
 		if err := tokens.ValidateTemplate(token, allowed); err != nil {
 			return nil, err
 		}
-		placeholders := tokens.Placeholders(token)
+		placeholders, err := tokens.Placeholders(token)
+		if err != nil {
+			return nil, err
+		}
 		if len(placeholders) == 0 {
 			out = append(out, token)
 			continue

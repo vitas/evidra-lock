@@ -77,11 +77,28 @@
     }
   },
   "reason_hints": {
-    "policy_denied_default": "Adjust policy or invocation context, then retry.",
-    "policy_denied_high_risk": "High-risk operation denied by default; require explicit override.",
-    "policy_evaluation_failed": "Check policy syntax and run evidra-policy-sim.",
-    "unregistered_tool": "Install or enable the corresponding tool pack.",
-    "unsupported_operation": "Use one of the registered operations for the selected tool."
+    "policy_denied_default": [
+      "Adjust policy or invocation context, then retry."
+    ],
+    "policy_denied_high_risk": [
+      "High-risk operation denied by default; require explicit override."
+    ],
+    "policy_evaluation_failed": [
+      "Check policy syntax and run evidra-policy-sim."
+    ],
+    "unregistered_tool": [
+      "Install or enable the corresponding tool pack."
+    ],
+    "unsupported_operation": [
+      "Use one of the registered operations for the selected tool."
+    ]
+  },
+  "rule_labels": {
+    "policy_denied_default": "deny.default",
+    "policy_denied_high_risk": "deny.high_risk",
+    "policy_evaluation_failed": "deny.policy_eval_failed",
+    "unregistered_tool": "deny.unregistered_tool",
+    "unsupported_operation": "deny.unsupported_operation"
   },
   "long_running_ops": [
     "terraform/plan",

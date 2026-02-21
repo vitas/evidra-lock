@@ -3,16 +3,19 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/outputlimit"
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/registry"
 )
@@ -97,6 +100,77 @@ func TestExecuteEvidenceBusyReturnsStructuredBusyError(t *testing.T) {
 	}
 }
 
+func TestExecutePolicyEvaluationFailureReturnsGenericHint(t *testing.T) {
+	reg := registry.NewInMemoryRegistry([]registry.ToolDefinition{
+		{
+			Name:                "echo",
+			SupportedOperations: []string{"run"},
+			ValidateParams: func(_ string, _ map[string]interface{}) error {
+				return nil
+			},
+			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
+				code := 0
+				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
+			},
+		},
+	})
+	svc := NewExecuteServiceWithMode(reg, policyErrorEngine{}, evidence.NewStore(), ModeEnforce, "test-policy-ref")
+	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
+	if out.OK {
+		t.Fatalf("expected deny on policy evaluation failure")
+	}
+	if out.Error == nil || out.Error.Code != "policy_evaluation_failed" {
+		t.Fatalf("expected policy_evaluation_failed error, got %+v", out.Error)
+	}
+	if out.Error.Hint == "" {
+		t.Fatalf("expected generic fallback hint for policy evaluation failure")
+	}
+}
+
+func TestExecuteEvidenceChainInvalidErrorMapping(t *testing.T) {
+	reg := registry.NewInMemoryRegistry([]registry.ToolDefinition{
+		{
+			Name:                "echo",
+			SupportedOperations: []string{"run"},
+			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
+			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
+				code := 0
+				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
+			},
+		},
+	})
+	svc := NewExecuteServiceWithMode(reg, allowPolicyEngine{}, chainInvalidEvidenceStore{}, ModeEnforce, "test-policy-ref")
+	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
+	if out.OK {
+		t.Fatalf("expected failure when evidence append returns chain invalid")
+	}
+	if out.Error == nil || out.Error.Code != "evidence_chain_invalid" {
+		t.Fatalf("expected evidence_chain_invalid, got %+v", out.Error)
+	}
+}
+
+func TestExecuteEvidenceInternalErrorMapping(t *testing.T) {
+	reg := registry.NewInMemoryRegistry([]registry.ToolDefinition{
+		{
+			Name:                "echo",
+			SupportedOperations: []string{"run"},
+			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
+			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
+				code := 0
+				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
+			},
+		},
+	})
+	svc := NewExecuteServiceWithMode(reg, allowPolicyEngine{}, internalErrorEvidenceStore{}, ModeEnforce, "test-policy-ref")
+	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
+	if out.OK {
+		t.Fatalf("expected failure when evidence append returns internal error")
+	}
+	if out.Error == nil || out.Error.Code != "internal_error" {
+		t.Fatalf("expected internal_error, got %+v", out.Error)
+	}
+}
+
 func TestGetEventWrappedResponses(t *testing.T) {
 	svc := newService(t)
 	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "one"}))
@@ -163,60 +237,8 @@ func TestExecuteWithoutProgressReporterStillWorks(t *testing.T) {
 	}
 }
 
-func TestStepResolveToolFromRegistryUnknownToolSetsDeny(t *testing.T) {
-	svc := newService(t)
-	ec := &execContext{
-		ctx:      context.Background(),
-		service:  svc,
-		inv:      baseInvocation("unknown-tool", "run", map[string]interface{}{}),
-		reporter: nil,
-		result:   registry.ExecutionResult{Status: "denied", ExitCode: nil},
-		decision: decisionForDeny("invalid_invocation"),
-	}
-	if err := stepParseAndValidateInvocation(ec); err != nil {
-		t.Fatalf("stepParseAndValidateInvocation() error = %v", err)
-	}
-	if err := stepResolveToolFromRegistry(ec); err != nil {
-		t.Fatalf("stepResolveToolFromRegistry() error = %v", err)
-	}
-	if !ec.deny {
-		t.Fatalf("expected deny=true")
-	}
-	if ec.errOut == nil || ec.errOut.Code != "unregistered_tool" {
-		t.Fatalf("expected unregistered_tool error, got %+v", ec.errOut)
-	}
-}
-
-func TestStepEvaluatePolicyDenyUsesPolicyHint(t *testing.T) {
-	svc := NewExecuteServiceWithMode(registry.NewDefaultRegistry(), denyWithHintPolicyEngine{}, evidence.NewStore(), ModeEnforce, "test-policy-ref")
-	ec := &execContext{
-		ctx:      context.Background(),
-		service:  svc,
-		inv:      baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}),
-		reporter: nil,
-		result:   registry.ExecutionResult{Status: "denied", ExitCode: nil},
-		decision: decisionForDeny("invalid_invocation"),
-	}
-	if err := stepParseAndValidateInvocation(ec); err != nil {
-		t.Fatalf("stepParseAndValidateInvocation() error = %v", err)
-	}
-	if err := stepResolveToolFromRegistry(ec); err != nil {
-		t.Fatalf("stepResolveToolFromRegistry() error = %v", err)
-	}
-	if err := stepEvaluatePolicy(ec); err != nil {
-		t.Fatalf("stepEvaluatePolicy() error = %v", err)
-	}
-	if !ec.deny {
-		t.Fatalf("expected policy deny")
-	}
-	if ec.errOut == nil || ec.errOut.Hint != "use approved context" {
-		t.Fatalf("expected policy hint propagated, got %+v", ec.errOut)
-	}
-}
-
 func TestGuardedModeDeniesUnregisteredToolAndWritesEvidence(t *testing.T) {
-	svc := newService(t)
-	svc.guarded = true
+	svc := newServiceWithGuarded(t, true)
 	out := svc.Execute(context.Background(), baseInvocation("not-registered", "run", map[string]interface{}{}))
 	if out.OK {
 		t.Fatalf("expected denied output")
@@ -233,8 +255,7 @@ func TestGuardedModeDeniesUnregisteredToolAndWritesEvidence(t *testing.T) {
 }
 
 func TestGuardedModeDeniesShellBypassAttempt(t *testing.T) {
-	svc := newService(t)
-	svc.guarded = true
+	svc := newServiceWithGuarded(t, true)
 	out := svc.Execute(context.Background(), invocation.ToolInvocation{
 		Actor:     invocation.Actor{Type: "human", ID: "u1", Origin: "mcp"},
 		Tool:      "bash",
@@ -262,10 +283,126 @@ func TestGuardedModeDeniesShellBypassAttempt(t *testing.T) {
 
 func TestNormalModeRegisteredToolStillWorks(t *testing.T) {
 	svc := newService(t)
-	svc.guarded = false
 	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "ok"}))
 	if !out.OK {
 		t.Fatalf("expected normal mode success, got %+v", out)
+	}
+}
+
+func TestModeEnforcePolicyDenyPreventsExecution(t *testing.T) {
+	temp := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("Chdir(temp) error = %v", err)
+	}
+
+	var executed int32
+	reg := registry.NewInMemoryRegistry([]registry.ToolDefinition{
+		{
+			Name:                "mock",
+			SupportedOperations: []string{"run"},
+			InputSchema:         "{}",
+			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
+			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
+				atomic.AddInt32(&executed, 1)
+				code := 0
+				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "executed"}, nil
+			},
+		},
+	})
+	store := evidence.NewStore()
+	if err := store.Init(); err != nil {
+		t.Fatalf("store.Init() error = %v", err)
+	}
+	svc := NewExecuteServiceWithMode(reg, denyWithHintPolicyEngine{}, store, ModeEnforce, "test-policy-ref")
+
+	out := svc.Execute(context.Background(), baseInvocation("mock", "run", map[string]interface{}{}))
+	if out.OK {
+		t.Fatalf("expected deny in enforce mode")
+	}
+	if out.Execution.Status != "denied" {
+		t.Fatalf("expected denied execution status, got %q", out.Execution.Status)
+	}
+	if got := atomic.LoadInt32(&executed); got != 0 {
+		t.Fatalf("expected executor not called in enforce mode, got %d", got)
+	}
+
+	records, err := evidence.ReadAllAtPath(filepath.Join("data", "evidence"))
+	if err != nil {
+		t.Fatalf("ReadAllAtPath() error = %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 evidence record, got %d", len(records))
+	}
+	if records[0].PolicyDecision.Advisory {
+		t.Fatalf("expected advisory=false in enforce mode")
+	}
+}
+
+func TestModeObservePolicyDenyAllowsExecutionAsAdvisory(t *testing.T) {
+	temp := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("Chdir(temp) error = %v", err)
+	}
+
+	var executed int32
+	reg := registry.NewInMemoryRegistry([]registry.ToolDefinition{
+		{
+			Name:                "mock",
+			SupportedOperations: []string{"run"},
+			InputSchema:         "{}",
+			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
+			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
+				atomic.AddInt32(&executed, 1)
+				code := 0
+				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "executed"}, nil
+			},
+		},
+	})
+	store := evidence.NewStore()
+	if err := store.Init(); err != nil {
+		t.Fatalf("store.Init() error = %v", err)
+	}
+	svc := NewExecuteServiceWithMode(reg, denyWithHintPolicyEngine{}, store, ModeObserve, "test-policy-ref")
+
+	out := svc.Execute(context.Background(), baseInvocation("mock", "run", map[string]interface{}{}))
+	if !out.OK {
+		t.Fatalf("expected execution allowed in observe mode, got %+v", out)
+	}
+	if out.Execution.Status != "success" {
+		t.Fatalf("expected success execution status in observe mode, got %q", out.Execution.Status)
+	}
+	if got := atomic.LoadInt32(&executed); got != 1 {
+		t.Fatalf("expected executor called once in observe mode, got %d", got)
+	}
+	if out.Policy.Allow {
+		t.Fatalf("expected policy allow=false to be preserved in observe mode")
+	}
+	if len(out.Hints) == 0 {
+		t.Fatalf("expected advisory hint in observe mode output")
+	}
+
+	records, err := evidence.ReadAllAtPath(filepath.Join("data", "evidence"))
+	if err != nil {
+		t.Fatalf("ReadAllAtPath() error = %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 evidence record, got %d", len(records))
+	}
+	if !records[0].PolicyDecision.Advisory {
+		t.Fatalf("expected advisory=true in observe mode evidence")
+	}
+	if records[0].PolicyDecision.Allow {
+		t.Fatalf("expected recorded policy allow=false in observe mode evidence")
 	}
 }
 
@@ -325,8 +462,7 @@ func TestExecuteOutputTruncationStoredInEvidence(t *testing.T) {
 		},
 	})
 
-	svc := NewExecuteServiceWithMode(reg, allowPolicyEngine{}, store, ModeEnforce, "test-policy-ref")
-	svc.maxOutputBytes = 32
+	svc := newExecuteService(reg, allowPolicyEngine{}, store, ModeEnforce, "test-policy-ref", false, 32)
 	out := svc.Execute(context.Background(), baseInvocation("mock", "run", map[string]interface{}{}))
 	if !out.Execution.StdoutTruncated || !out.Execution.StderrTruncated {
 		t.Fatalf("expected truncation flags in response: %+v", out.Execution)
@@ -591,6 +727,41 @@ func newService(t *testing.T) *ExecuteService {
 	return newServiceWithMode(t, ModeEnforce)
 }
 
+func newServiceWithGuarded(t *testing.T, guarded bool) *ExecuteService {
+	t.Helper()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	policyPath, err := policyPathFromWorkingDir(wd)
+	if err != nil {
+		t.Fatalf("policyPathFromWorkingDir() error = %v", err)
+	}
+
+	temp := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("Chdir(temp) error = %v", err)
+	}
+	policyBytes, err := os.ReadFile(policyPath)
+	if err != nil {
+		t.Fatalf("ReadFile(policy.rego) error = %v", err)
+	}
+	policyEngine, err := policy.NewOPAEngine(policyBytes, nil)
+	if err != nil {
+		t.Fatalf("NewOPAEngine() error = %v", err)
+	}
+	store := evidence.NewStore()
+	if err := store.Init(); err != nil {
+		t.Fatalf("store.Init() error = %v", err)
+	}
+	return newExecuteService(registry.NewDefaultRegistry(), policyEngine, store, ModeEnforce, "test-policy-ref", guarded, outputlimit.DefaultMaxBytes)
+}
+
 func newServiceWithMode(t *testing.T, mode Mode) *ExecuteService {
 	t.Helper()
 	wd, err := os.Getwd()
@@ -689,6 +860,43 @@ func (denyWithHintPolicyEngine) Evaluate(inv invocation.ToolInvocation) (policy.
 		Allow:     false,
 		RiskLevel: "critical",
 		Reason:    "policy_denied_default",
+		Hints:     []string{"use approved context"},
 		Hint:      "use approved context",
 	}, nil
 }
+
+type policyErrorEngine struct{}
+
+func (policyErrorEngine) Evaluate(inv invocation.ToolInvocation) (policy.Decision, error) {
+	return policy.Decision{}, errors.New("policy engine failed")
+}
+
+type chainInvalidEvidenceStore struct{}
+
+func (chainInvalidEvidenceStore) Append(rec evidence.Record) error {
+	return evidence.ErrChainInvalid
+}
+
+func (chainInvalidEvidenceStore) ValidateChain() error {
+	return nil
+}
+
+func (chainInvalidEvidenceStore) LastHash() (string, error) {
+	return "", nil
+}
+
+type internalErrorEvidenceStore struct{}
+
+func (internalErrorEvidenceStore) Append(rec evidence.Record) error {
+	return errors.New("write failed")
+}
+
+func (internalErrorEvidenceStore) ValidateChain() error {
+	return nil
+}
+
+func (internalErrorEvidenceStore) LastHash() (string, error) {
+	return "", nil
+}
+
+func intPtr(v int) *int { return &v }

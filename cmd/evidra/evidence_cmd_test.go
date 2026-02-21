@@ -25,7 +25,7 @@ func TestVerifySuccess(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{"verify", "--evidence", logPath}, &out, &errOut)
+	code := runEvidenceCommand([]string{"verify", "--evidence", logPath}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
 	}
@@ -48,7 +48,7 @@ func TestVerifyFailsOnTamper(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{"verify", "--evidence", logPath}, &out, &errOut)
+	code := runEvidenceCommand([]string{"verify", "--evidence", logPath}, &out, &errOut)
 	if code != 1 {
 		t.Fatalf("expected exit code 1, got %d stderr=%s", code, errOut.String())
 	}
@@ -82,7 +82,7 @@ func TestExportCreatesAuditPack(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "audit-pack.tar.gz")
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{
+	code := runEvidenceCommand([]string{
 		"export",
 		"--evidence", logPath,
 		"--out", outPath,
@@ -144,7 +144,7 @@ func TestExportFailsOnInvalidChain(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "audit-pack.tar.gz")
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{
+	code := runEvidenceCommand([]string{
 		"export",
 		"--evidence", logPath,
 		"--out", outPath,
@@ -163,7 +163,7 @@ func TestExportFailsOnMixedPolicyRef(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "audit-pack.tar.gz")
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{
+	code := runEvidenceCommand([]string{
 		"export",
 		"--evidence", logPath,
 		"--out", outPath,
@@ -184,7 +184,7 @@ func TestExportSegmentedIncludesManifestAndSegments(t *testing.T) {
 	outPath := filepath.Join(t.TempDir(), "audit-pack-segmented.tar.gz")
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{"export", "--evidence", root, "--out", outPath}, &out, &errOut)
+	code := runEvidenceCommand([]string{"export", "--evidence", root, "--out", outPath}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
 	}
@@ -221,7 +221,7 @@ func TestViolationsReportCountsDeniesAndHighRisk(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{"violations", "--evidence", logPath}, &out, &errOut)
+	code := runEvidenceCommand([]string{"violations", "--evidence", logPath}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
 	}
@@ -256,7 +256,7 @@ func TestViolationsMinRiskFilter(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{"violations", "--evidence", logPath, "--min-risk", "critical"}, &out, &errOut)
+	code := runEvidenceCommand([]string{"violations", "--evidence", logPath, "--min-risk", "critical"}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
 	}
@@ -280,7 +280,7 @@ func TestViolationsSortingDeterministic(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{"violations", "--evidence", logPath}, &out, &errOut)
+	code := runEvidenceCommand([]string{"violations", "--evidence", logPath}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
 	}
@@ -325,7 +325,7 @@ func TestViolationsWorksAcrossSegmentedStore(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{"violations", "--evidence", root, "--min-risk", "high"}, &out, &errOut)
+	code := runEvidenceCommand([]string{"violations", "--evidence", root, "--min-risk", "high"}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
 	}
@@ -348,7 +348,7 @@ func TestCursorShowReturnsNullWhenMissing(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{"cursor", "show", "--evidence", root}, &out, &errOut)
+	code := runEvidenceCommand([]string{"cursor", "show", "--evidence", root}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
 	}
@@ -370,7 +370,7 @@ func TestCursorAckAndShowRoundTrip(t *testing.T) {
 
 	var outAck strings.Builder
 	var errAck strings.Builder
-	code := run([]string{
+	code := runEvidenceCommand([]string{
 		"cursor", "ack",
 		"--evidence", root,
 		"--segment", "evidence-000001.jsonl",
@@ -390,7 +390,7 @@ func TestCursorAckAndShowRoundTrip(t *testing.T) {
 
 	var outShow strings.Builder
 	var errShow strings.Builder
-	code = run([]string{"cursor", "show", "--evidence", root}, &outShow, &errShow)
+	code = runEvidenceCommand([]string{"cursor", "show", "--evidence", root}, &outShow, &errShow)
 	if code != 0 {
 		t.Fatalf("expected show exit code 0, got %d stderr=%s", code, errShow.String())
 	}
@@ -426,7 +426,7 @@ func TestCursorAckFailsOnTamperedChain(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{
+	code := runEvidenceCommand([]string{
 		"cursor", "ack",
 		"--evidence", root,
 		"--segment", "evidence-000001.jsonl",
@@ -444,7 +444,7 @@ func TestCursorAckFailsOnMissingSegmentOrOutOfRange(t *testing.T) {
 
 	var out1 strings.Builder
 	var err1 strings.Builder
-	code := run([]string{
+	code := runEvidenceCommand([]string{
 		"cursor", "ack",
 		"--evidence", root,
 		"--segment", "evidence-000999.jsonl",
@@ -456,7 +456,7 @@ func TestCursorAckFailsOnMissingSegmentOrOutOfRange(t *testing.T) {
 
 	var out2 strings.Builder
 	var err2 strings.Builder
-	code = run([]string{
+	code = runEvidenceCommand([]string{
 		"cursor", "ack",
 		"--evidence", root,
 		"--segment", "evidence-000001.jsonl",

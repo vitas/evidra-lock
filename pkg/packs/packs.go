@@ -180,8 +180,15 @@ func validateArgsAndParams(args []string, params map[string]registry.ParamRule) 
 		if err := tokens.ValidateTemplate(arg, allowed); err != nil {
 			return err
 		}
-		for _, ph := range tokens.Placeholders(arg) {
-			used[ph.Name] = struct{}{}
+		required, optional, err := tokens.ExtractTokens(arg)
+		if err != nil {
+			return err
+		}
+		for _, name := range required {
+			used[name] = struct{}{}
+		}
+		for _, name := range optional {
+			used[name] = struct{}{}
 		}
 	}
 	for name := range params {

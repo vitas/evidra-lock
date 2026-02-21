@@ -53,7 +53,7 @@ func TestVersionCommand(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected code 0, got %d stderr=%s", code, errOut.String())
 	}
-	if !strings.Contains(out.String(), "version:") {
+	if !strings.Contains(out.String(), "Version:") {
 		t.Fatalf("expected version output, got: %s", out.String())
 	}
 }

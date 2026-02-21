@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/internal/version"
+	"samebits.com/evidra-mcp/pkg/evidence"
 )
 
 const (
@@ -55,17 +55,13 @@ type manifest struct {
 	DataFileSHA256   string `json:"data_file_sha256,omitempty"`
 }
 
-func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
-}
-
-func run(args []string, stdout io.Writer, stderr io.Writer) int {
+func runEvidenceCommand(args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 1 && strings.TrimSpace(args[0]) == "--version" {
-		fmt.Fprintf(stdout, "evidra-evidence %s\n", version.Version)
+		fmt.Fprintf(stdout, "evidra evidence %s\n", version.Version)
 		return exitOK
 	}
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export|violations|cursor> [flags]")
+		fmt.Fprintln(stderr, "usage: evidra evidence <verify|export|violations|cursor> [flags]")
 		return exitInputError
 	}
 
@@ -79,7 +75,7 @@ func run(args []string, stdout io.Writer, stderr io.Writer) int {
 	case "cursor":
 		return runCursor(args[1:], stdout, stderr)
 	default:
-		fmt.Fprintln(stderr, "usage: evidra-evidence <verify|export|violations|cursor> [flags]")
+		fmt.Fprintln(stderr, "usage: evidra evidence <verify|export|violations|cursor> [flags]")
 		return exitInputError
 	}
 }
@@ -481,7 +477,7 @@ func runViolations(args []string, stdout io.Writer, stderr io.Writer) int {
 
 func runCursor(args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: evidra-evidence cursor <show|ack> [flags]")
+		fmt.Fprintln(stderr, "usage: evidra evidence cursor <show|ack> [flags]")
 		return exitInputError
 	}
 	switch args[0] {
@@ -490,7 +486,7 @@ func runCursor(args []string, stdout io.Writer, stderr io.Writer) int {
 	case "ack":
 		return runCursorAck(args[1:], stdout, stderr)
 	default:
-		fmt.Fprintln(stderr, "usage: evidra-evidence cursor <show|ack> [flags]")
+		fmt.Fprintln(stderr, "usage: evidra evidence cursor <show|ack> [flags]")
 		return exitInputError
 	}
 }

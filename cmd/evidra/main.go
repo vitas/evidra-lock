@@ -24,13 +24,29 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Fprintf(stdout, "version: %s\ncommit: %s\ndate: %s\n", version.Version, version.Commit, version.Date)
+		fmt.Fprintf(stdout, "Version: %s\nCommit: %s\nDate: %s\n", version.Version, version.Commit, version.Date)
 		return 0
 	}
 
 	bundle := args[0]
 
 	switch bundle {
+	case "mcp":
+		return runMCPCommand(args[1:], stdout, stderr)
+	case "evidence":
+		return runEvidenceCommand(args[1:], stdout, stderr)
+	case "policy":
+		if len(args) < 2 {
+			fmt.Fprintln(stderr, "usage: evidra policy sim --policy <path> --input <path> [--data <path>]")
+			return 2
+		}
+		switch args[1] {
+		case "sim":
+			return runPolicySimCommand(args[2:], stdout, stderr)
+		default:
+			fmt.Fprintln(stderr, "usage: evidra policy sim --policy <path> --input <path> [--data <path>]")
+			return 2
+		}
 	case "ops":
 		if len(args) < 2 {
 			printUsage(stderr)
@@ -150,8 +166,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "usage: evidra <ops|regulated> <command>")
+	fmt.Fprintln(w, "usage: evidra <mcp|evidence|policy|ops|regulated> <command>")
 	fmt.Fprintln(w, "  evidra version")
+	fmt.Fprintln(w, "  evidra mcp [--guarded] [--policy path] [--data path]")
+	fmt.Fprintln(w, "  evidra evidence <verify|export|violations|cursor> ...")
+	fmt.Fprintln(w, "  evidra policy sim --policy <path> --input <path> [--data <path>]")
 	fmt.Fprintln(w, "  evidra ops init [--path dir] [--force] [--enable-validators] [--with-plugins] [--minimal] [--print]")
 	fmt.Fprintln(w, "  evidra ops validate [--verbose] [--config path] [--enable-validators] [--validators ...] [--list-validators] <file>")
 	fmt.Fprintln(w, "  evidra ops explain <schema|kinds|example|policies> [--verbose]")

@@ -28,7 +28,7 @@ func TestVerifyReturnsBusyCodeWhenLocked(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := run([]string{"verify", "--evidence", logPath}, &out, &errOut)
+	code := runEvidenceCommand([]string{"verify", "--evidence", logPath}, &out, &errOut)
 	if code != exitVerifyFailed {
 		t.Fatalf("expected exit code %d, got %d stderr=%s", exitVerifyFailed, code, errOut.String())
 	}

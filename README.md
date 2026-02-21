@@ -21,7 +21,7 @@ Guarded Mode enables strict gateway enforcement for MCP execution:
 Use Guarded Mode for production and regulated environments:
 
 ```bash
-go run ./cmd/evidra-mcp --guarded
+go run ./cmd/evidra mcp --guarded
 ```
 
 Limitations:
@@ -70,6 +70,9 @@ Reason: ...
 ## CLI Overview
 
 ```text
+evidra mcp [--guarded] [--policy path] [--data path]
+evidra policy sim --policy <path> --input <path> [--data <path>]
+evidra evidence <verify|export|violations|cursor> ...
 evidra ops init [--path dir] [--force] [--enable-validators] [--with-plugins] [--minimal] [--print]
 evidra ops validate <file>
 evidra ops explain schema|kinds|example|policies [--verbose]

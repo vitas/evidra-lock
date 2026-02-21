@@ -20,6 +20,9 @@ decision := {
   "allow": object.get(raw_decision, "allow", false),
   "risk_level": object.get(raw_decision, "risk_level", "critical"),
   "reason": object.get(raw_decision, "reason", "policy_denied_default"),
+  "reasons": decision_reasons,
+  "hints": decision_hints,
+  "hits": decision_hits,
   "hint": decision_hint,
   "long_running": is_long_running,
 }
@@ -147,7 +150,43 @@ is_destructive_op if {
   v == op_key
 }
 
-decision_hint := object.get(data.reason_hints, object.get(raw_decision, "reason", ""), "")
+decision_hint := decision_hints[0] if {
+  count(decision_hints) > 0
+}
+
+default decision_hint := ""
+
+decision_reasons := [object.get(raw_decision, "reason", "policy_denied_default")] if {
+  not object.get(raw_decision, "allow", false)
+}
+
+default decision_reasons := []
+
+decision_hints := [h |
+  some r in decision_reasons
+  some h in hint_values(r)
+]
+
+default decision_hints := []
+
+decision_hits := [hit_for_reason(r) |
+  some r in decision_reasons
+]
+
+default decision_hits := []
+
+hint_values(reason) := [v] if {
+  v := object.get(data.reason_hints, reason, "")
+  type_name(v) == "string"
+  v != ""
+}
+
+hint_values(reason) := v if {
+  v := object.get(data.reason_hints, reason, [])
+  type_name(v) == "array"
+}
+
+hit_for_reason(reason) := object.get(data.rule_labels, reason, reason)
 
 default is_long_running := false
 
