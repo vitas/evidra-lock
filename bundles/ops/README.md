@@ -50,8 +50,14 @@ The evaluator maps `kind` to policy input `tool` + `operation` using `<tool>.<op
 ## CLI Usage
 
 ```bash
+# Initialize local ops config + starter examples
+evidra ops init
+
 # Validate a scenario file
-evidra ops validate ./bundles/ops/examples/scenario_breakglass_audited.json
+evidra ops validate ./.evidra/examples/scenario_breakglass_audited.json
+
+# Validate a blocking example
+evidra ops validate ./.evidra/examples/scenario_kubectl_apply_prod_block.json
 
 # Inspect rules in human-readable form
 evidra ops explain policies
@@ -73,6 +79,19 @@ Exit codes:
 
 - `0` when decision is PASS
 - non-zero when decision is FAIL or input/runtime error
+
+## Quickstart
+
+```bash
+# 1) Bootstrap local config and examples
+evidra ops init --enable-validators
+
+# 2) PASS example
+evidra ops validate ./.evidra/examples/scenario_breakglass_audited.json
+
+# 3) FAIL example
+evidra ops validate ./.evidra/examples/scenario_kubectl_apply_prod_block.json
+```
 
 ## Default Guardrails
 
@@ -109,3 +128,31 @@ go test ./bundles/ops/...
 ```
 
 For large policy changes, keep default guards and layer environment-specific rules on top.
+
+## Extending With Plugins
+
+Ops validators support built-in Go validators and external exec plugins.
+
+Configuration file (default `.evidra/ops.yaml`):
+
+```yaml
+enable_validators: true
+validators:
+  builtins: [terraform, kubeconform, trivy]
+  exec_plugins:
+    - name: conftest
+      command: conftest
+      args: ["test", "-o", "json", "-"]
+      applicable_kinds: ["kustomize.build", "kubectl.apply"]
+      timeout_seconds: 30
+decision:
+  fail_on: [high, critical]
+  warn_on: [medium]
+```
+
+CLI helpers:
+
+```bash
+evidra ops validate --list-validators
+evidra ops validate --config .evidra/ops.yaml --enable-validators --verbose bundles/ops/examples/scenario_kustomize_with_validators.json
+```

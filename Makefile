@@ -3,13 +3,22 @@ POLICY_DATA_PATH ?= ./policy/profiles/ops-v0.1/data.json
 EVIDENCE_PATH ?= ./data/evidence
 DATA_ARG := $(if $(wildcard $(POLICY_DATA_PATH)),--data $(POLICY_DATA_PATH),)
 
-.PHONY: test build run-mcp policy-sim-echo policy-sim-kubectl-deny evidence-verify evidence-violations evidence-export
+.PHONY: test fmt lint build tidy run-mcp policy-sim-echo policy-sim-kubectl-deny evidence-verify evidence-violations evidence-export
 
 test:
 	go test ./...
 
+fmt:
+	gofmt -w .
+
+lint:
+	golangci-lint run
+
 build:
 	go build ./...
+
+tidy:
+	go mod tidy
 
 run-mcp:
 	@echo "Evidence log path: $(EVIDENCE_PATH)"

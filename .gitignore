@@ -1,0 +1,30 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, coverage
+*.test
+*.out
+coverage.out
+
+# Go workspace / module caches (optional local)
+.gocache/
+.gomodcache/
+
+# Build artifacts
+bin/
+dist/
+release/
+
+# IDE/editor
+.vscode/
+.idea/
+.DS_Store
+
+# Local Evidra state
+.evidra/
+data/
+audit-pack.tar.gz

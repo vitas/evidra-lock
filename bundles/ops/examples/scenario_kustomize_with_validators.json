@@ -1,0 +1,19 @@
+{
+  "scenario_id": "inc-kustomize-validators-001",
+  "actor": {"type": "human", "id": "ops-engineer-1"},
+  "source": "cli",
+  "timestamp": "2026-02-21T11:05:00Z",
+  "actions": [
+    {
+      "kind": "kustomize.build",
+      "target": {"namespace": "staging"},
+      "intent": "build and validate kustomize manifests with schema and config scanners",
+      "payload": {
+        "enable_validators": true,
+        "path": "./deploy/kustomize",
+        "overlay": "staging"
+      },
+      "risk_tags": []
+    }
+  ]
+}

@@ -6,7 +6,10 @@ The format is based on Keep a Changelog.
 
 ## [Unreleased]
 
-- Placeholder for upcoming changes.
+- Added open-source project hygiene files (`LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `SUPPORT.md`).
+- Added GitHub templates and CI workflows.
+- Added GoReleaser configuration and release workflow.
+- Added `evidra version` command with build metadata fields (`version`, `commit`, `date`).
 
 ## [0.1.0] - 2026-02-20
 
@@ -17,4 +20,3 @@ The format is based on Keep a Changelog.
 - Evidence utilities: `verify`, `violations`, `export` (audit pack).
 - Local forwarder cursor state for tracking forwarding/export position.
 - Level 1 declarative Tool Packs loader for local pack-based extension.
-

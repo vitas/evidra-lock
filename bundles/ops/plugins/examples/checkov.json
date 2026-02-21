@@ -1,0 +1,8 @@
+{
+  "name": "checkov",
+  "command": "checkov",
+  "args": ["-f", "./.evidra-manifest.yaml", "-o", "json"],
+  "applicable_kinds": ["kustomize.build", "kubectl.apply", "terraform.plan"],
+  "timeout_seconds": 30,
+  "env": {}
+}

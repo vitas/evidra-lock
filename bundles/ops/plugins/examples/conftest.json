@@ -1,0 +1,8 @@
+{
+  "name": "conftest",
+  "command": "conftest",
+  "args": ["test", "-o", "json", "-"],
+  "applicable_kinds": ["kustomize.build", "kubectl.apply"],
+  "timeout_seconds": 30,
+  "env": {}
+}

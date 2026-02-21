@@ -9,7 +9,7 @@ import (
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/policysource"
-	"samebits.com/evidra-mcp/pkg/version"
+	"samebits.com/evidra-mcp/internal/version"
 )
 
 const (

@@ -4,6 +4,12 @@ Let AI propose changes. Evidra decides.
 
 Evidra is a monorepo with a shared core policy/evidence runtime and bundle-specific validation flows. The primary entry point today is `evidra ops validate`, which checks infra scenarios before execution and writes immutable evidence.
 
+## Monorepo Layers
+
+- `core/`: narrative-neutral policy runtime, evaluator interfaces, registry, and evidence primitives.
+- `bundles/ops/`: AI-first scenario validation flow for infrastructure changes.
+- `bundles/regulated/`: controlled environment validation flow for compliance-oriented operations.
+
 ## 5-Minute Demo
 
 Requirements: Go 1.22+ (recommended 1.23)
@@ -11,11 +17,14 @@ Requirements: Go 1.22+ (recommended 1.23)
 ```bash
 go build ./cmd/evidra
 
+# Bootstrap local config + starter examples
+./evidra ops init
+
 # PASS example
-./evidra ops validate ./bundles/ops/examples/scenario_breakglass_audited.json
+./evidra ops validate ./.evidra/examples/scenario_breakglass_audited.json
 
 # FAIL example
-./evidra ops validate ./bundles/ops/examples/scenario_s3_public_fail.json
+./evidra ops validate ./.evidra/examples/scenario_kubectl_apply_prod_block.json
 ```
 
 Expected output shape:
@@ -34,12 +43,6 @@ Evidence: evt-...
 Reason: ...
 ```
 
-## Monorepo Layers
-
-- `core/`: narrative-neutral policy runtime, evaluator interfaces, registry, and evidence primitives.
-- `bundles/ops/`: AI-first scenario validation flow for infrastructure changes.
-- `bundles/regulated/`: controlled environment validation flow for compliance-oriented operations.
-
 ## Where To Start
 
 - Ops bundle docs: `bundles/ops/README.md`
@@ -48,6 +51,7 @@ Reason: ...
 ## CLI Overview
 
 ```text
+evidra ops init [--path dir] [--force] [--enable-validators] [--with-plugins] [--minimal] [--print]
 evidra ops validate <file>
 evidra ops explain schema|kinds|example|policies [--verbose]
 evidra regulated validate <file>
