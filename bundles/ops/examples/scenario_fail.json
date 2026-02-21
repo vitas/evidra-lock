@@ -1,0 +1,15 @@
+{
+  "scenario_id": "sc-fail-001",
+  "actor": {"type": "agent", "id": "agent-ops-1"},
+  "source": "mcp",
+  "timestamp": "2026-02-21T00:00:00Z",
+  "actions": [
+    {
+      "kind": "k8s.apply",
+      "target": {"namespace": "kube-system"},
+      "intent": "apply critical patch to kube-system namespace",
+      "payload": {},
+      "risk_tags": []
+    }
+  ]
+}

@@ -1,96 +1,71 @@
-# Evidra - Guardrails for Operations in the AI Agent Era
+# Evidra
 
-Evidra intercepts agent tool invocations through MCP, evaluates each request with OPA policy, and records tamper-evident evidence for audit and incident response.
+Let AI propose changes. Evidra decides.
 
-Start here: `docs/INDEX.md`
+Evidra is a monorepo with a shared core policy/evidence runtime and bundle-specific validation flows. The primary entry point today is `evidra ops validate`, which checks infra scenarios before execution and writes immutable evidence.
+
+## 5-Minute Demo
 
 Requirements: Go 1.22+ (recommended 1.23)
 
-## What It Is
-
-- An operations guardrail layer for AI-driven tool execution.
-- Policy-driven control using OPA/Rego with default deny.
-- Immutable forensic evidence with segmented, hash-chained logs.
-
-## What It Is Not
-
-- A CI/CD system.
-- A Kubernetes controller.
-- A SIEM replacement.
-- A generic shell wrapper.
-
-## Core Concepts
-
-- ToolInvocation: normalized request (`actor`, `tool`, `operation`, `params`, `context`).
-- Registry: only known tools and operations are executable.
-- Policy: OPA returns `allow`, `risk_level`, `reason`.
-- Evidence: segmented store with sealed segments and hash-chain validation.
-
-## Quickstart
-
-Full guide: `docs/QUICKSTART.md`
-
 ```bash
-go build ./...
-EVIDRA_PROFILE=ops go run ./cmd/evidra-mcp
+go build ./cmd/evidra
 
-go run ./cmd/evidra-policy-sim --policy ./policy/profiles/ops-v0.1/policy.rego --input ./examples/invocations/allowed_kubectl_get_dev.json --data ./policy/profiles/ops-v0.1/data.json
-go run ./cmd/evidra-evidence verify --evidence ./data/evidence
+# PASS example
+./evidra ops validate ./bundles/ops/examples/scenario_breakglass_audited.json
+
+# FAIL example
+./evidra ops validate ./bundles/ops/examples/scenario_s3_public_fail.json
 ```
 
-## Ops Packs Included
+Expected output shape:
 
-The ops profile uses intentionally minimal declarative tool surfaces:
-
-- `packs/_core/ops/argocd-basic`
-- `packs/_core/ops/terraform-basic`
-- `packs/_core/ops/helm-basic`
-- `packs/_core/ops/kubectl-basic`
-- `packs/_core/ops/aws-s3-basic`
-- `packs/_core/ops/podman-basic`
-- `packs/_core/ops/docker-basic`
-- `packs/_core/ops/docker-compose-basic`
-
-## Evidence Utilities
-
-Use `evidra-evidence` for local forensics:
-
-- `verify` - validate integrity.
-- `violations` - summarize denies/high-risk actions.
-- `export` - create an audit pack.
-
-## Runtime Profiles
-
-- `ops` (default): production-focused, excludes dev/demo tools by default.
-- `dev`: enables dev/demo tool registration for local development.
-
-Examples:
-
-```bash
-EVIDRA_PROFILE=ops ./evidra-mcp
-EVIDRA_PROFILE=dev ./evidra-mcp
+```text
+Decision: PASS
+Risk level: high
+Evidence: evt-...
+Reason: ...
 ```
 
-### Enforcement Model
+```text
+Decision: FAIL
+Risk level: high
+Evidence: evt-...
+Reason: ...
+```
 
-Evidra enforces guardrails for MCP tool invocations. To prevent bypass, configure agents in Guarded Mode (no direct shell access, MCP tools via Evidra only). See `docs/MCP_GUIDE.md`.
+## Monorepo Layers
 
-## Extension Model
+- `core/`: narrative-neutral policy runtime, evaluator interfaces, registry, and evidence primitives.
+- `bundles/ops/`: AI-first scenario validation flow for infrastructure changes.
+- `bundles/regulated/`: controlled environment validation flow for compliance-oriented operations.
 
-- Primary in v0.1: Level 1 declarative Tool Packs (`EVIDRA_PACKS_DIR`).
-- Ops default packs intentionally exclude version/identity checks to keep runtime focused.
-- Optional debug checks are available in `packs/_contrib/debug-basic` (not loaded by default).
+## Where To Start
 
-## Documentation
+- Ops bundle docs: `bundles/ops/README.md`
+- Regulated bundle docs: `bundles/regulated/README.md`
+
+## CLI Overview
+
+```text
+evidra ops validate <file>
+evidra ops explain schema|kinds|example|policies [--verbose]
+evidra regulated validate <file>
+```
+
+## Repository Documentation
 
 - `docs/INDEX.md`
 - `docs/QUICKSTART.md`
 - `docs/DEMO.md`
-- `docs/RELEASE_CHECKLIST.md`
 - `docs/POLICY_GUIDE.md`
 - `docs/TOOL_PACKS.md`
-- `docs/OPS_PROFILE.md`
 - `docs/EVIDENCE_GUIDE.md`
 - `docs/MCP_GUIDE.md`
-- `docs/FAQ.md`
-- `spec/ARCHITECTURE_COMPONENTS.md`
+
+## Architecture Notes (Concise)
+
+- Validation decisions are policy-driven.
+- Evidence records are append-only and hash-linked.
+- Bundles can depend on `core`, but `core` does not depend on bundles.
+- Bundle policies and examples live with each bundle to keep intent explicit.

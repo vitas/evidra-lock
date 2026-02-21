@@ -1,0 +1,15 @@
+{
+  "scenario_id": "inc-breakglass-1234",
+  "actor": {"type": "agent", "id": "ops-agent-42"},
+  "source": "mcp",
+  "timestamp": "2026-02-21T10:10:00Z",
+  "actions": [
+    {
+      "kind": "k8s.apply",
+      "target": {"namespace": "kube-system", "cluster": "prod-eu-1"},
+      "intent": "apply emergency control-plane hotfix with incident tracking",
+      "payload": {"manifest": "control-plane-hotfix.yaml"},
+      "risk_tags": ["breakglass", "incident-1234"]
+    }
+  ]
+}
