@@ -1,4 +1,80 @@
 {
-  "notes": "Ops v0.1 policy kit default data file"
+  "environments": {
+    "dev": [
+      "dev",
+      "local",
+      "sandbox"
+    ],
+    "prod": [
+      "prod",
+      "production"
+    ]
+  },
+  "operation_classes": {
+    "read": [
+      "kubectl/get",
+      "helm/list",
+      "helm/status",
+      "terraform/init",
+      "terraform/plan",
+      "argocd/app-list",
+      "argocd/app-get",
+      "aws/s3-ls",
+      "docker/images",
+      "podman/images",
+      "docker-compose/config",
+      "docker-compose/ps"
+    ],
+    "write": [
+      "kubectl/apply",
+      "helm/upgrade",
+      "terraform/apply",
+      "argocd/app-sync",
+      "aws/s3-rm-object",
+      "docker/tag",
+      "docker/push",
+      "podman/tag",
+      "podman/push",
+      "docker-compose/up-service",
+      "docker-compose/restart-service"
+    ],
+    "destructive": [
+      "kubectl/delete",
+      "argocd/app-rollback",
+      "aws/s3-rm-recursive"
+    ]
+  },
+  "defaults": {
+    "unknown_operation": {
+      "allow": false,
+      "risk_level": "critical",
+      "reason": "policy_denied_default"
+    },
+    "read": {
+      "allow": true,
+      "risk_level": "low",
+      "reason": "allowed_read_operation"
+    },
+    "write_dev": {
+      "allow": true,
+      "risk_level": "high",
+      "reason": "allowed_write_dev"
+    },
+    "write_prod": {
+      "allow": true,
+      "risk_level": "critical",
+      "reason": "allowed_write_prod"
+    },
+    "destructive_dev": {
+      "allow": true,
+      "risk_level": "critical",
+      "reason": "allowed_destructive_dev"
+    },
+    "destructive_prod": {
+      "allow": false,
+      "risk_level": "critical",
+      "reason": "policy_denied_high_risk"
+    }
+  },
+  "overrides": []
 }
-
