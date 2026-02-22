@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"samebits.com/evidra-mcp/bundles/ops"
-	opscli "samebits.com/evidra-mcp/bundles/ops/cli"
 	"samebits.com/evidra-mcp/internal/version"
 )
 
@@ -30,8 +29,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	case "validate":
 		return runValidate(args[1:], stdout, stderr)
-	case "mcp":
-		return runMCPCommand(args[1:], stdout, stderr)
 	case "evidence":
 		return runEvidenceCommand(args[1:], stdout, stderr)
 	case "policy":
@@ -46,8 +43,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "usage: evidra policy sim --policy <path> --input <path> [--data <path>]")
 			return 2
 		}
-	case "ops":
-		return runOpsCommand(args[1:], stdout, stderr)
 	default:
 		printUsage(stderr)
 		return 2
@@ -72,25 +67,6 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 	}
 
 	return printValidationResult(result, stdout, *jsonOut, *explain)
-}
-
-func runOpsCommand(args []string, stdout, stderr io.Writer) int {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		printOpsUsage(stderr)
-		return 2
-	}
-	switch args[0] {
-	case "validate":
-		// Legacy alias pointing to the same implementation as `evidra validate`.
-		return runValidate(args[1:], stdout, stderr)
-	case "init":
-		return opscli.Init(args[1:], stdout, stderr)
-	case "explain":
-		return opscli.Explain(args[1:], stdout, stderr)
-	default:
-		printOpsUsage(stderr)
-		return 2
-	}
 }
 
 type validationJSON struct {
@@ -267,15 +243,6 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  evidra version")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Advanced commands are described in docs/advanced.md:")
-	fmt.Fprintln(w, "  evidra mcp [--guarded] [--policy path] [--data path]")
 	fmt.Fprintln(w, "  evidra evidence <verify|export|violations|cursor> ...")
 	fmt.Fprintln(w, "  evidra policy sim --policy <path> --input <path> [--data <path>]")
-	fmt.Fprintln(w, "  evidra ops <init|validate|explain> ...")
-}
-
-func printOpsUsage(w io.Writer) {
-	fmt.Fprintln(w, "usage: evidra ops <init|validate|explain> ... (legacy/advanced)")
-	fmt.Fprintln(w, "  init [--path dir] [--force] [--enable-validators] [--with-plugins] [--minimal] [--print]")
-	fmt.Fprintln(w, "  validate <file>")
-	fmt.Fprintln(w, "  explain <schema|kinds|example|policies> [--verbose]")
 }

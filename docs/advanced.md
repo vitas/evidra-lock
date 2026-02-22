@@ -2,17 +2,16 @@
 
 ## MCP server & registry
 
-- The MCP server exposes the `execute` tool, accepts canonical `ToolInvocation` payloads, and enforces the registry → policy → evidence flow.
-- Environment flags:
-  - `EVIDRA_MODE=enforce|observe` (default enforce, observe records advisory evidence without blocking).
-  - `EVIDRA_POLICY_PATH`, `EVIDRA_DATA_PATH`, `EVIDRA_PACKS_DIR`, and `EVIDRA_EVIDENCE_PATH` override defaults.
+- The MCP server (`evidra-mcp`) exposes the `execute` tool, accepts canonical `ToolInvocation` payloads, and enforces the registry → policy → evidence flow.
+- Required flags: `--policy`, `--data`, `--evidence-dir`. Environment variables `EVIDRA_POLICY_PATH`, `EVIDRA_DATA_PATH`, `EVIDRA_PACKS_DIR`, and `EVIDRA_EVIDENCE_PATH` can override them.
+- Use `--packs-dir` or `EVIDRA_PACKS_DIR` to load tool packs such as `packs/_core/ops`. Set `--observe` to collect advisory evidence without blocking execution.
+- `EVIDRA_MODE=enforce|observe` can still override enforcement mode when you prefer env config over flags.
 - Registry/packs supply tool metadata; see `packs/_core/ops` for the canonical definitions.
 
-## Auxiliary commands
+## Auxiliary commands (offline tooling)
 
-- `evidra ops init` bootstraps `.evidra/ops.yaml` and validator samples (advanced use only).
-- `evidra ops explain <schema|kinds|example|policies>` prints schema/policy guidance based on the ops bundle.
-- `evidra policy sim` evaluates the policy offline (`--policy`, `--data`, `--input` flags).
+- `evidra validate <file>` runs the structured validator described above.
+- `evidra policy sim --policy <path> --input <path> [--data <path>]` evaluates policy decisions locally.
 - `evidra evidence <verify|export|violations|cursor>` inspects the append-only evidence store and exports audit packs.
 
 ## When to dive deeper

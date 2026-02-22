@@ -8,6 +8,22 @@ Evidra v1-slim is a deterministic DevOps validator that reads Terraform plan JSO
 2. `terraform show -json plan.tfplan > plan.json`
 3. `evidra validate plan.json`
 
+## Run the MCP server
+
+Start the local MCP server that enforces policy/evidence for every request:
+
+```bash
+evidra-mcp \
+  --policy policy/profiles/ops-v0.1/policy.rego \
+  --data policy/profiles/ops-v0.1/data.json \
+  --evidence-dir ./data/evidence \
+  [--packs-dir ./packs/_core/ops] \
+  [--observe]
+```
+
+Pass `--observe` to let the registry/policy/engine record advisory evidence while still allowing execution.
+Set `--packs-dir` when loading custom tool packs.
+
 ## Sample output
 
 ```text
