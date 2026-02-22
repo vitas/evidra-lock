@@ -149,11 +149,16 @@ func buildDefinition(name string, tool ToolSpec) (registry.ToolDefinition, error
 		opMap[opName] = registry.CLIOperationSpec{Args: op.Args, Params: paramRules}
 	}
 
-	return registry.NewDeclarativeCLIToolDefinition(
+	def, err := registry.NewDeclarativeCLIToolDefinition(
 		name,
 		"declarative cli tool pack",
 		registry.CLIToolSpec{Binary: tool.Binary, Operations: opMap},
 	)
+	if err != nil {
+		return registry.ToolDefinition{}, err
+	}
+	def.Metadata = registry.MetadataFromOperations(opMap)
+	return def, nil
 }
 
 func toParamRules(in map[string]ParamSpec) (map[string]registry.ParamRule, error) {

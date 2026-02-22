@@ -14,7 +14,8 @@ test_decision_contract if {
         "risk_tags": [],
         "payload": {"namespace": "kube-system"}
       }
-    ]
+    ],
+    "policy_data": policy_test_data
   }
   not d.allow
   d.risk_level == "high"
@@ -36,11 +37,12 @@ test_allowed_operation_reason if {
         "risk_tags": [],
         "payload": {"namespace": "default"}
       }
-    ]
+    ],
+    "policy_data": policy_test_data
   }
   d.allow
-  d.risk_level == "normal"
-  d.reason == "allowed_operation"
+  d.risk_level == "low"
+  d.reason == "allowed_read_operation"
   count(d.reasons) == 0
 }
 
@@ -51,32 +53,23 @@ test_hints_dedup if {
     "context": {"environment": "dev"},
     "actions": [
       {
-        "kind": "k8s.apply",
-        "target": "kube-system",
-        "risk_tags": [],
-        "payload": {"namespace": "kube-system"}
-      },
-      {
         "kind": "kubectl.delete",
         "target": "default",
         "risk_tags": [],
-        "payload": {"resource_count": 12, "namespace": "default"}
+        "payload": {"resource_count": 10, "namespace": "default"}
+      },
+      {
+        "kind": "terraform.plan",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {"destroy_count": 8}
       }
     ],
-    "policy_data": {
-      "rule_hints": {
-        "kube-system-breakglass": [
-          "shared hint"
-        ],
-        "mass-delete": [
-          "shared hint"
-        ]
-      }
-    }
+    "policy_data": policy_test_data
   }
   not d.allow
   count(d.hints) == 1
-  "shared hint" in d.hints
+  "Reduce delete scope below threshold or add risk_tags=[\"breakglass\"]." in d.hints
 }
 
 test_risk_high_with_breakglass_tag if {
@@ -91,7 +84,8 @@ test_risk_high_with_breakglass_tag if {
         "risk_tags": ["breakglass"],
         "payload": {"namespace": "default"}
       }
-    ]
+    ],
+    "policy_data": policy_test_data
   }
   d.allow
   d.risk_level == "high"

@@ -82,7 +82,7 @@ func TestPlaceholderValidationFailsWhenRequiredMissing(t *testing.T) {
 			},
 		},
 	}
-	_, err := registry.BuildDeclarativeCLIArgs(spec, "get", map[string]interface{}{})
+	_, err := registry.BuildDeclarativeCLIArgs(spec.Binary, spec, "get", map[string]interface{}{})
 	if err == nil {
 		t.Fatalf("expected missing required param error")
 	}
@@ -102,7 +102,7 @@ func TestOptionalPlaceholderIsOmitted(t *testing.T) {
 			},
 		},
 	}
-	argv, err := registry.BuildDeclarativeCLIArgs(spec, "post", map[string]interface{}{
+	argv, err := registry.BuildDeclarativeCLIArgs(spec.Binary, spec, "post", map[string]interface{}{
 		"data": "{}",
 		"url":  "https://example.com",
 	})
@@ -195,7 +195,7 @@ func TestHelmUpgradeArgvStableOutput(t *testing.T) {
 		},
 	}
 
-	argv, err := registry.BuildDeclarativeCLIArgs(spec, "upgrade", map[string]interface{}{
+	argv, err := registry.BuildDeclarativeCLIArgs(spec.Binary, spec, "upgrade", map[string]interface{}{
 		"release":   "payments-api",
 		"chart":     "./charts/payments-api",
 		"namespace": "payments",
@@ -227,11 +227,11 @@ func TestArgoCDAppSyncArgvAndValidation(t *testing.T) {
 		},
 	}
 
-	if _, err := registry.BuildDeclarativeCLIArgs(spec, "app-sync", map[string]interface{}{}); err == nil {
+	if _, err := registry.BuildDeclarativeCLIArgs(spec.Binary, spec, "app-sync", map[string]interface{}{}); err == nil {
 		t.Fatalf("expected required param validation error for app")
 	}
 
-	argv, err := registry.BuildDeclarativeCLIArgs(spec, "app-sync", map[string]interface{}{
+	argv, err := registry.BuildDeclarativeCLIArgs(spec.Binary, spec, "app-sync", map[string]interface{}{
 		"app": "payments-api",
 	})
 	if err != nil {
@@ -296,14 +296,14 @@ func TestTerraformPlanApplyValidationAndArgv(t *testing.T) {
 		},
 	}
 
-	if _, err := registry.BuildDeclarativeCLIArgs(spec, "plan", map[string]interface{}{}); err == nil {
+	if _, err := registry.BuildDeclarativeCLIArgs(spec.Binary, spec, "plan", map[string]interface{}{}); err == nil {
 		t.Fatalf("expected required dir validation error for plan")
 	}
-	if _, err := registry.BuildDeclarativeCLIArgs(spec, "apply", map[string]interface{}{}); err == nil {
+	if _, err := registry.BuildDeclarativeCLIArgs(spec.Binary, spec, "apply", map[string]interface{}{}); err == nil {
 		t.Fatalf("expected required dir validation error for apply")
 	}
 
-	planArgv, err := registry.BuildDeclarativeCLIArgs(spec, "plan", map[string]interface{}{"dir": "./infra"})
+	planArgv, err := registry.BuildDeclarativeCLIArgs(spec.Binary, spec, "plan", map[string]interface{}{"dir": "./infra"})
 	if err != nil {
 		t.Fatalf("plan argv build error = %v", err)
 	}
@@ -317,7 +317,7 @@ func TestTerraformPlanApplyValidationAndArgv(t *testing.T) {
 		}
 	}
 
-	applyArgv, err := registry.BuildDeclarativeCLIArgs(spec, "apply", map[string]interface{}{"dir": "./infra"})
+	applyArgv, err := registry.BuildDeclarativeCLIArgs(spec.Binary, spec, "apply", map[string]interface{}{"dir": "./infra"})
 	if err != nil {
 		t.Fatalf("apply argv build error = %v", err)
 	}

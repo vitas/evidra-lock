@@ -15,6 +15,8 @@ test_deny_mass_delete_without_breakglass if {
         "payload": {"resource_count": 12}
       }
     ]
+    ,
+    "policy_data": policy_test_data
   }
   not d.allow
   d.reason == "mass delete requires breakglass"
@@ -34,6 +36,8 @@ test_deny_mass_delete_terraform_plan if {
         "payload": {"destroy_count": 12}
       }
     ]
+    ,
+    "policy_data": policy_test_data
   }
   not d.allow
   d.reason == "mass delete requires breakglass"

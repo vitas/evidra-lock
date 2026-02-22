@@ -14,7 +14,8 @@ test_deny_public_exposure_without_approval if {
         "risk_tags": [],
         "payload": {"publicly_exposed": true}
       }
-    ]
+    ],
+    "policy_data": policy_test_data
   }
   not d.allow
   d.reason == "public exposure requires approved_public tag"

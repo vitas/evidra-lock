@@ -15,6 +15,8 @@ test_deny_kube_system_without_breakglass if {
         "payload": {"namespace": "kube-system"}
       }
     ]
+    ,
+    "policy_data": policy_test_data
   }
   not d.allow
   d.reason == "kube-system changes require breakglass"

@@ -7,14 +7,6 @@ import (
 	"samebits.com/evidra-mcp/pkg/engine"
 )
 
-type resolverError struct {
-	code string
-	msg  string
-}
-
-func (e resolverError) Error() string { return e.msg }
-func (e resolverError) Code() string  { return e.code }
-
 type EngineToolResolver struct {
 	reg Registry
 }
@@ -24,18 +16,9 @@ func NewEngineToolResolver(reg Registry) *EngineToolResolver {
 }
 
 func (r *EngineToolResolver) Resolve(tool string, op string) (engine.ToolDefinition, error) {
-	def, ok := r.reg.Lookup(tool)
-	if !ok {
-		return nil, resolverError{
-			code: "unregistered_tool",
-			msg:  fmt.Sprintf("tool %q is not registered", tool),
-		}
-	}
-	if !SupportsOperation(def, op) {
-		return nil, resolverError{
-			code: "unsupported_operation",
-			msg:  fmt.Sprintf("operation %q is not supported for tool %q", op, tool),
-		}
+	def, err := ResolveOperation(r.reg, tool, op)
+	if err != nil {
+		return nil, err
 	}
 	return &engineToolDefinition{def: def, op: op}, nil
 }
