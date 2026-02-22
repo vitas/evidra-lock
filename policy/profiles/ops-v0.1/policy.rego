@@ -1,3 +1,3 @@
 package evidra.policy
 
-# The decision logic now lives under policy/decision.rego.
+decision := data.evidra.policy.decision_impl.decision

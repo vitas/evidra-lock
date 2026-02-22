@@ -15,15 +15,13 @@ test_deny_mass_delete_without_breakglass if {
         "payload": {"resource_count": 12}
       }
     ]
-    ,
-    "policy_data": policy_test_data
   }
   not d.allow
-  d.reason == "mass delete requires breakglass"
-  "mass-delete" in d.hits
+  d.reason == "Mass delete actions exceed threshold"
+  "POL-DEL-01" in d.hits
 }
 
-test_deny_mass_delete_terraform_plan if {
+test_deny_mass_destroy_without_breakglass if {
   d := decision with input as {
     "tool": "terraform",
     "operation": "plan",
@@ -36,10 +34,8 @@ test_deny_mass_delete_terraform_plan if {
         "payload": {"destroy_count": 12}
       }
     ]
-    ,
-    "policy_data": policy_test_data
   }
   not d.allow
-  d.reason == "mass delete requires breakglass"
-  "mass-delete" in d.hits
+  d.reason == "Mass delete actions exceed threshold"
+  "POL-DEL-01" in d.hits
 }

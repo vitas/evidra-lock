@@ -1,17 +1,22 @@
-package evidra.policy.rules
+package evidra.policy
 
-mass_delete_limit := object.get(object.get(object.get(input, "policy_data", {}), "thresholds", {}), "mass_delete_max", 5)
+import data.evidra.policy.defaults as defaults
 
-deny["mass-delete"] = "mass delete requires breakglass" if {
-  some action in actions
-  action_kind(action) == "kubectl.delete"
-  action_payload_number(action, "resource_count") > mass_delete_limit
-  not has_tag(action, "breakglass")
+deny["POL-DEL-01"] = "Mass delete actions exceed threshold" if {
+  mass_violation_exists
 }
 
-deny["mass-delete"] = "mass delete requires breakglass" if {
-  some action in actions
-  action_kind(action) == "terraform.plan"
-  action_payload_number(action, "destroy_count") > mass_delete_limit
-  not has_tag(action, "breakglass")
+mass_violation_exists if {
+  threshold := data.thresholds.mass_delete_max
+  action := input.actions[_]
+  not defaults.has_tag(action, "breakglass")
+  mass_value(action) > threshold
+}
+
+mass_value(action) := action.payload.resource_count if {
+  action.kind == "kubectl.delete"
+}
+
+mass_value(action) := object.get(action.payload, "destroy_count", 0) if {
+  action.kind == "terraform.plan"
 }

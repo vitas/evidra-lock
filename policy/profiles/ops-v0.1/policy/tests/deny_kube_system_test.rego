@@ -15,11 +15,9 @@ test_deny_kube_system_without_breakglass if {
         "payload": {"namespace": "kube-system"}
       }
     ]
-    ,
-    "policy_data": policy_test_data
   }
   not d.allow
-  d.reason == "kube-system changes require breakglass"
-  "kube-system-breakglass" in d.hits
-  "Add risk_tags=[\"breakglass\"] for controlled kube-system changes." in d.hints
+  d.reason == "Changes in kube-system require breakglass"
+  "POL-KUBE-01" in d.hits
+  "Add risk_tag: breakglass" in d.hints
 }

@@ -14,15 +14,14 @@ test_decision_contract if {
         "risk_tags": [],
         "payload": {"namespace": "kube-system"}
       }
-    ],
-    "policy_data": policy_test_data
+    ]
   }
   not d.allow
   d.risk_level == "high"
   count(d.reasons) == 1
-  d.reason == "kube-system changes require breakglass"
-  "kube-system-breakglass" in d.hits
-  "Add risk_tags=[\"breakglass\"] for controlled kube-system changes." in d.hints
+  d.reason == "Changes in kube-system require breakglass"
+  "POL-KUBE-01" in d.hits
+  "Add risk_tag: breakglass" in d.hints
 }
 
 test_allowed_operation_reason if {
@@ -37,12 +36,11 @@ test_allowed_operation_reason if {
         "risk_tags": [],
         "payload": {"namespace": "default"}
       }
-    ],
-    "policy_data": policy_test_data
+    ]
   }
   d.allow
-  d.risk_level == "low"
-  d.reason == "allowed_read_operation"
+  d.risk_level == "normal"
+  d.reason == "ok"
   count(d.reasons) == 0
 }
 
@@ -64,12 +62,14 @@ test_hints_dedup if {
         "risk_tags": [],
         "payload": {"destroy_count": 8}
       }
-    ],
-    "policy_data": policy_test_data
+    ]
   }
-  not d.allow
-  count(d.hints) == 1
-  "Reduce delete scope below threshold or add risk_tags=[\"breakglass\"]." in d.hints
+ not d.allow
+ count(d.hints) == 2
+  some idx1
+  d.hints[idx1] == "Reduce deletion scope"
+  some idx2
+  d.hints[idx2] == "Or add risk_tag: breakglass"
 }
 
 test_risk_high_with_breakglass_tag if {
@@ -84,10 +84,9 @@ test_risk_high_with_breakglass_tag if {
         "risk_tags": ["breakglass"],
         "payload": {"namespace": "default"}
       }
-    ],
-    "policy_data": policy_test_data
+    ]
   }
   d.allow
   d.risk_level == "high"
-  d.reason == "allowed_read_operation"
+  d.reason == "ok"
 }

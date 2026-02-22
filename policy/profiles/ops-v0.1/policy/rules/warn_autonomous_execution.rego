@@ -1,6 +1,7 @@
-package evidra.policy.rules
+package evidra.policy
 
-warn["autonomous-execution"] = "autonomous execution: agent via mcp" if {
-  actor_type == "agent"
-  input_source == "mcp"
+warn["WARN-AUTO-01"] = msg if {
+  input.actor.type == "agent"
+  input.source == "mcp"
+  msg := "Autonomous execution: agent via mcp"
 }

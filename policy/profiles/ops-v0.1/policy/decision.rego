@@ -1,121 +1,58 @@
-package evidra.policy
+package evidra.policy.decision_impl
 
-import data.evidra.policy.defaults as defaults
-import data.evidra.policy.rules as rules
+default allow := true
 
-default decision := {
-  "allow": false,
-  "risk_level": "critical",
-  "reason": "policy_denied_default",
-  "reasons": [],
-  "hints": [],
-  "hits": [],
-  "denies": [],
-  "warnings": [],
+denies := [ {"label": l, "message": m} | data.evidra.policy.deny[l] = m ]
+warnings := [ {"label": l, "message": m} | data.evidra.policy.warn[l] = m ]
+
+allow := count(denies) == 0
+reasons := [entry.message | entry := denies[_]]
+reason := reasons[0] if {
+  count(reasons) > 0
+}
+reason := "ok" if {
+  count(reasons) == 0
 }
 
-decision := build_decision
+hit_labels := [entry.label | entry := denies[_]]
+warn_labels := [entry.label | entry := warnings[_]]
 
-build_decision := {
+hits := dedupe(array.concat(hit_labels, warn_labels))
+hints := dedupe([hint |
+  label := hits[_]
+  hs := data.rule_hints[label]
+  hint := hs[_]
+])
+
+risk_level := "high" if {
+  count(denies) > 0
+}
+risk_level := "high" if {
+  count(denies) == 0
+  has_any_risk_tag("breakglass")
+}
+risk_level := "normal" if {
+  count(denies) == 0
+  not has_any_risk_tag("breakglass")
+}
+
+decision := {
   "allow": allow,
   "risk_level": risk_level,
   "reason": reason,
   "reasons": reasons,
-  "hints": hints,
   "hits": hits,
-  "denies": denies,
-  "warnings": warnings,
-} if {
-  base := defaults.decision
-  base_allow := object.get(base, "allow", false)
-  base_risk := object.get(base, "risk_level", "critical")
-  base_reason := object.get(base, "reason", "policy_denied_default")
-
-  denies := build_results(rules.deny)
-  warnings := build_results(rules.warn)
-
-  allow := allow_value(base_allow, denies)
-  reasons := [entry.message | entry := denies[_]]
-  reason := reason_value(base_reason, allow, reasons)
-  hits := concat_labels(denies, warnings)
-  policy_hints := [
-    hint |
-    label := hits[_]
-    policy_data := object.get(input, "policy_data", {})
-    hints_map := object.get(policy_data, "rule_hints", {})
-    entries := object.get(hints_map, label, [])
-    hint := entries[_]
-    hint != ""
-  ]
-  hints := dedup(policy_hints)
-  risk_level := aggregate_risk(base_risk, allow, warnings)
+  "hints": hints,
 }
 
-build_results(mapping) := results if {
-  results := [{"label": label, "message": message} |
-    some label
-    message := mapping[label]
-    message != ""
-    label != ""
-  ]
+has_any_risk_tag(tag) if {
+  some i
+  action := input.actions[i]
+  tags := object.get(action, "risk_tags", [])
+  tags[_] == tag
 }
 
-concat_labels(denies, warnings) := array.concat([
-  entry.label | entry := denies[_]
-], [
-  entry.label | entry := warnings[_]
-])
-
-dedup(arr) := out if {
-  uniq := {v | some v in arr; v != ""}
-  out := [v | v := uniq[_]]
+dedupe(xs) := sorted if {
+  set := {x | x := xs[_]}
+  sorted := sort([v | v := set[_]])
 }
-
-reason_value(base_reason, allow, reasons) := reasons[0] if {
-  not allow
-  count(reasons) > 0
-}
-
-reason_value(base_reason, allow, _) := base_reason if {
-  allow
-}
-
-reason_value(base_reason, _, reasons) := base_reason if {
-  count(reasons) == 0
-}
-
-allow_value(base_allow, denies) := true if {
-  base_allow
-  count(denies) == 0
-}
-
-allow_value(_, denies) := false if {
-  count(denies) > 0
-}
-
-allow_value(base_allow, _) := false if {
-  not base_allow
-}
-
-aggregate_risk(base_risk, allow, warnings) := base_risk if {
-  not allow
-}
-
-aggregate_risk(_, allow, warnings) := "high" if {
-  allow
-  has_autonomous_warning(warnings)
-}
-
-aggregate_risk(_, allow, warnings) := "high" if {
-  allow
-  not has_autonomous_warning(warnings)
-  rules.has_breakglass
-}
-
-aggregate_risk(base_risk, allow, warnings) := base_risk if {
-  allow
-  not has_autonomous_warning(warnings)
-  not rules.has_breakglass
-}
-
-has_autonomous_warning(warnings) := count([warning | warning := warnings[_]; warning.label == "autonomous-execution"]) > 0

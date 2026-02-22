@@ -1,8 +1,12 @@
-package evidra.policy.rules
+package evidra.policy
 
-deny["public-exposure-requires-approval"] = "public exposure requires approved_public tag" if {
-  some action in actions
-  action_kind(action) == "terraform.plan"
-  action_payload_bool(action, "publicly_exposed")
-  not has_tag(action, "approved_public")
+import data.evidra.policy.defaults as defaults
+
+deny["POL-PUB-01"] = msg if {
+  some i
+  action := input.actions[i]
+  action.kind == "terraform.plan"
+  action.payload.publicly_exposed == true
+  not defaults.has_tag(action, "approved_public")
+  msg := "Public exposure requires approved_public"
 }

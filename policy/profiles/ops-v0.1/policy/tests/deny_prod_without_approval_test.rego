@@ -14,10 +14,9 @@ test_deny_prod_without_change_approved if {
         "risk_tags": [],
         "payload": {"namespace": "prod"}
       }
-    ],
-    "policy_data": policy_test_data
+    ]
   }
   not d.allow
-  d.reason == "prod namespace requires change-approved tag"
-  "prod-requires-approval" in d.hits
+  d.reason == "Production changes require change-approved"
+  "POL-PROD-01" in d.hits
 }

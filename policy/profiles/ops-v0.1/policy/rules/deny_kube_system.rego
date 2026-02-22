@@ -1,7 +1,11 @@
-package evidra.policy.rules
+package evidra.policy
 
-deny["kube-system-breakglass"] = "kube-system changes require breakglass" if {
-  some action in actions
-  action_namespace(action) == "kube-system"
-  not has_tag(action, "breakglass")
+import data.evidra.policy.defaults as defaults
+
+deny["POL-KUBE-01"] = msg if {
+  some i
+  action := input.actions[i]
+  defaults.action_namespace(action) == "kube-system"
+  not defaults.has_tag(action, "breakglass")
+  msg := "Changes in kube-system require breakglass"
 }

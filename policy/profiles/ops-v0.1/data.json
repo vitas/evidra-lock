@@ -1,100 +1,26 @@
 {
-  "environments": {
-    "dev": [
-      "dev",
-      "local",
-      "sandbox"
-    ],
-    "prod": [
-      "prod",
-      "production"
-    ]
-  },
-  "operation_classes": {
-    "read": [
-      "kubectl/get",
-      "helm/list",
-      "helm/status",
-      "terraform/init",
-      "terraform/plan",
-      "argocd/app-list",
-      "argocd/app-get",
-      "aws/s3-ls",
-      "docker/images",
-      "podman/images",
-      "docker-compose/config",
-      "docker-compose/ps"
-    ],
-    "write": [
-      "kubectl/apply",
-      "helm/upgrade",
-      "terraform/apply",
-      "argocd/app-sync",
-      "aws/s3-rm-object",
-      "docker/tag",
-      "docker/push",
-      "podman/tag",
-      "podman/push",
-      "docker-compose/up-service",
-      "docker-compose/restart-service"
-    ],
-    "destructive": [
-      "kubectl/delete",
-      "argocd/app-rollback",
-      "aws/s3-rm-recursive"
-    ]
-  },
-  "defaults": {
-    "unknown_operation": {
-      "allow": false,
-      "risk_level": "critical",
-      "reason": "policy_denied_default"
-    },
-    "read": {
-      "allow": true,
-      "risk_level": "low",
-      "reason": "allowed_read_operation"
-    },
-    "write_dev": {
-      "allow": true,
-      "risk_level": "high",
-      "reason": "allowed_write_dev"
-    },
-    "write_prod": {
-      "allow": true,
-      "risk_level": "critical",
-      "reason": "allowed_write_prod"
-    },
-    "destructive_dev": {
-      "allow": true,
-      "risk_level": "critical",
-      "reason": "allowed_destructive_dev"
-    },
-    "destructive_prod": {
-      "allow": false,
-      "risk_level": "critical",
-      "reason": "policy_denied_high_risk"
-    }
-  },
-  "rule_hints": {
-    "autonomous-execution": [
-      "Agent-originated MCP action detected; require explicit human review."
-    ],
-    "kube-system-breakglass": [
-      "Add risk_tags=[\"breakglass\"] for controlled kube-system changes."
-    ],
-    "mass-delete": [
-      "Reduce delete scope below threshold or add risk_tags=[\"breakglass\"]."
-    ],
-    "prod-requires-approval": [
-      "Add risk_tags=[\"change-approved\"] before targeting prod namespace."
-    ],
-    "public-exposure-requires-approval": [
-      "Add risk_tags=[\"approved_public\"] before allowing public exposure."
-    ]
-  },
   "thresholds": {
     "mass_delete_max": 5
   },
-  "overrides": []
+  "rule_hints": {
+    "POL-KUBE-01": [
+      "Add risk_tag: breakglass",
+      "Or apply changes outside kube-system"
+    ],
+    "POL-PROD-01": [
+      "Add risk_tag: change-approved",
+      "Or run in --observe mode"
+    ],
+    "POL-PUB-01": [
+      "Add risk_tag: approved_public",
+      "Or remove public exposure"
+    ],
+    "POL-DEL-01": [
+      "Reduce deletion scope",
+      "Or add risk_tag: breakglass"
+    ],
+    "WARN-AUTO-01": [
+      "Review changes manually before apply"
+    ]
+  }
 }

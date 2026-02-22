@@ -2,18 +2,25 @@ package evidra.policy
 
 import rego.v1
 
-test_warn_autonomous_execution_high_risk if {
+test_warn_autonomous_execution_collects_hits_and_hints if {
   d := decision with input as {
     "tool": "kubectl",
-    "operation": "get",
+    "operation": "apply",
     "context": {"environment": "dev"},
-    "actions": [],
-    "actor": {"type": "agent", "id": "a", "origin": "mcp"},
     "source": "mcp",
-    "policy_data": policy_test_data
+    "actor": {"type": "agent"},
+    "actions": [
+      {
+        "kind": "kubectl.apply",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {"namespace": "default"}
+      }
+    ]
   }
   d.allow
-  d.risk_level == "high"
-  "autonomous-execution" in d.hits
-  "autonomous execution: agent via mcp" in [w.message | w := d.warnings[_]]
+  d.risk_level == "normal"
+  "WARN-AUTO-01" in d.hits
+  "Review changes manually before apply" in d.hints
+  d.reason == "ok"
 }
