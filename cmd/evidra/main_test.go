@@ -2,58 +2,59 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestOpsHelpMentionsExplain(t *testing.T) {
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	code := run([]string{"ops", "--help"}, &out, &errOut)
+func TestValidateUsage(t *testing.T) {
+	code, _, stderr := runFromRepoRoot(t, []string{"validate"})
 	if code != 2 {
-		t.Fatalf("expected exit code 2 for help/usage, got %d", code)
+		t.Fatalf("expected exit code 2 for missing file, got %d", code)
 	}
-	s := errOut.String()
-	if !strings.Contains(s, "explain") {
-		t.Fatalf("expected ops help to include explain, got: %s", s)
-	}
-	if !strings.Contains(s, "init") {
-		t.Fatalf("expected ops help to include init, got: %s", s)
+	if !strings.Contains(stderr, "usage: evidra validate <file>") {
+		t.Fatalf("expected usage message, got: %s", stderr)
 	}
 }
 
-func TestExplainKindsWiring(t *testing.T) {
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	code := run([]string{"ops", "explain", "kinds"}, &out, &errOut)
+func TestValidateScenarioPass(t *testing.T) {
+	scenario := filepath.Join("bundles", "ops", "examples", "scenario_pass.json")
+	code, out, errOut := runFromRepoRoot(t, []string{"validate", scenario})
 	if code != 0 {
-		t.Fatalf("expected exit code 0, got %d, stderr=%s", code, errOut.String())
+		t.Fatalf("expected exit code 0 for passing scenario, got %d stderr=%s", code, errOut)
 	}
-	if !strings.Contains(out.String(), "terraform.plan") {
-		t.Fatalf("expected kinds output from explain command, got: %s", out.String())
-	}
-}
-
-func TestInitPrintWiring(t *testing.T) {
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	code := run([]string{"ops", "init", "--print"}, &out, &errOut)
-	if code != 0 {
-		t.Fatalf("expected init --print code 0, got %d stderr=%s", code, errOut.String())
-	}
-	if !strings.Contains(out.String(), "enable_validators") {
-		t.Fatalf("expected config output, got: %s", out.String())
+	if !strings.Contains(out, "Decision: PASS") {
+		t.Fatalf("expected PASS decision, got: %s", out)
 	}
 }
 
 func TestVersionCommand(t *testing.T) {
+	code, out, errOut := runFromRepoRoot(t, []string{"version"})
+	if code != 0 {
+		t.Fatalf("expected code 0, got %d stderr=%s", code, errOut)
+	}
+	if !strings.Contains(out, "Version:") {
+		t.Fatalf("expected version output, got: %s", out)
+	}
+}
+
+func runFromRepoRoot(t *testing.T, args []string) (int, string, string) {
+	t.Helper()
+	root := filepath.Join("..", "..")
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(orig)
+	}()
+
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	code := run([]string{"version"}, &out, &errOut)
-	if code != 0 {
-		t.Fatalf("expected code 0, got %d stderr=%s", code, errOut.String())
-	}
-	if !strings.Contains(out.String(), "Version:") {
-		t.Fatalf("expected version output, got: %s", out.String())
-	}
+	code := run(args, &out, &errOut)
+	return code, out.String(), errOut.String()
 }

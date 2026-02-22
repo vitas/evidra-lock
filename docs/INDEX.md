@@ -5,7 +5,6 @@
 3. Ops Profile: `docs/OPS_PROFILE.md`
 4. Policy Guide: `docs/POLICY_GUIDE.md`
 5. Tool Packs: `docs/TOOL_PACKS.md`
-6. MCP Guide: `docs/MCP_GUIDE.md`
-7. Evidence Guide: `docs/EVIDENCE_GUIDE.md`
-8. Release Checklist: `docs/RELEASE_CHECKLIST.md`
-9. FAQ: `docs/FAQ.md`
+6. Evidence Guide: `docs/EVIDENCE_GUIDE.md`
+7. Release Checklist: `docs/RELEASE_CHECKLIST.md`
+8. FAQ: `docs/FAQ.md`

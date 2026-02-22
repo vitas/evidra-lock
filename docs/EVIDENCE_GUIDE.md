@@ -25,20 +25,16 @@ Manifest includes:
 - Execution stdout/stderr are stored with truncation flags.
 - Output truncation limit is controlled by `EVIDRA_MAX_OUTPUT_BYTES` (default `65536`).
 
-## 4) Commands
+## 4) Inspecting the log
 
-```bash
-go run ./cmd/evidra-evidence verify --evidence ./data/evidence
-go run ./cmd/evidra-evidence violations --evidence ./data/evidence --min-risk high
-go run ./cmd/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/profiles/ops-v0.1/policy.rego --data ./policy/profiles/ops-v0.1/data.json
-go run ./cmd/evidra-evidence cursor show --evidence ./data/evidence
-go run ./cmd/evidra-evidence cursor ack --evidence ./data/evidence --segment evidence-000001.jsonl --line 0
-```
+- `cat ./data/evidence/manifest.json`
+- `tail -n 1 ./data/evidence/segments/evidence-000001.jsonl`
+- Use `jq` to filter: `jq '.records' ./data/evidence/manifest.json`
+  (manifests contain counts, hashes, and segment metadata).
 
 ## 5) Audit Pack
 
-Audit export includes evidence files and manifest plus policy snapshot hashes.
-Always run `verify` before sharing artifacts.
+Audit export should bundle evidence segments, the manifest, and policy snapshots.
 
 ## 6) Single Writer
 

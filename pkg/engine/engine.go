@@ -269,7 +269,7 @@ func stepEvaluatePolicy(ec *execContext) error {
 	decision, evalErr := ec.engine.policy.Evaluate(ec.inv)
 	if evalErr != nil {
 		decision = decisionForPolicyError()
-		decision.Hints = []string{"Policy evaluation failed; verify policy syntax and evaluate with evidra policy sim."}
+		decision.Hints = []string{"Policy evaluation failed; verify policy syntax and rerun evidra validate with the same input file."}
 		decision.Hint = decision.Hints[0]
 	}
 	ec.decision = decision

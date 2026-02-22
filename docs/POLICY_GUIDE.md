@@ -55,12 +55,9 @@ Policies use request context for risk and permission decisions:
 
 ## 5) Local Policy Testing
 
-```bash
-go run ./cmd/evidra-policy-sim \
-  --policy ./policy/profiles/ops-v0.1/policy.rego \
-  --data ./policy/profiles/ops-v0.1/data.json \
-  --input ./examples/invocations/allowed_kubectl_get_dev.json
-```
+1. `go build -o ./bin/evidra ./cmd/evidra`
+2. `./bin/evidra validate bundles/ops/examples/scenario_pass.json`
+3. Look for `Decision: PASS` and `Reason` lines in the output.
 
 ## 6) Learn OPA
 

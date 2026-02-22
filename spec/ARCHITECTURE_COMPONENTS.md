@@ -2,11 +2,12 @@
 
 Related docs:
 - `docs/QUICKSTART.md`
+- `docs/DEMO.md`
 - `docs/POLICY_GUIDE.md`
 - `docs/TOOL_PACKS.md`
 - `docs/OPS_PROFILE.md`
 - `docs/EVIDENCE_GUIDE.md`
-- `docs/MCP_GUIDE.md`
+- `docs/RELEASE_CHECKLIST.md`
 
 Evidra v0.1 has three core components:
 - Registry: static tool surface and operation validation.

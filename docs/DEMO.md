@@ -1,81 +1,26 @@
-# Demo (Ops Guardrails)
+# Demo
 
-## 1) Setup
+## Build
 
-Build binaries:
+- `go build -o ./bin/evidra ./cmd/evidra`
 
-```bash
-go build -o ./bin/evidra-mcp ./cmd/evidra-mcp
-go build -o ./bin/evidra-policy-sim ./cmd/evidra-policy-sim
-go build -o ./bin/evidra-evidence ./cmd/evidra-evidence
-```
+## Validate a Terraform plan
 
-Run MCP server (ops profile):
+1. `terraform plan -out=plan.tfplan`
+2. `terraform show -json plan.tfplan > plan.json`
+3. `./bin/evidra validate plan.json`
 
-```bash
-EVIDRA_PROFILE=ops \
-EVIDRA_PACKS_DIR=./packs/_core/ops \
-EVIDRA_POLICY_PATH=./policy/profiles/ops-v0.1/policy.rego \
-EVIDRA_POLICY_DATA_PATH=./policy/profiles/ops-v0.1/data.json \
-EVIDRA_EVIDENCE_PATH=./data/evidence \
-./bin/evidra-mcp
-```
+## Validate a Kubernetes diff
 
-## 2) Scenario: Prod Write is Critical
+- Write the diff or rendered YAML to `kube-diff.json` (for example, `kubectl diff > kube-diff.json`).
+- `./bin/evidra validate kube-diff.json`
 
-Dev Helm upgrade invocation:
+## Validate the sample scenario
 
-```json
-{
-  "actor": {"type": "human", "id": "ops-dev", "origin": "mcp"},
-  "tool": "helm",
-  "operation": "upgrade",
-  "params": {"release": "payments", "chart": "./chart", "namespace": "payments-dev"},
-  "context": {"environment": "dev", "cluster": "local"}
-}
-```
+- `./bin/evidra validate bundles/ops/examples/scenario_pass.json`
+  (bundled scenario files live under `bundles/ops/examples/`)
 
-Prod Terraform apply invocation:
+## Policy profile
 
-```json
-{
-  "actor": {"type": "human", "id": "ops-prod", "origin": "mcp"},
-  "tool": "terraform",
-  "operation": "apply",
-  "params": {"dir": "./infra"},
-  "context": {"environment": "prod", "cluster": "remote"}
-}
-```
-
-Run policy simulation:
-
-```bash
-./bin/evidra-policy-sim --policy ./policy/profiles/ops-v0.1/policy.rego --data ./policy/profiles/ops-v0.1/data.json --input ./examples/invocations/allowed_terraform_apply_dev.json
-./bin/evidra-policy-sim --policy ./policy/profiles/ops-v0.1/policy.rego --data ./policy/profiles/ops-v0.1/data.json --input ./examples/invocations/allowed_helm_upgrade_prod.json
-```
-
-Expected output fields:
-- `allow`
-- `risk_level`
-- `reason`
-
-When invoked through MCP `execute`, response also includes `event_id`.
-
-## 3) Evidence Inspection
-
-```bash
-./bin/evidra-evidence violations --evidence ./data/evidence --min-risk high
-./bin/evidra-evidence export --evidence ./data/evidence --out ./audit-pack.tar.gz --policy ./policy/profiles/ops-v0.1/policy.rego --data ./policy/profiles/ops-v0.1/data.json
-```
-
-The audit pack is a portable artifact for review and incident handoff.
-
-## 4) Event Retrieval
-
-Use returned `event_id` from `execute` and call MCP tool `get_event`.
-
-UI/client can display:
-- `policy_decision.risk_level`
-- `policy_decision.reason`
-- `policy_ref`
-- execution status and exit code
+- Policy logic: `policy/profiles/ops-v0.1/policy.rego`
+- Policy data: `policy/profiles/ops-v0.1/data.json`
