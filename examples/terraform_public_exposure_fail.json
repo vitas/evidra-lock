@@ -1,0 +1,19 @@
+{
+  "scenario_id": "terraform-public-exposure-fail",
+  "actor": {"type": "human", "id": "ops-user", "origin": "cli"},
+  "source": "cli",
+  "timestamp": "2026-02-22T00:00:00Z",
+  "actions": [
+    {
+      "kind": "terraform.plan",
+      "target": {"dir": "./infra"},
+      "intent": "plan public endpoint",
+      "payload": {
+        "destroy_count": 2,
+        "resource_count": 5,
+        "publicly_exposed": true
+      },
+      "risk_tags": []
+    }
+  ]
+}

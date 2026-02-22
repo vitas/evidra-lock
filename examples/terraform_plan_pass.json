@@ -1,0 +1,19 @@
+{
+  "scenario_id": "terraform-plan-pass",
+  "actor": {"type": "human", "id": "ops-user", "origin": "cli"},
+  "source": "cli",
+  "timestamp": "2026-02-22T00:00:00Z",
+  "actions": [
+    {
+      "kind": "terraform.plan",
+      "target": {"dir": "./infra"},
+      "intent": "plan safe infrastructure update",
+      "payload": {
+        "destroy_count": 1,
+        "resource_count": 3,
+        "publicly_exposed": false
+      },
+      "risk_tags": []
+    }
+  ]
+}

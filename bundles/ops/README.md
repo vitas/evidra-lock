@@ -95,7 +95,7 @@ evidra ops validate ./.evidra/examples/scenario_kubectl_apply_prod_block.json
 
 ## Default Guardrails
 
-The default policy is `bundles/ops/policies/policy.rego` and includes these controls:
+The default policy is `policy/profiles/ops-v0.1/policy.rego` and includes these controls:
 
 - Block `k8s.apply` to `kube-system` unless `risk_tags` contains `breakglass`.
 - Block `terraform.plan` with `payload.publicly_exposed=true` unless `risk_tags` contains `approved_public`.
@@ -117,7 +117,7 @@ Included examples:
 
 ## How To Add Custom Policies
 
-1. Start with `bundles/ops/policies/policy.rego`.
+1. Start with `policy/profiles/ops-v0.1/policy.rego`.
 2. Add narrow, deterministic rules using the existing `input` shape from scenario actions.
 3. Keep reason codes stable and human-readable.
 4. Add or update scenario examples in `bundles/ops/examples/`.

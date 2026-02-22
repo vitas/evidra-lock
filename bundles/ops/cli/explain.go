@@ -145,7 +145,7 @@ func explainPolicies(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if *verbose {
-		p := filepath.Clean("./bundles/ops/policies/policy.rego")
+		p := filepath.Clean("./policy/profiles/ops-v0.1/policy.rego")
 		fmt.Fprintf(stdout, "\nRaw policy (%s):\n", p)
 		b, err := os.ReadFile(p)
 		if err != nil {

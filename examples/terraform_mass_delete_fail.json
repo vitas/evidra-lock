@@ -1,0 +1,19 @@
+{
+  "scenario_id": "terraform-mass-delete-fail",
+  "actor": {"type": "human", "id": "ops-user", "origin": "cli"},
+  "source": "cli",
+  "timestamp": "2026-02-22T00:00:00Z",
+  "actions": [
+    {
+      "kind": "terraform.plan",
+      "target": {"dir": "./infra"},
+      "intent": "plan wide teardown",
+      "payload": {
+        "destroy_count": 12,
+        "resource_count": 20,
+        "publicly_exposed": false
+      },
+      "risk_tags": []
+    }
+  ]
+}

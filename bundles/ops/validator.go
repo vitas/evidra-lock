@@ -23,7 +23,8 @@ import (
 // TODO(monorepo-split): move ops-specific policy profile and evidence adapters into the ops bundle repository.
 
 const (
-	DefaultPolicyPath   = "./bundles/ops/policies/policy.rego"
+	DefaultPolicyPath   = "./policy/profiles/ops-v0.1/policy.rego"
+	DefaultDataPath     = "./policy/profiles/ops-v0.1/data.json"
 	DefaultEvidencePath = "./data/evidence"
 )
 
@@ -63,7 +64,7 @@ func ValidateFileWithOptions(path string, opts ValidateOptions) (ValidationOutpu
 		return ValidationOutput{}, err
 	}
 
-	coreEval, err := runtime.NewEvaluator(DefaultPolicyPath, "")
+	coreEval, err := runtime.NewEvaluator(DefaultPolicyPath, DefaultDataPath)
 	if err != nil {
 		return ValidationOutput{}, err
 	}

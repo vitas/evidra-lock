@@ -6,5 +6,8 @@
 4. Policy Guide: `docs/POLICY_GUIDE.md`
 5. Tool Packs: `docs/TOOL_PACKS.md`
 6. Evidence Guide: `docs/EVIDENCE_GUIDE.md`
-7. Release Checklist: `docs/RELEASE_CHECKLIST.md`
-8. FAQ: `docs/FAQ.md`
+7. Advanced: `docs/advanced.md`
+8. Policy overview: `docs/policy.md`
+9. Evidence reference: `docs/evidence.md`
+10. Release Checklist: `docs/RELEASE_CHECKLIST.md`
+11. FAQ: `docs/FAQ.md`
