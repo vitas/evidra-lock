@@ -32,7 +32,16 @@ func (s *LocalFileSource) LoadPolicy() (map[string][]byte, error) {
 	}
 	dirRoot := filepath.Join(filepath.Dir(s.PolicyPath), strings.TrimSuffix(filepath.Base(s.PolicyPath), filepath.Ext(s.PolicyPath)))
 	if dirInfo, err := os.Stat(dirRoot); err == nil && dirInfo.IsDir() {
-		return s.loadPolicyDir(dirRoot)
+		modules, err := s.loadPolicyDir(dirRoot)
+		if err != nil {
+			return nil, err
+		}
+		b, err := os.ReadFile(s.PolicyPath)
+		if err != nil {
+			return nil, err
+		}
+		modules[filepath.Base(s.PolicyPath)] = b
+		return modules, nil
 	}
 	b, err := os.ReadFile(s.PolicyPath)
 	if err != nil {

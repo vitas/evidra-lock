@@ -9,7 +9,7 @@ import (
 	"samebits.com/evidra-mcp/pkg/policysource"
 )
 
-func TestEvaluateDefaultDeny(t *testing.T) {
+func TestEvaluateDefaultDecisionWithoutActions(t *testing.T) {
 	policyPath := filepath.Join("..", "..", "policy", "profiles", "ops-v0.1", "policy.rego")
 	dataPath := filepath.Join("..", "..", "policy", "profiles", "ops-v0.1", "data.json")
 
@@ -47,14 +47,14 @@ func TestEvaluateDefaultDeny(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
 	}
-	if decision.Allow {
-		t.Fatalf("expected default deny decision, got allow=true")
+	if !decision.Allow {
+		t.Fatalf("expected default allow decision when no actions present, got deny")
 	}
-	if decision.Reason == "" {
-		t.Fatalf("expected non-empty reason")
+	if decision.Reason != "ok" {
+		t.Fatalf("expected reason ok for base decision, got %q", decision.Reason)
 	}
-	if decision.RiskLevel != "critical" {
-		t.Fatalf("expected critical risk_level on default deny, got %q", decision.RiskLevel)
+	if decision.RiskLevel != "normal" {
+		t.Fatalf("expected normal risk_level by default, got %q", decision.RiskLevel)
 	}
 }
 

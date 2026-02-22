@@ -2,84 +2,157 @@
 
 # Policy Contract v0.1
 
-This document defines the strict interface between Evidra Core and the Policy Engine (OPA/Rego).
-
-The policy engine is responsible for evaluating whether a tool invocation is allowed.
-It must be deterministic and side-effect free.
+This document defines the strict interface between Evidra Core and the Policy Engine (OPA/Rego). The policy engine evaluates each ToolInvocation and must remain deterministic, side-effect free, and focused on decision-making.
 
 ---
 
 ## 1. Evaluation Model
 
-- Default decision: deny
+- Default decision: allow unless deny rules match.
 - Policy evaluation must be pure (no external side effects).
-- Policy must not perform execution.
-- Policy must not mutate input.
+- Policy must not execute tools or mutate input.
 
 ---
 
 ## 2. Input Schema
 
-The following JSON object is provided to OPA as `input`:
+OPA receives the following canonical `input` object:
 
+```
 {
+  "actions": [
+    {
+      "kind": "terraform.plan" | "kubectl.delete" | "k8s.apply" | ..., 
+      "payload": { ... },                # tool-specific metadata (namespace, destroy_count, exposures, etc.)
+      "risk_tags": ["breakglass", "change-approved", ...]
+    }
+  ],
   "actor": {
-    "type": "human | ai | system",
-    "id": "string",
-    "origin": "mcp | cli | api | unknown"
+    "type": "human" | "agent"
   },
-  "tool": "string",
-  "operation": "string",
-  "params": {},
-  "context": {}
+  "source": "cli" | "mcp"
 }
+```
 
 ### Field Definitions
 
-- actor: Identity of the execution initiator.
-- tool: Registered tool name.
-- operation: Subcommand or operation name.
-- params: Structured parameters (must not contain raw shell strings).
-- context: Optional structured execution context (environment, metadata).
+- `actions[].kind`: normalized tool+operation (e.g., `terraform.plan`). Use it to distinguish Terraform vs. Kubernetes semantics.
+- `actions[].payload`: contains observables such as `destroy_count`, `publicly_exposed`, or `namespace`. Access safely with `object.get`.
+- `actions[].risk_tags`: tags propagated by the adapter; high-risk rules typically require `breakglass`, `change-approved`, or `approved_public` tags before allowing them.
+- `actor.type`: identifies whether a human (`"human"`) or an agent (`"agent"`) triggered the run.
+- `source`: surface name (`"cli"` or `"mcp"`) so policies can apply stricter checks for MCP/agent traffic.
 
----
+Minimal Terraform example:
 
-## 3. Required Policy Output
-
-Policy evaluation must return:
-
+```
 {
-  "allow": true | false,
-  "risk_level": "low|medium|high|critical",
-  "reason": "string"
+  "actions": [
+    {
+      "kind": "terraform.plan",
+      "payload": {
+        "destroy_count": 8,
+        "publicly_exposed": true
+      },
+      "risk_tags": []
+    }
+  ],
+  "actor": {"type": "human"},
+  "source": "cli"
 }
+```
 
-### Requirements
+Minimal Kubernetes example:
 
-- allow must always be defined.
-- risk_level must always be defined.
-- risk_level must be one of: low, medium, high, critical.
-- risk_level must be deterministic.
-- reason must always be defined.
-- reason must be human-readable and deterministic.
-- No other fields are required in v0.1.
+```
+{
+  "actions": [
+    {
+      "kind": "kubectl.delete",
+      "payload": {
+        "namespace": "kube-system",
+        "resource_count": 12
+      },
+      "risk_tags": []
+    }
+  ],
+  "actor": {"type": "agent"},
+  "source": "mcp"
+}
+```
 
 ---
 
-## 4. Determinism Requirements
+## 3. Decision Output Schema
 
-For identical input, policy evaluation must always produce identical output.
+Policies must publish `data.evidra.policy.decision` with the structure:
 
-Time-based, random, or external state-based decisions are out of scope for v0.1.
+```
+{
+  "allow": bool,
+  "risk_level": "normal" | "high",
+  "reason": string,
+  "reasons": [string],
+  "hits": [string],
+  "hints": [string]
+}
+```
+
+### Field Requirements
+
+- `allow`: final enforcement decision. True = permitted, false = denied.
+- `risk_level`: `"high"` whenever a deny fires or a `breakglass` tag exists; `"normal"` otherwise.
+- `reason`: the first deny message (legacy single-string summary).
+- `reasons`: the ordered list of all deny messages produced during evaluation.
+- `hits`: stable rule IDs (`POL-*` for denies, `WARN-*` for warnings) that inform evidence and CLI output.
+- `hints`: remediation guidance pulled from `data.rule_hints` corresponding to each rule ID; duplicates are deduped before presentation.
+
+Evidence and CLI tooling expect these fields to render PASS/FAIL outcomes, rule IDs, and actionable hints.
 
 ---
 
-## 5. Enforcement Rule
+## 4. Rule Style Guide
 
-Execution MUST NOT proceed unless:
+- Place small rules in `policy/profiles/ops-v0.1/policy/rules/`.
+- Use `package evidra.policy`.
+- Define denies via `deny["POL-XXX-YY"] = "message" if { ... }` and warnings via `warn["WARN-XXX-YY"] = "message" if { ... }`.
+- Rule IDs must remain stable once released; renaming a label invalidates historical evidence.
+- Keep each rule file <40 non-empty lines. Move shared helpers into `policy/defaults.rego`.
 
-- allow == true
+Example:
 
-If allow == false:
-- Execution is denied.
-- Evidence must record the policy decision and reason.
+```
+package evidra.policy
+
+import data.evidra.policy.defaults as defaults
+
+deny["POL-PROD-01"] = msg if {
+  some action := input.actions[_]
+  defaults.action_namespace(action) == "prod"
+  not defaults.has_tag(action, "change-approved")
+  msg := "Production changes require change-approved"
+}
+```
+
+---
+
+## 5. Remediation Hints
+
+- Define hints in `policy/profiles/ops-v0.1/data.json` inside the `rule_hints` object.
+- The map keys must match rule IDs (e.g., `"POL-PROD-01"`).
+- Each rule should list 1–3 actionable hints such as "Add risk_tag: breakglass".
+- Hints describe what to change, not why the input failed.
+- The decision aggregator dedupes hints per evaluation and exposes them via CLI/evidence.
+
+---
+
+## 6. Testing
+
+- Run `opa test policy/profiles/ops-v0.1` for policy/unit tests.
+- `go test ./...` covers Go integration with the structured policy, runtime, and evidence layers.
+- `evidra validate bundles/ops/examples/*.json` exercises CLI output, hits, hints, and evidence creation.
+
+---
+
+## 7. Single Source of Truth
+
+`policy/profiles/ops-v0.1` (shim + `policy/` directory + `data.json`) is the single authoritative policy profile. The runtime and bundles load `DefaultPolicyPath = "./policy/profiles/ops-v0.1/policy.rego"` plus `data.json`, so edits should happen only in this directory.

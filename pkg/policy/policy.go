@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
@@ -36,6 +37,16 @@ func NewOPAEngine(policyModules map[string][]byte, dataBytes []byte) (*Engine, e
 	}
 	if len(policyModules) == 0 {
 		return nil, fmt.Errorf("policy source contains no modules")
+	}
+	filtered := map[string][]byte{}
+	for name, module := range policyModules {
+		if strings.HasPrefix(name, "tests/") || strings.Contains(name, "/tests/") {
+			continue
+		}
+		filtered[name] = module
+	}
+	if len(filtered) > 0 && len(filtered) < len(policyModules) {
+		policyModules = filtered
 	}
 	names := make([]string, 0, len(policyModules))
 	for name := range policyModules {
@@ -94,6 +105,9 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 			"rule_hints": e.ruleHints,
 			"thresholds": e.thresholds,
 		},
+	}
+	if actions := buildActionList(inv.Params); len(actions) > 0 {
+		input["actions"] = actions
 	}
 
 	results, err := e.query.Eval(context.Background(), rego.EvalInput(input))
@@ -177,9 +191,50 @@ func readStringSlice(m map[string]interface{}, key string) ([]string, bool) {
 
 func isValidRiskLevel(level string) bool {
 	switch level {
-	case "low", "medium", "high", "critical":
+	case "low", "medium", "high", "critical", "normal":
 		return true
 	default:
 		return false
+	}
+}
+
+func buildActionList(params map[string]interface{}) []map[string]interface{} {
+	if params == nil {
+		return nil
+	}
+	var actions []map[string]interface{}
+	appendRaw := func(raw interface{}) {
+		switch v := raw.(type) {
+		case []interface{}:
+			for _, item := range v {
+				if action, ok := normalizeAction(item); ok {
+					actions = append(actions, action)
+				}
+			}
+		case []map[string]interface{}:
+			for _, action := range v {
+				actions = append(actions, action)
+			}
+		default:
+			if action, ok := normalizeAction(v); ok {
+				actions = append(actions, action)
+			}
+		}
+	}
+	if raw, ok := params["actions"]; ok {
+		appendRaw(raw)
+	}
+	if raw, ok := params["action"]; ok {
+		appendRaw(raw)
+	}
+	return actions
+}
+
+func normalizeAction(raw interface{}) (map[string]interface{}, bool) {
+	switch m := raw.(type) {
+	case map[string]interface{}:
+		return m, true
+	default:
+		return nil, false
 	}
 }
