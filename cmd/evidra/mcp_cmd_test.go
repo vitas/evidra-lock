@@ -9,47 +9,53 @@ import (
 	"samebits.com/evidra-mcp/pkg/policysource"
 )
 
-func TestDefaultProfileIsOps(t *testing.T) {
-	t.Setenv("EVIDRA_PROFILE", "")
-	p, err := loadProfileFromEnv()
+func TestResolvePolicyPathsDefaults(t *testing.T) {
+	t.Setenv("EVIDRA_POLICY_PATH", "")
+	t.Setenv("EVIDRA_DATA_PATH", "")
+	origWd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("loadProfileFromEnv() error = %v", err)
+		t.Fatalf("Getwd() error = %v", err)
 	}
-	if p != ProfileOps {
-		t.Fatalf("expected default profile ops, got %q", p)
+	repoRoot := filepath.Clean(filepath.Join(origWd, "..", ".."))
+	t.Cleanup(func() { _ = os.Chdir(origWd) })
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir(repo root) error = %v", err)
+	}
+	policyPath, dataPath, err := resolvePolicyPaths("", "")
+	if err != nil {
+		t.Fatalf("resolvePolicyPaths() error = %v", err)
+	}
+	if policyPath != defaultPolicyPath {
+		t.Fatalf("expected default policy path %q, got %q", defaultPolicyPath, policyPath)
+	}
+	if dataPath != defaultDataPath {
+		t.Fatalf("expected default data path %q, got %q", defaultDataPath, dataPath)
 	}
 }
 
-func TestBuildRegistryForProfiles(t *testing.T) {
-	opReg, err := buildRegistryForProfile(ProfileOps)
-	if err != nil {
-		t.Fatalf("buildRegistryForProfile(ops) error = %v", err)
-	}
-	if _, ok := opReg.Lookup("echo"); ok {
-		t.Fatalf("ops profile must not register echo")
-	}
-	if _, ok := opReg.Lookup("git"); ok {
-		t.Fatalf("ops profile must not register git")
-	}
-	devReg, err := buildRegistryForProfile(ProfileDev)
-	if err != nil {
-		t.Fatalf("buildRegistryForProfile(dev) error = %v", err)
-	}
-	if _, ok := devReg.Lookup("echo"); !ok {
-		t.Fatalf("dev profile expected echo")
-	}
-	if _, ok := devReg.Lookup("git"); !ok {
-		t.Fatalf("dev profile expected git")
+func TestResolvePolicyPathsFlagsRequireData(t *testing.T) {
+	_, _, err := resolvePolicyPaths("/tmp/policy.rego", "")
+	if err == nil {
+		t.Fatalf("expected error when --policy provided without --data")
 	}
 }
 
-func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
+func TestResolvePolicyPathsEnvRequiresBoth(t *testing.T) {
+	t.Setenv("EVIDRA_POLICY_PATH", "/tmp/policy.rego")
+	t.Setenv("EVIDRA_DATA_PATH", "")
+	_, _, err := resolvePolicyPaths("", "")
+	if err == nil {
+		t.Fatalf("expected error when only policy env is set")
+	}
+}
+
+func TestDefaultPacksDirLoadsArgoCDPack(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Getwd() error = %v", err)
 	}
 	root := filepath.Clean(filepath.Join(wd, "..", ".."))
-	packDir := filepath.Join(root, "packs", "_core", "ops")
+	packDir := filepath.Join(root, defaultPacksDir)
 
 	defs, err := packs.LoadToolDefinitions(packDir, nil)
 	if err != nil {
@@ -64,58 +70,41 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 	foundCompose := false
 	foundHelm := false
 	foundKubectl := false
-	foundPodman := false
 	foundTerraform := false
 	for _, def := range defs {
-		if def.Name == "argocd" {
+		switch def.Name {
+		case "argocd":
 			foundArgoCD = true
-		}
-		if def.Name == "aws" {
-			foundAWS = true
-		}
-		if def.Name == "docker" {
-			foundDocker = true
-		}
-		if def.Name == "docker-compose" {
-			foundCompose = true
-		}
-		if def.Name == "podman" {
-			foundPodman = true
-		}
-		if def.Name == "terraform" {
-			foundTerraform = true
-		}
-		if def.Name == "helm" {
-			foundHelm = true
-		}
-		if def.Name == "kubectl" {
-			foundKubectl = true
-		}
-		if def.Name == "argocd" {
 			for _, op := range def.SupportedOperations {
 				if op == "version" {
 					t.Fatalf("argocd ops pack must not include version operation")
 				}
 			}
-		}
-		if def.Name == "helm" {
+		case "aws":
+			foundAWS = true
+			for _, op := range def.SupportedOperations {
+				if op == "sts-whoami" {
+					t.Fatalf("aws ops pack must not include sts-whoami operation")
+				}
+			}
+		case "docker":
+			foundDocker = true
+		case "docker-compose":
+			foundCompose = true
+		case "helm":
+			foundHelm = true
 			for _, op := range def.SupportedOperations {
 				if op == "version" {
 					t.Fatalf("helm ops pack must not include version operation")
 				}
 			}
-		}
-		if def.Name == "terraform" {
+		case "kubectl":
+			foundKubectl = true
+		case "terraform":
+			foundTerraform = true
 			for _, op := range def.SupportedOperations {
 				if op == "version" {
 					t.Fatalf("terraform ops pack must not include version operation")
-				}
-			}
-		}
-		if def.Name == "aws" {
-			for _, op := range def.SupportedOperations {
-				if op == "sts-whoami" {
-					t.Fatalf("aws ops pack must not include sts-whoami operation")
 				}
 			}
 		}
@@ -132,37 +121,14 @@ func TestOpsDefaultPackDirLoadsArgoCDPack(t *testing.T) {
 	if !foundCompose {
 		t.Fatalf("expected docker-compose tool from ops packs")
 	}
-	if !foundPodman {
-		t.Fatalf("expected podman tool from ops packs")
-	}
-	if !foundTerraform {
-		t.Fatalf("expected terraform tool from ops packs")
+	if !foundHelm {
+		t.Fatalf("expected helm tool from ops packs")
 	}
 	if !foundKubectl {
 		t.Fatalf("expected kubectl tool from ops packs")
 	}
-	if !foundHelm {
-		t.Fatalf("expected helm tool from ops packs")
-	}
-}
-
-func TestResolvePolicyPathsDefaults(t *testing.T) {
-	t.Setenv("EVIDRA_POLICY_PATH", "")
-	t.Setenv("EVIDRA_POLICY_DATA_PATH", "")
-	policyPath, dataPath := resolvePolicyPaths(ProfileOps, "", "")
-	if policyPath != defaultOpsPolicyPath {
-		t.Fatalf("expected ops default policy path %q, got %q", defaultOpsPolicyPath, policyPath)
-	}
-	if dataPath != defaultOpsDataPath {
-		t.Fatalf("expected ops default data path %q, got %q", defaultOpsDataPath, dataPath)
-	}
-
-	devPolicyPath, devDataPath := resolvePolicyPaths(ProfileDev, "", "")
-	if devPolicyPath != defaultOpsPolicyPath {
-		t.Fatalf("expected dev default policy path %q, got %q", defaultOpsPolicyPath, devPolicyPath)
-	}
-	if devDataPath != defaultOpsDataPath {
-		t.Fatalf("expected dev default data path %q, got %q", defaultOpsDataPath, devDataPath)
+	if !foundTerraform {
+		t.Fatalf("expected terraform tool from ops packs")
 	}
 }
 

@@ -24,7 +24,6 @@ func NewInMemoryRegistry(defs []ToolDefinition) *InMemoryRegistry {
 
 func NewDefaultRegistry() *InMemoryRegistry {
 	r := NewInMemoryRegistry(nil)
-	_ = RegisterDevTools(r)
 	return r
 }
 

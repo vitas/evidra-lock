@@ -21,14 +21,10 @@ import (
 	"samebits.com/evidra-mcp/pkg/registry"
 )
 
-type Profile string
-
 const (
-	ProfileOps Profile = "ops"
-	ProfileDev Profile = "dev"
-
-	defaultOpsPolicyPath = "./policy/profiles/ops-v0.1/policy.rego"
-	defaultOpsDataPath   = "./policy/profiles/ops-v0.1/data.json"
+	defaultPolicyPath = "./policy/profiles/ops-v0.1/policy.rego"
+	defaultDataPath   = "./policy/profiles/ops-v0.1/data.json"
+	defaultPacksDir   = "packs/_core/ops"
 )
 
 func runMCPCommand(args []string, stdout io.Writer, stderr io.Writer) int {
@@ -54,12 +50,6 @@ func runMCPCommand(args []string, stdout io.Writer, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "load mode: %v\n", err)
 		return 1
 	}
-	profile, err := loadProfileFromEnv()
-	if err != nil {
-		fmt.Fprintf(stderr, "load profile: %v\n", err)
-		return 1
-	}
-	logger.Printf("Evidra profile: %s", profile)
 	logger.Printf("Evidra mode: %s", mode)
 	if *guardedFlag {
 		logger.Printf("Running in GUARDED MODE (strict enforcement)")
@@ -68,7 +58,11 @@ func runMCPCommand(args []string, stdout io.Writer, stderr io.Writer) int {
 		logger.Printf("Evidra running in OBSERVE mode. Policy violations will NOT block execution.")
 	}
 
-	policyPath, dataPath := resolvePolicyPaths(profile, strings.TrimSpace(*policyFlag), strings.TrimSpace(*dataFlag))
+	policyPath, dataPath, err := resolvePolicyPaths(strings.TrimSpace(*policyFlag), strings.TrimSpace(*dataFlag))
+	if err != nil {
+		fmt.Fprintf(stderr, "resolve policy paths: %v\n", err)
+		return 1
+	}
 
 	ps := policysource.NewLocalFileSource(policyPath, dataPath)
 	policyModules, err := ps.LoadPolicy()
@@ -96,14 +90,10 @@ func runMCPCommand(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 1
 	}
 
-	toolRegistry, err := buildRegistryForProfile(profile)
-	if err != nil {
-		fmt.Fprintf(stderr, "build registry: %v\n", err)
-		return 1
-	}
+	toolRegistry := registry.NewInMemoryRegistry(nil)
 	packsDir := strings.TrimSpace(os.Getenv("EVIDRA_PACKS_DIR"))
-	if packsDir == "" {
-		packsDir = defaultPacksDirForProfile(profile)
+	if packsDir == "" && dirExists(defaultPacksDir) {
+		packsDir = defaultPacksDir
 	}
 	if packsDir != "" {
 		defs, err := packs.LoadToolDefinitions(packsDir, toolRegistry.ToolNames())
@@ -164,40 +154,37 @@ func loadModeFromEnv() (mcpserver.Mode, error) {
 	}
 }
 
-func loadProfileFromEnv() (Profile, error) {
-	raw := strings.TrimSpace(os.Getenv("EVIDRA_PROFILE"))
-	if raw == "" {
-		return ProfileOps, nil
-	}
-	switch strings.ToLower(raw) {
-	case string(ProfileOps):
-		return ProfileOps, nil
-	case string(ProfileDev):
-		return ProfileDev, nil
-	default:
-		return "", fmt.Errorf("invalid EVIDRA_PROFILE %q (allowed: ops, dev)", raw)
-	}
-}
-
-func defaultPacksDirForProfile(profile Profile) string {
-	switch profile {
-	case ProfileDev:
-		return "./packs/_core"
-	case ProfileOps:
-		return "./packs/_core/ops"
-	default:
-		return ""
-	}
-}
-
-func buildRegistryForProfile(profile Profile) (*registry.InMemoryRegistry, error) {
-	toolRegistry := registry.NewInMemoryRegistry(nil)
-	if profile == ProfileDev {
-		if err := registry.RegisterDevTools(toolRegistry); err != nil {
-			return nil, err
+func resolvePolicyPaths(policyFlag, dataFlag string) (string, string, error) {
+	if policyFlag != "" {
+		if dataFlag == "" {
+			return "", "", fmt.Errorf("--data is required when --policy is provided")
 		}
+		return policyFlag, dataFlag, nil
 	}
-	return toolRegistry, nil
+
+	policyEnv := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_PATH"))
+	dataEnv := strings.TrimSpace(os.Getenv("EVIDRA_DATA_PATH"))
+	if policyEnv != "" || dataEnv != "" {
+		if policyEnv == "" || dataEnv == "" {
+			return "", "", fmt.Errorf("both EVIDRA_POLICY_PATH and EVIDRA_DATA_PATH must be set together")
+		}
+		return policyEnv, dataEnv, nil
+	}
+
+	if fileExists(defaultPolicyPath) && fileExists(defaultDataPath) {
+		return defaultPolicyPath, defaultDataPath, nil
+	}
+	return "", "", fmt.Errorf("policy/data paths not found; run inside repo root or pass --policy/--data")
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 func envOrDefault(key, fallback string) string {
@@ -206,27 +193,6 @@ func envOrDefault(key, fallback string) string {
 		return fallback
 	}
 	return v
-}
-
-func resolvePolicyPaths(profile Profile, policyFlag, dataFlag string) (string, string) {
-	if policyFlag != "" {
-		return policyFlag, dataFlag
-	}
-
-	policyEnv := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_PATH"))
-	dataEnv := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_DATA_PATH"))
-	if policyEnv != "" {
-		return policyEnv, dataEnv
-	}
-
-	switch profile {
-	case ProfileOps:
-		return defaultOpsPolicyPath, defaultOpsDataPath
-	case ProfileDev:
-		return defaultOpsPolicyPath, defaultOpsDataPath
-	default:
-		return defaultOpsPolicyPath, defaultOpsDataPath
-	}
 }
 
 func envBool(key string, fallback bool) bool {

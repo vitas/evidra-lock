@@ -5,8 +5,7 @@
 - The MCP server exposes the `execute` tool, accepts canonical `ToolInvocation` payloads, and enforces the registry → policy → evidence flow.
 - Environment flags:
   - `EVIDRA_MODE=enforce|observe` (default enforce, observe records advisory evidence without blocking).
-  - `EVIDRA_PROFILE=ops|dev` (dev profile adds demo tools like `echo`, `git` via the registry).
-  - `EVIDRA_POLICY_PATH`, `EVIDRA_POLICY_DATA_PATH`, `EVIDRA_PACKS_DIR`, and `EVIDRA_EVIDENCE_PATH` override defaults.
+  - `EVIDRA_POLICY_PATH`, `EVIDRA_DATA_PATH`, `EVIDRA_PACKS_DIR`, and `EVIDRA_EVIDENCE_PATH` override defaults.
 - Registry/packs supply tool metadata; see `packs/_core/ops` for the canonical definitions.
 
 ## Auxiliary commands

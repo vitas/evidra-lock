@@ -543,7 +543,7 @@ func TestToolMetadataIncludesDescriptionsAndAnnotations(t *testing.T) {
 	if err := store.Init(); err != nil {
 		t.Fatalf("store.Init() error = %v", err)
 	}
-	server := NewServer(Options{Name: "evidra-mcp-test", Version: "v0.1.0", PolicyRef: "test-policy-ref"}, registry.NewDefaultRegistry(), policyEngine, store)
+	server := NewServer(Options{Name: "evidra-mcp-test", Version: "v0.1.0", PolicyRef: "test-policy-ref"}, testRegistry(), policyEngine, store)
 
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
@@ -633,7 +633,7 @@ func TestMCPExecuteAndGetEventStructuredOutputs(t *testing.T) {
 	if err := store.Init(); err != nil {
 		t.Fatalf("store.Init() error = %v", err)
 	}
-	server := NewServer(Options{Name: "evidra-mcp-test", Version: "v0.1.0", PolicyRef: "test-policy-ref"}, registry.NewDefaultRegistry(), policyEngine, store)
+	server := NewServer(Options{Name: "evidra-mcp-test", Version: "v0.1.0", PolicyRef: "test-policy-ref"}, testRegistry(), policyEngine, store)
 
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
@@ -759,7 +759,7 @@ func newServiceWithGuarded(t *testing.T, guarded bool) *ExecuteService {
 	if err := store.Init(); err != nil {
 		t.Fatalf("store.Init() error = %v", err)
 	}
-	return newExecuteService(registry.NewDefaultRegistry(), policyEngine, store, ModeEnforce, "test-policy-ref", guarded, outputlimit.DefaultMaxBytes)
+	return newExecuteService(testRegistry(), policyEngine, store, ModeEnforce, "test-policy-ref", guarded, outputlimit.DefaultMaxBytes)
 }
 
 func newServiceWithMode(t *testing.T, mode Mode) *ExecuteService {
@@ -800,7 +800,7 @@ func newServiceWithModeAndPolicyPath(t *testing.T, mode Mode, policyPath string)
 		t.Fatalf("store.Init() error = %v", err)
 	}
 
-	return NewExecuteServiceWithMode(registry.NewDefaultRegistry(), policyEngine, store, mode, "test-policy-ref")
+	return NewExecuteServiceWithMode(testRegistry(), policyEngine, store, mode, "test-policy-ref")
 }
 
 func policyPathFromWorkingDir(wd string) (string, error) {
@@ -897,6 +897,40 @@ func (internalErrorEvidenceStore) ValidateChain() error {
 
 func (internalErrorEvidenceStore) LastHash() (string, error) {
 	return "", nil
+}
+
+func testRegistry() *registry.InMemoryRegistry {
+	return registry.NewInMemoryRegistry([]registry.ToolDefinition{
+		{
+			Name:                "echo",
+			SupportedOperations: []string{"run"},
+			InputSchema:         `{"text":"string"}`,
+			ValidateParams: func(_ string, params map[string]interface{}) error {
+				text, ok := params["text"]
+				if !ok {
+					return errors.New("missing required param text")
+				}
+				if _, ok := text.(string); !ok {
+					return errors.New("param text must be string")
+				}
+				return nil
+			},
+			Executor: func(_ context.Context, inv registry.ToolInvocationInput) (registry.ExecutionResult, error) {
+				text := ""
+				if raw, ok := inv.Params["text"]; ok {
+					if str, ok := raw.(string); ok {
+						text = str
+					}
+				}
+				code := 0
+				return registry.ExecutionResult{
+					Status:   "success",
+					Stdout:   text,
+					ExitCode: &code,
+				}, nil
+			},
+		},
+	})
 }
 
 func intPtr(v int) *int { return &v }

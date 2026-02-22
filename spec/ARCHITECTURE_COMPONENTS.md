@@ -5,7 +5,6 @@ Related docs:
 - `docs/DEMO.md`
 - `docs/POLICY_GUIDE.md`
 - `docs/TOOL_PACKS.md`
-- `docs/OPS_PROFILE.md`
 - `docs/EVIDENCE_GUIDE.md`
 - `docs/RELEASE_CHECKLIST.md`
 
