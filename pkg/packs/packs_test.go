@@ -37,8 +37,8 @@ tools:
 	if defs[0].Name != "curl" {
 		t.Fatalf("expected curl tool, got %q", defs[0].Name)
 	}
-	if _, ok := defs[0].Executor, true; !ok {
-		t.Fatalf("expected executor to be set")
+	if defs[0].BuildCommand == nil {
+		t.Fatalf("expected build command to be set")
 	}
 }
 

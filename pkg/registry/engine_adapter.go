@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"context"
 	"fmt"
 
 	"samebits.com/evidra-mcp/pkg/engine"
@@ -37,36 +36,20 @@ func (d *engineToolDefinition) Operation() string {
 }
 
 func (d *engineToolDefinition) ValidateParams(params map[string]string) error {
-	raw := make(map[string]interface{}, len(params))
-	for k, v := range params {
-		raw[k] = v
+	return d.def.ValidateParams(d.op, stringParamsToInterface(params))
+}
+
+func (d *engineToolDefinition) BuildCommand(params map[string]string) ([]string, error) {
+	if d.def.BuildCommand == nil {
+		return nil, fmt.Errorf("build command is not supported for tool %q operation %q", d.def.Name, d.op)
 	}
-	return d.def.ValidateParams(d.op, raw)
-}
-
-func (d *engineToolDefinition) ValidateRawParams(params map[string]interface{}) error {
-	return d.def.ValidateParams(d.op, params)
-}
-
-func (d *engineToolDefinition) BuildCommand(_ map[string]string) ([]string, error) {
-	return nil, fmt.Errorf("build command is not supported for tool %q operation %q", d.def.Name, d.op)
+	return d.def.BuildCommand(d.op, params)
 }
 
 func (d *engineToolDefinition) Metadata() engine.ToolMetadata {
-	return engine.ToolMetadata{}
-}
-
-func (d *engineToolDefinition) Execute(ctx context.Context, params map[string]interface{}) (engine.ExecutionOutput, error) {
-	res, err := d.def.Executor(ctx, ToolInvocationInput{
-		Operation: d.op,
-		Params:    params,
-	})
-	return engine.ExecutionOutput{
-		Status:          res.Status,
-		ExitCode:        res.ExitCode,
-		Stdout:          res.Stdout,
-		Stderr:          res.Stderr,
-		StdoutTruncated: res.StdoutTruncated,
-		StderrTruncated: res.StderrTruncated,
-	}, err
+	return engine.ToolMetadata{
+		LongRunning: d.def.Metadata.LongRunning,
+		Destructive: d.def.Metadata.Destructive,
+		Labels:      d.def.Metadata.Labels,
+	}
 }

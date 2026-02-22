@@ -1,26 +1,5 @@
 package registry
 
-import "context"
-
-// ExecutionResult describes the output of a tool executor.
-type ExecutionResult struct {
-	Status          string `json:"status"`
-	Stdout          string `json:"stdout,omitempty"`
-	Stderr          string `json:"stderr,omitempty"`
-	StdoutTruncated bool   `json:"stdout_truncated,omitempty"`
-	StderrTruncated bool   `json:"stderr_truncated,omitempty"`
-	ExitCode        *int   `json:"exit_code"`
-}
-
-// Executor runs a registered tool operation.
-type Executor func(ctx context.Context, inv ToolInvocationInput) (ExecutionResult, error)
-
-// ToolInvocationInput holds the operation and params passed to an executor.
-type ToolInvocationInput struct {
-	Operation string
-	Params    map[string]interface{}
-}
-
 // ToolMetadata carries descriptive labels about a tool operation.
 type ToolMetadata struct {
 	LongRunning bool
@@ -28,13 +7,13 @@ type ToolMetadata struct {
 	Labels      []string
 }
 
-// ToolDefinition describes how to validate and execute an operation.
+// ToolDefinition describes how to validate and build commands for an operation.
 type ToolDefinition struct {
 	Name                string
 	SupportedOperations []string
 	InputSchema         string
 	Metadata            ToolMetadata
-	Executor            Executor
+	BuildCommand        func(operation string, params map[string]string) ([]string, error)
 	ValidateParams      func(operation string, params map[string]interface{}) error
 }
 

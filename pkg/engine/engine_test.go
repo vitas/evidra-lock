@@ -14,17 +14,10 @@ import (
 func TestEnforceModePolicyDenyBlocksExecution(t *testing.T) {
 	var executed int32
 	resolver := &fakeResolver{
-		tool: &fakeTool{
-			name: "mock", op: "run",
-			exec: func(ctx context.Context, params map[string]interface{}) (ExecutionOutput, error) {
-				atomic.AddInt32(&executed, 1)
-				code := 0
-				return ExecutionOutput{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
-			},
-		},
+		tool: &fakeTool{name: "mock", op: "run"},
 	}
 	store := &memoryEvidenceStore{}
-	eng := NewExecutionEngine(resolver, denyPolicyEngine{}, store, Config{Mode: ModeEnforce, PolicyRef: "p1"})
+	eng := NewExecutionEngine(resolver, denyPolicyEngine{}, store, Config{Mode: ModeEnforce, PolicyRef: "p1", Runner: countingRunner(&executed)})
 
 	res, err := eng.Execute(context.Background(), baseInvocation("mock", "run"), nil)
 	if err != nil {
@@ -44,17 +37,10 @@ func TestEnforceModePolicyDenyBlocksExecution(t *testing.T) {
 func TestObserveModePolicyDenyAllowsExecutionAdvisory(t *testing.T) {
 	var executed int32
 	resolver := &fakeResolver{
-		tool: &fakeTool{
-			name: "mock", op: "run",
-			exec: func(ctx context.Context, params map[string]interface{}) (ExecutionOutput, error) {
-				atomic.AddInt32(&executed, 1)
-				code := 0
-				return ExecutionOutput{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
-			},
-		},
+		tool: &fakeTool{name: "mock", op: "run"},
 	}
 	store := &memoryEvidenceStore{}
-	eng := NewExecutionEngine(resolver, denyPolicyEngine{}, store, Config{Mode: ModeObserve, PolicyRef: "p1"})
+	eng := NewExecutionEngine(resolver, denyPolicyEngine{}, store, Config{Mode: ModeObserve, PolicyRef: "p1", Runner: countingRunner(&executed)})
 
 	res, err := eng.Execute(context.Background(), baseInvocation("mock", "run"), nil)
 	if err != nil {
@@ -75,9 +61,9 @@ func TestObserveModePolicyDenyAllowsExecutionAdvisory(t *testing.T) {
 }
 
 func TestPolicyEvalFailureUsesGenericHint(t *testing.T) {
-	resolver := &fakeResolver{tool: &fakeTool{name: "mock", op: "run", exec: successExec}}
+	resolver := &fakeResolver{tool: &fakeTool{name: "mock", op: "run"}}
 	store := &memoryEvidenceStore{}
-	eng := NewExecutionEngine(resolver, errorPolicyEngine{}, store, Config{Mode: ModeEnforce, PolicyRef: "p1"})
+	eng := NewExecutionEngine(resolver, errorPolicyEngine{}, store, Config{Mode: ModeEnforce, PolicyRef: "p1", Runner: successRunner()})
 
 	res, err := eng.Execute(context.Background(), baseInvocation("mock", "run"), nil)
 	if err != nil {
@@ -113,9 +99,13 @@ func TestEvidenceErrorMapping(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resolver := &fakeResolver{tool: &fakeTool{name: "mock", op: "run", exec: successExec}}
+			resolver := &fakeResolver{tool: &fakeTool{name: "mock", op: "run"}}
 			store := &memoryEvidenceStore{appendErr: tt.appendErr}
-			eng := NewExecutionEngine(resolver, allowPolicyEngine{}, store, Config{Mode: ModeEnforce, PolicyRef: "p1"})
+			eng := NewExecutionEngine(resolver, allowPolicyEngine{}, store, Config{
+				Mode:      ModeEnforce,
+				PolicyRef: "p1",
+				Runner:    successRunner(),
+			})
 			res, err := eng.Execute(context.Background(), baseInvocation("mock", "run"), nil)
 			if err != nil {
 				t.Fatalf("Execute() error = %v", err)
@@ -131,7 +121,7 @@ func TestEvidenceErrorMapping(t *testing.T) {
 }
 
 func TestValidatorsAggregateRisk(t *testing.T) {
-	resolver := &fakeResolver{tool: &fakeTool{name: "mock", op: "run", exec: successExec}}
+	resolver := &fakeResolver{tool: &fakeTool{name: "mock", op: "run"}}
 	store := &memoryEvidenceStore{}
 	eng := NewExecutionEngine(resolver, allowPolicyEngine{}, store, Config{
 		Mode:      ModeEnforce,
@@ -140,6 +130,7 @@ func TestValidatorsAggregateRisk(t *testing.T) {
 			fakeValidator{name: "v1", hits: []ValidationHit{{Severity: "medium", Message: "m1"}}},
 			fakeValidator{name: "v2", hits: []ValidationHit{{Severity: "critical", Message: "c1"}}},
 		},
+		Runner: successRunner(),
 	})
 
 	res, err := eng.Execute(context.Background(), baseInvocation("mock", "run"), nil)
@@ -158,9 +149,9 @@ func TestValidatorsAggregateRisk(t *testing.T) {
 }
 
 func TestNoValidatorsPreservesBehavior(t *testing.T) {
-	resolver := &fakeResolver{tool: &fakeTool{name: "mock", op: "run", exec: successExec}}
+	resolver := &fakeResolver{tool: &fakeTool{name: "mock", op: "run"}}
 	store := &memoryEvidenceStore{}
-	eng := NewExecutionEngine(resolver, allowPolicyEngine{}, store, Config{Mode: ModeEnforce, PolicyRef: "p1"})
+	eng := NewExecutionEngine(resolver, allowPolicyEngine{}, store, Config{Mode: ModeEnforce, PolicyRef: "p1", Runner: successRunner()})
 	res, err := eng.Execute(context.Background(), baseInvocation("mock", "run"), nil)
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
@@ -173,11 +164,6 @@ func TestNoValidatorsPreservesBehavior(t *testing.T) {
 	}
 }
 
-func successExec(ctx context.Context, params map[string]interface{}) (ExecutionOutput, error) {
-	code := 0
-	return ExecutionOutput{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
-}
-
 func baseInvocation(tool, op string) invocation.ToolInvocation {
 	return invocation.ToolInvocation{
 		Actor:     invocation.Actor{Type: "human", ID: "u1", Origin: "mcp"},
@@ -186,6 +172,21 @@ func baseInvocation(tool, op string) invocation.ToolInvocation {
 		Params:    map[string]interface{}{},
 		Context:   map[string]interface{}{},
 	}
+}
+
+func successRunner() Runner {
+	return RunnerFunc(func(_ context.Context, _ []string) (ExecutionOutput, error) {
+		code := 0
+		return ExecutionOutput{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
+	})
+}
+
+func countingRunner(counter *int32) Runner {
+	return RunnerFunc(func(_ context.Context, _ []string) (ExecutionOutput, error) {
+		atomic.AddInt32(counter, 1)
+		code := 0
+		return ExecutionOutput{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
+	})
 }
 
 type fakeResolver struct {
@@ -204,20 +205,15 @@ type fakeTool struct {
 	name string
 	op   string
 	meta ToolMetadata
-	exec func(context.Context, map[string]interface{}) (ExecutionOutput, error)
 }
 
 func (t *fakeTool) Name() string                                  { return t.name }
 func (t *fakeTool) Operation() string                             { return t.op }
 func (t *fakeTool) ValidateParams(params map[string]string) error { return nil }
 func (t *fakeTool) BuildCommand(params map[string]string) ([]string, error) {
-	return nil, errors.New("unsupported")
+	return []string{"mock"}, nil
 }
-func (t *fakeTool) Metadata() ToolMetadata                                { return t.meta }
-func (t *fakeTool) ValidateRawParams(params map[string]interface{}) error { return nil }
-func (t *fakeTool) Execute(ctx context.Context, params map[string]interface{}) (ExecutionOutput, error) {
-	return t.exec(ctx, params)
-}
+func (t *fakeTool) Metadata() ToolMetadata { return t.meta }
 
 type fakeValidator struct {
 	name string

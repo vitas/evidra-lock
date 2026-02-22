@@ -1,10 +1,7 @@
 package registry
 
 import (
-	"bytes"
-	"context"
 	"fmt"
-	"os/exec"
 	"sort"
 	"strings"
 
@@ -38,29 +35,21 @@ func NewDeclarativeCLIToolDefinition(name, inputSchema string, spec CLIToolSpec)
 			_, err := BuildDeclarativeCLIArgs(name, specCopy, operation, params)
 			return err
 		},
-		Executor: func(ctx context.Context, inv ToolInvocationInput) (ExecutionResult, error) {
-			argv, err := BuildDeclarativeCLIArgs(name, specCopy, inv.Operation, inv.Params)
-			if err != nil {
-				return ExecutionResult{Status: "failed", ExitCode: nil}, err
-			}
-			cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-			var stdout bytes.Buffer
-			var stderr bytes.Buffer
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-
-			err = cmd.Run()
-			if err == nil {
-				code := 0
-				return ExecutionResult{Status: "success", Stdout: stdout.String(), Stderr: stderr.String(), ExitCode: &code}, nil
-			}
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				code := exitErr.ExitCode()
-				return ExecutionResult{Status: "failed", Stdout: stdout.String(), Stderr: stderr.String(), ExitCode: &code}, nil
-			}
-			return ExecutionResult{Status: "failed", Stdout: stdout.String(), Stderr: stderr.String(), ExitCode: nil}, err
+		BuildCommand: func(operation string, params map[string]string) ([]string, error) {
+			return BuildDeclarativeCLIArgs(name, specCopy, operation, stringParamsToInterface(params))
 		},
 	}, nil
+}
+
+func stringParamsToInterface(params map[string]string) map[string]interface{} {
+	if len(params) == 0 {
+		return nil
+	}
+	out := make(map[string]interface{}, len(params))
+	for k, v := range params {
+		out[k] = v
+	}
+	return out
 }
 
 func BuildDeclarativeCLIArgs(toolName string, spec CLIToolSpec, operation string, params map[string]interface{}) ([]string, error) {

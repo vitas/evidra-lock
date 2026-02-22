@@ -43,11 +43,11 @@ func (r *InMemoryRegistry) RegisterTool(def ToolDefinition) error {
 	if len(def.SupportedOperations) == 0 {
 		return fmt.Errorf("tool %q must define supported operations", name)
 	}
-	if def.Executor == nil {
-		return fmt.Errorf("tool %q must define executor", name)
-	}
 	if def.ValidateParams == nil {
 		return fmt.Errorf("tool %q must define param validator", name)
+	}
+	if def.BuildCommand == nil {
+		return fmt.Errorf("tool %q must define build command", name)
 	}
 	def.Name = name
 	r.tools[name] = def

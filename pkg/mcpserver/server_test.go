@@ -13,6 +13,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"samebits.com/evidra-mcp/pkg/engine"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/outputlimit"
@@ -77,17 +78,20 @@ func TestExecuteEvidenceBusyReturnsStructuredBusyError(t *testing.T) {
 				_, _ = params["text"].(string)
 				return nil
 			},
-			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
-				code := 0
-				return registry.ExecutionResult{
-					Status:   "success",
-					ExitCode: &code,
-					Stdout:   "ok",
-				}, nil
+			BuildCommand: func(_ string, _ map[string]string) ([]string, error) {
+				return []string{"echo"}, nil
 			},
 		},
 	})
-	svc := NewExecuteServiceWithMode(reg, allowPolicyEngine{}, busyEvidenceStore{}, ModeEnforce, "test-policy-ref")
+	runner := engine.RunnerFunc(func(_ context.Context, _ []string) (engine.ExecutionOutput, error) {
+		code := 0
+		return engine.ExecutionOutput{
+			Status:   "success",
+			ExitCode: &code,
+			Stdout:   "ok",
+		}, nil
+	})
+	svc := newExecuteService(reg, allowPolicyEngine{}, busyEvidenceStore{}, ModeEnforce, "test-policy-ref", false, outputlimit.DefaultMaxBytes, runner)
 	out := svc.Execute(context.Background(), baseInvocation("echo", "run", map[string]interface{}{"text": "hello"}))
 	if out.OK {
 		t.Fatalf("expected ok=false when evidence store is busy")
@@ -108,9 +112,8 @@ func TestExecutePolicyEvaluationFailureReturnsGenericHint(t *testing.T) {
 			ValidateParams: func(_ string, _ map[string]interface{}) error {
 				return nil
 			},
-			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
-				code := 0
-				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
+			BuildCommand: func(_ string, _ map[string]string) ([]string, error) {
+				return []string{"echo"}, nil
 			},
 		},
 	})
@@ -133,9 +136,8 @@ func TestExecuteEvidenceChainInvalidErrorMapping(t *testing.T) {
 			Name:                "echo",
 			SupportedOperations: []string{"run"},
 			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
-			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
-				code := 0
-				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
+			BuildCommand: func(_ string, _ map[string]string) ([]string, error) {
+				return []string{"echo"}, nil
 			},
 		},
 	})
@@ -155,9 +157,8 @@ func TestExecuteEvidenceInternalErrorMapping(t *testing.T) {
 			Name:                "echo",
 			SupportedOperations: []string{"run"},
 			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
-			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
-				code := 0
-				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "ok"}, nil
+			BuildCommand: func(_ string, _ map[string]string) ([]string, error) {
+				return []string{"echo"}, nil
 			},
 		},
 	})
@@ -307,10 +308,8 @@ func TestModeEnforcePolicyDenyPreventsExecution(t *testing.T) {
 			SupportedOperations: []string{"run"},
 			InputSchema:         "{}",
 			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
-			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
-				atomic.AddInt32(&executed, 1)
-				code := 0
-				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "executed"}, nil
+			BuildCommand: func(_ string, _ map[string]string) ([]string, error) {
+				return []string{"mock"}, nil
 			},
 		},
 	})
@@ -318,7 +317,12 @@ func TestModeEnforcePolicyDenyPreventsExecution(t *testing.T) {
 	if err := store.Init(); err != nil {
 		t.Fatalf("store.Init() error = %v", err)
 	}
-	svc := NewExecuteServiceWithMode(reg, denyWithHintPolicyEngine{}, store, ModeEnforce, "test-policy-ref")
+	runner := engine.RunnerFunc(func(_ context.Context, _ []string) (engine.ExecutionOutput, error) {
+		atomic.AddInt32(&executed, 1)
+		code := 0
+		return engine.ExecutionOutput{Status: "success", ExitCode: &code, Stdout: "executed"}, nil
+	})
+	svc := newExecuteService(reg, denyWithHintPolicyEngine{}, store, ModeEnforce, "test-policy-ref", false, outputlimit.DefaultMaxBytes, runner)
 
 	out := svc.Execute(context.Background(), baseInvocation("mock", "run", map[string]interface{}{}))
 	if out.OK {
@@ -361,10 +365,8 @@ func TestModeObservePolicyDenyAllowsExecutionAsAdvisory(t *testing.T) {
 			SupportedOperations: []string{"run"},
 			InputSchema:         "{}",
 			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
-			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
-				atomic.AddInt32(&executed, 1)
-				code := 0
-				return registry.ExecutionResult{Status: "success", ExitCode: &code, Stdout: "executed"}, nil
+			BuildCommand: func(_ string, _ map[string]string) ([]string, error) {
+				return []string{"mock"}, nil
 			},
 		},
 	})
@@ -372,7 +374,12 @@ func TestModeObservePolicyDenyAllowsExecutionAsAdvisory(t *testing.T) {
 	if err := store.Init(); err != nil {
 		t.Fatalf("store.Init() error = %v", err)
 	}
-	svc := NewExecuteServiceWithMode(reg, denyWithHintPolicyEngine{}, store, ModeObserve, "test-policy-ref")
+	runner := engine.RunnerFunc(func(_ context.Context, _ []string) (engine.ExecutionOutput, error) {
+		atomic.AddInt32(&executed, 1)
+		code := 0
+		return engine.ExecutionOutput{Status: "success", ExitCode: &code, Stdout: "executed"}, nil
+	})
+	svc := newExecuteService(reg, denyWithHintPolicyEngine{}, store, ModeObserve, "test-policy-ref", false, outputlimit.DefaultMaxBytes, runner)
 
 	out := svc.Execute(context.Background(), baseInvocation("mock", "run", map[string]interface{}{}))
 	if !out.OK {
@@ -450,19 +457,22 @@ func TestExecuteOutputTruncationStoredInEvidence(t *testing.T) {
 			SupportedOperations: []string{"run"},
 			InputSchema:         "{}",
 			ValidateParams:      func(_ string, _ map[string]interface{}) error { return nil },
-			Executor: func(_ context.Context, _ registry.ToolInvocationInput) (registry.ExecutionResult, error) {
-				code := 0
-				return registry.ExecutionResult{
-					Status:   "success",
-					ExitCode: &code,
-					Stdout:   strings.Repeat("A", 200),
-					Stderr:   strings.Repeat("B", 200),
-				}, nil
+			BuildCommand: func(_ string, _ map[string]string) ([]string, error) {
+				return []string{"mock"}, nil
 			},
 		},
 	})
+	runner := engine.RunnerFunc(func(_ context.Context, _ []string) (engine.ExecutionOutput, error) {
+		code := 0
+		return engine.ExecutionOutput{
+			Status:   "success",
+			ExitCode: &code,
+			Stdout:   strings.Repeat("A", 200),
+			Stderr:   strings.Repeat("B", 200),
+		}, nil
+	})
 
-	svc := newExecuteService(reg, allowPolicyEngine{}, store, ModeEnforce, "test-policy-ref", false, 32)
+	svc := newExecuteService(reg, allowPolicyEngine{}, store, ModeEnforce, "test-policy-ref", false, 32, runner)
 	out := svc.Execute(context.Background(), baseInvocation("mock", "run", map[string]interface{}{}))
 	if !out.Execution.StdoutTruncated || !out.Execution.StderrTruncated {
 		t.Fatalf("expected truncation flags in response: %+v", out.Execution)
@@ -759,7 +769,7 @@ func newServiceWithGuarded(t *testing.T, guarded bool) *ExecuteService {
 	if err := store.Init(); err != nil {
 		t.Fatalf("store.Init() error = %v", err)
 	}
-	return newExecuteService(testRegistry(), policyEngine, store, ModeEnforce, "test-policy-ref", guarded, outputlimit.DefaultMaxBytes)
+	return newExecuteService(testRegistry(), policyEngine, store, ModeEnforce, "test-policy-ref", guarded, outputlimit.DefaultMaxBytes, defaultExecutionRunner())
 }
 
 func newServiceWithMode(t *testing.T, mode Mode) *ExecuteService {
@@ -800,7 +810,7 @@ func newServiceWithModeAndPolicyPath(t *testing.T, mode Mode, policyPath string)
 		t.Fatalf("store.Init() error = %v", err)
 	}
 
-	return NewExecuteServiceWithMode(testRegistry(), policyEngine, store, mode, "test-policy-ref")
+	return newExecuteService(testRegistry(), policyEngine, store, mode, "test-policy-ref", false, outputlimit.DefaultMaxBytes, defaultExecutionRunner())
 }
 
 func policyPathFromWorkingDir(wd string) (string, error) {
@@ -915,21 +925,25 @@ func testRegistry() *registry.InMemoryRegistry {
 				}
 				return nil
 			},
-			Executor: func(_ context.Context, inv registry.ToolInvocationInput) (registry.ExecutionResult, error) {
+			BuildCommand: func(_ string, params map[string]string) ([]string, error) {
 				text := ""
-				if raw, ok := inv.Params["text"]; ok {
-					if str, ok := raw.(string); ok {
-						text = str
-					}
+				if raw, ok := params["text"]; ok {
+					text = raw
 				}
-				code := 0
-				return registry.ExecutionResult{
-					Status:   "success",
-					Stdout:   text,
-					ExitCode: &code,
-				}, nil
+				return []string{"mock", text}, nil
 			},
 		},
+	})
+}
+
+func defaultExecutionRunner() engine.Runner {
+	return engine.RunnerFunc(func(_ context.Context, _ []string) (engine.ExecutionOutput, error) {
+		code := 0
+		return engine.ExecutionOutput{
+			Status:   "success",
+			ExitCode: &code,
+			Stdout:   "ok",
+		}, nil
 	})
 }
 

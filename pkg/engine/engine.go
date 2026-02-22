@@ -25,6 +25,40 @@ const (
 	ModeObserve Mode = "observe"
 )
 
+type Runner interface {
+	Run(ctx context.Context, argv []string) (ExecutionOutput, error)
+}
+
+type RunnerFunc func(ctx context.Context, argv []string) (ExecutionOutput, error)
+
+func (f RunnerFunc) Run(ctx context.Context, argv []string) (ExecutionOutput, error) {
+	return f(ctx, argv)
+}
+
+type defaultRunner struct{}
+
+func (defaultRunner) Run(ctx context.Context, argv []string) (ExecutionOutput, error) {
+	if len(argv) == 0 {
+		return ExecutionOutput{Status: "failed"}, fmt.Errorf("empty command")
+	}
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err == nil {
+		code := 0
+		return ExecutionOutput{Status: "success", ExitCode: &code, Stdout: stdout.String(), Stderr: stderr.String()}, nil
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		code := exitErr.ExitCode()
+		return ExecutionOutput{Status: "failed", ExitCode: &code, Stdout: stdout.String(), Stderr: stderr.String()}, nil
+	}
+	return ExecutionOutput{Status: "failed", Stdout: stdout.String(), Stderr: stderr.String()}, err
+}
+
 type ToolMetadata struct {
 	LongRunning bool
 	Destructive bool
@@ -60,6 +94,7 @@ type Config struct {
 	PolicyRef      string
 	MaxOutputBytes int
 	Validators     []Validator
+	Runner         Runner
 }
 
 type Error struct {
@@ -113,6 +148,7 @@ type ExecutionEngine struct {
 	policyRef      string
 	maxOutputBytes int
 	validators     []Validator
+	runner         Runner
 }
 
 func NewExecutionEngine(resolver ToolResolver, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore, cfg Config) *ExecutionEngine {
@@ -121,6 +157,9 @@ func NewExecutionEngine(resolver ToolResolver, policyEngine core.PolicyEngine, e
 	}
 	if cfg.MaxOutputBytes <= 0 {
 		cfg.MaxOutputBytes = outputlimit.DefaultMaxBytes
+	}
+	if cfg.Runner == nil {
+		cfg.Runner = defaultRunner{}
 	}
 	return &ExecutionEngine{
 		resolver:       resolver,
@@ -131,6 +170,7 @@ func NewExecutionEngine(resolver ToolResolver, policyEngine core.PolicyEngine, e
 		policyRef:      cfg.PolicyRef,
 		maxOutputBytes: cfg.MaxOutputBytes,
 		validators:     cfg.Validators,
+		runner:         cfg.Runner,
 	}
 }
 
@@ -311,7 +351,7 @@ func stepExecuteTool(ec *execContext) error {
 	}
 	report(ec.reporter, 60, "execution started")
 	stopHeartbeat := startProgressHeartbeat(ec.ctx, ec.reporter, ec.decision.LongRunning || ec.tool.Metadata().LongRunning)
-	execOut, execErr := executeTool(ec.ctx, ec.tool, ec.inv.Params)
+	execOut, execErr := executeTool(ec.ctx, ec.engine.runner, ec.tool, ec.inv.Params)
 	stopHeartbeat()
 	if errors.Is(ec.ctx.Err(), context.Canceled) || errors.Is(execErr, context.Canceled) {
 		execOut.Status = "cancelled"
@@ -425,11 +465,9 @@ func (e *ExecutionEngine) applyOutputLimit(in ExecutionOutput) ExecutionOutput {
 	return in
 }
 
-func executeTool(ctx context.Context, tool ToolDefinition, rawParams map[string]interface{}) (ExecutionOutput, error) {
-	if ex, ok := tool.(interface {
-		Execute(context.Context, map[string]interface{}) (ExecutionOutput, error)
-	}); ok {
-		return ex.Execute(ctx, rawParams)
+func executeTool(ctx context.Context, runner Runner, tool ToolDefinition, rawParams map[string]interface{}) (ExecutionOutput, error) {
+	if runner == nil {
+		runner = defaultRunner{}
 	}
 	stringParams, err := toStringParams(rawParams)
 	if err != nil {
@@ -442,21 +480,7 @@ func executeTool(ctx context.Context, tool ToolDefinition, rawParams map[string]
 	if len(argv) == 0 {
 		return ExecutionOutput{Status: "failed"}, fmt.Errorf("empty command")
 	}
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err == nil {
-		code := 0
-		return ExecutionOutput{Status: "success", ExitCode: &code, Stdout: stdout.String(), Stderr: stderr.String()}, nil
-	}
-	if exitErr, ok := err.(*exec.ExitError); ok {
-		code := exitErr.ExitCode()
-		return ExecutionOutput{Status: "failed", ExitCode: &code, Stdout: stdout.String(), Stderr: stderr.String()}, nil
-	}
-	return ExecutionOutput{Status: "failed", Stdout: stdout.String(), Stderr: stderr.String()}, err
+	return runner.Run(ctx, argv)
 }
 
 func toStringParams(in map[string]interface{}) (map[string]string, error) {

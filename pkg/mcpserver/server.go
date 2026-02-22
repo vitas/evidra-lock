@@ -112,7 +112,7 @@ func NewServer(opts Options, reg registry.Registry, policyEngine core.PolicyEngi
 		opts.MaxOutputBytes = outputlimit.DefaultMaxBytes
 	}
 
-	svc := newExecuteService(reg, policyEngine, evidenceStore, opts.Mode, opts.PolicyRef, opts.Guarded, opts.MaxOutputBytes)
+	svc := newExecuteService(reg, policyEngine, evidenceStore, opts.Mode, opts.PolicyRef, opts.Guarded, opts.MaxOutputBytes, nil)
 	svc.evidencePath = opts.EvidencePath
 	svc.includeFileResourceLinks = opts.IncludeFileResourceLinks
 	executeTool := &executeHandler{service: svc}
@@ -233,15 +233,16 @@ func NewExecuteService(reg registry.Registry, policyEngine core.PolicyEngine, ev
 }
 
 func NewExecuteServiceWithMode(reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore, mode Mode, policyRef string) *ExecuteService {
-	return newExecuteService(reg, policyEngine, evidenceStore, mode, policyRef, false, outputlimit.DefaultMaxBytes)
+	return newExecuteService(reg, policyEngine, evidenceStore, mode, policyRef, false, outputlimit.DefaultMaxBytes, nil)
 }
 
-func newExecuteService(reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore, mode Mode, policyRef string, guarded bool, maxOutputBytes int) *ExecuteService {
+func newExecuteService(reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore, mode Mode, policyRef string, guarded bool, maxOutputBytes int, runner engine.Runner) *ExecuteService {
 	exec := engine.NewExecutionEngine(registry.NewEngineToolResolver(reg), policyEngine, evidenceStore, engine.Config{
 		Mode:           mode,
 		Guarded:        guarded,
 		PolicyRef:      policyRef,
 		MaxOutputBytes: maxOutputBytes,
+		Runner:         runner,
 	})
 	return &ExecuteService{
 		exec:         exec,
