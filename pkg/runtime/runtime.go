@@ -13,11 +13,15 @@ import (
 // TODO(monorepo-split): move runtime evaluator and contracts into standalone core module.
 
 type ScenarioDecision struct {
-	Allow     bool   `json:"allow"`
-	RiskLevel string `json:"risk_level"`
-	Reason    string `json:"reason"`
-	PolicyRef string `json:"policy_ref,omitempty"`
-	Hint      string `json:"hint,omitempty"`
+	Allow       bool     `json:"allow"`
+	RiskLevel   string   `json:"risk_level"`
+	Reason      string   `json:"reason"`
+	PolicyRef   string   `json:"policy_ref,omitempty"`
+	Hint        string   `json:"hint,omitempty"`
+	Hits        []string `json:"hits,omitempty"`
+	Hints       []string `json:"hints,omitempty"`
+	Reasons     []string `json:"reasons,omitempty"`
+	LongRunning bool     `json:"long_running,omitempty"`
 }
 
 type ScenarioEvaluator interface {
@@ -59,11 +63,15 @@ func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (ScenarioD
 		return ScenarioDecision{}, err
 	}
 	return ScenarioDecision{
-		Allow:     d.Allow,
-		RiskLevel: d.RiskLevel,
-		Reason:    d.Reason,
-		PolicyRef: e.policyRef,
-		Hint:      d.Hint,
+		Allow:       d.Allow,
+		RiskLevel:   d.RiskLevel,
+		Reason:      d.Reason,
+		PolicyRef:   e.policyRef,
+		Hint:        d.Hint,
+		Hits:        d.Hits,
+		Hints:       d.Hints,
+		Reasons:     d.Reasons,
+		LongRunning: d.LongRunning,
 	}, nil
 }
 

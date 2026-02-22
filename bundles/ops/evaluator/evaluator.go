@@ -13,6 +13,8 @@ type Result struct {
 	Pass       bool
 	Reasons    []string
 	PolicyHits []string
+	RuleIDs    []string
+	Hints      []string
 	RiskLevel  string
 	PolicyRef  string
 }
@@ -79,26 +81,35 @@ func (e *Evaluator) EvaluateScenario(sc schema.Scenario) (Result, error) {
 			result.RiskLevel = "high"
 			reason := fmt.Sprintf("action[%d] %s: %s", i, action.Kind, decision.Reason)
 			result.Reasons = append(result.Reasons, reason)
-			result.PolicyHits = append(result.PolicyHits, decision.Reason)
-			continue
 		}
 
-		if decision.Reason == "autonomous-execution" {
+		result.RuleIDs = append(result.RuleIDs, decision.Hits...)
+		result.Hints = append(result.Hints, decision.Hints...)
+		if len(decision.Hits) == 0 {
+			result.RuleIDs = append(result.RuleIDs, decision.Reason)
+		}
+		if decision.LongRunning {
 			result.RiskLevel = "high"
-			reason := fmt.Sprintf("action[%d] %s: autonomous execution path detected", i, action.Kind)
-			result.Reasons = append(result.Reasons, reason)
-			result.PolicyHits = append(result.PolicyHits, "autonomous-execution")
+		}
+
+		if len(decision.Hits) == 0 {
+			result.PolicyHits = append(result.PolicyHits, decision.Reason)
+		} else {
+			result.PolicyHits = append(result.PolicyHits, decision.Hits...)
 		}
 
 		if hasTag(action.RiskTags, "breakglass") {
-			result.RiskLevel = "high"
-			result.PolicyHits = append(result.PolicyHits, "breakglass")
+			result.RuleIDs = append(result.RuleIDs, "breakglass")
 			result.Reasons = append(result.Reasons, fmt.Sprintf("action[%d] %s: breakglass tag present", i, action.Kind))
 		}
 	}
 	if len(result.Reasons) == 0 {
 		result.Reasons = append(result.Reasons, "all actions passed policy validation")
 	}
+	result.RuleIDs = dedupStrings(result.RuleIDs)
+	result.Hints = dedupStrings(result.Hints)
+	result.PolicyHits = dedupStrings(result.PolicyHits)
+	result.Reasons = dedupStrings(result.Reasons)
 	return result, nil
 }
 
@@ -120,4 +131,23 @@ func hasTag(tags []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func dedupStrings(src []string) []string {
+	if len(src) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(src))
+	for _, v := range src {
+		if v == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	return out
 }

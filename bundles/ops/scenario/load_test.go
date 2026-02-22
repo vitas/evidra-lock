@@ -40,3 +40,60 @@ func TestLoadFileValidationRequiresScenarioIDAndActions(t *testing.T) {
 		t.Fatalf("LoadFile() expected validation error")
 	}
 }
+
+func TestLoadFileDetectsTerraformPlan(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "plan.json")
+	content := `{
+  "resource_changes": [
+    {"change": {"actions": ["create"]}}
+  ],
+  "planned_values": {},
+  "configuration": {}
+}`
+	if err := os.WriteFile(tmp, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write plan file: %v", err)
+	}
+	sc, err := LoadFile(tmp)
+	if err != nil {
+		t.Fatalf("LoadFile failed: %v", err)
+	}
+	if len(sc.Actions) != 1 {
+		t.Fatalf("expected one action, got %d", len(sc.Actions))
+	}
+	if sc.Actions[0].Kind != "terraform.plan" {
+		t.Fatalf("expected terraform.plan action, got %s", sc.Actions[0].Kind)
+	}
+}
+
+func TestLoadFileDetectsKubernetesManifest(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "manifest.yaml")
+	content := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example
+  namespace: prod
+`
+	if err := os.WriteFile(tmp, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write manifest file: %v", err)
+	}
+	sc, err := LoadFile(tmp)
+	if err != nil {
+		t.Fatalf("LoadFile failed: %v", err)
+	}
+	if len(sc.Actions) != 1 {
+		t.Fatalf("expected one action, got %d", len(sc.Actions))
+	}
+	if sc.Actions[0].Kind != "kubectl.apply" {
+		t.Fatalf("expected kubectl.apply action, got %s", sc.Actions[0].Kind)
+	}
+}
+
+func TestLoadFileUnsupportedInput(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "text.txt")
+	if err := os.WriteFile(tmp, []byte("plain text"), 0o644); err != nil {
+		t.Fatalf("failed to write text file: %v", err)
+	}
+	if _, err := LoadFile(tmp); err == nil {
+		t.Fatalf("expected unsupported input error")
+	}
+}

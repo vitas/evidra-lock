@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"samebits.com/evidra-mcp/bundles/ops"
 	opscli "samebits.com/evidra-mcp/bundles/ops/cli"
@@ -54,6 +56,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 func runValidate(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
+	jsonOut := fs.Bool("json", false, "output structured JSON")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 1 {
 		fmt.Fprintln(stderr, "usage: evidra validate <file>")
 		return 2
@@ -66,7 +69,7 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	return printValidationResult(result, stdout)
+	return printValidationResult(result, stdout, *jsonOut)
 }
 
 func runOpsCommand(args []string, stdout, stderr io.Writer) int {
@@ -88,16 +91,53 @@ func runOpsCommand(args []string, stdout, stderr io.Writer) int {
 	}
 }
 
-func printValidationResult(result ops.ValidationOutput, stdout io.Writer) int {
-	decision := "FAIL"
+type validationJSON struct {
+	Status     string   `json:"status"`
+	RuleIDs    []string `json:"rule_ids,omitempty"`
+	Reason     string   `json:"reason"`
+	Hints      []string `json:"hints,omitempty"`
+	EvidenceID string   `json:"evidence_id"`
+	RiskLevel  string   `json:"risk_level"`
+}
+
+func printValidationResult(result ops.ValidationOutput, stdout io.Writer, jsonOut bool) int {
+	status := "FAIL"
 	if result.Pass {
-		decision = "PASS"
+		status = "PASS"
 	}
-	fmt.Fprintf(stdout, "Decision: %s\n", decision)
-	fmt.Fprintf(stdout, "Risk level: %s\n", result.RiskLevel)
-	fmt.Fprintf(stdout, "Evidence: %s\n", result.EvidenceID)
-	for _, reason := range result.Reasons {
+	reason := "decision unavailable"
+	if len(result.Reasons) > 0 {
+		reason = result.Reasons[0]
+	}
+	if jsonOut {
+		resp := validationJSON{
+			Status:     status,
+			RuleIDs:    result.RuleIDs,
+			Reason:     reason,
+			Hints:      result.Hints,
+			EvidenceID: result.EvidenceID,
+			RiskLevel:  result.RiskLevel,
+		}
+		b, err := json.MarshalIndent(resp, "", "  ")
+		if err != nil {
+			fmt.Fprintf(stdout, "failed to render JSON: %v\n", err)
+		} else {
+			fmt.Fprintln(stdout, string(b))
+		}
+	} else {
+		fmt.Fprintf(stdout, "Decision: %s\n", status)
+		fmt.Fprintf(stdout, "Risk level: %s\n", result.RiskLevel)
+		fmt.Fprintf(stdout, "Evidence: %s\n", result.EvidenceID)
 		fmt.Fprintf(stdout, "Reason: %s\n", reason)
+		if len(result.RuleIDs) > 0 {
+			fmt.Fprintf(stdout, "Rule IDs: %s\n", strings.Join(result.RuleIDs, ", "))
+		}
+		if !result.Pass && len(result.Hints) > 0 {
+			fmt.Fprintln(stdout, "Hints:")
+			for _, hint := range result.Hints {
+				fmt.Fprintf(stdout, "- %s\n", hint)
+			}
+		}
 	}
 	if result.Pass {
 		return 0

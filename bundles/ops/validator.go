@@ -34,6 +34,8 @@ type ValidationOutput struct {
 	EvidenceID string
 	Reasons    []string
 	PolicyHits []string
+	RuleIDs    []string
+	Hints      []string
 	Reports    []validators.Report
 }
 
@@ -93,6 +95,10 @@ func ValidateFileWithOptions(path string, opts ValidateOptions) (ValidationOutpu
 	}
 	finalReasons := append([]string{}, evalResult.Reasons...)
 	finalReasons = append(finalReasons, validatorResult.Reasons...)
+	finalHints := append([]string{}, evalResult.Hints...)
+	finalRuleIDs := append([]string{}, evalResult.RuleIDs...)
+	finalHints = dedupeStrings(finalHints)
+	finalRuleIDs = dedupeStrings(finalRuleIDs)
 
 	store := evidence.NewStoreWithPath(evidencePath())
 	if err := store.Init(); err != nil {
@@ -115,6 +121,8 @@ func ValidateFileWithOptions(path string, opts ValidateOptions) (ValidationOutpu
 			"scenario_id":    sc.ScenarioID,
 			"scenario_hash":  scenarioHash(sc),
 			"policy_hits":    evalResult.PolicyHits,
+			"rule_ids":       finalRuleIDs,
+			"hints":          finalHints,
 			"risk_level":     finalRisk,
 			"decision":       passDecision(finalPass),
 			"reasons":        finalReasons,
@@ -127,6 +135,9 @@ func ValidateFileWithOptions(path string, opts ValidateOptions) (ValidationOutpu
 			Allow:     finalPass,
 			RiskLevel: evidenceRiskLevel(finalRisk),
 			Reason:    primaryReason(finalReasons),
+			Reasons:   dedupeStrings(finalReasons),
+			Hints:     finalHints,
+			RuleIDs:   finalRuleIDs,
 			Advisory:  false,
 		},
 		ExecutionResult: evidence.ExecutionResult{
@@ -144,6 +155,8 @@ func ValidateFileWithOptions(path string, opts ValidateOptions) (ValidationOutpu
 		EvidenceID: evidenceID,
 		Reasons:    dedupeStrings(finalReasons),
 		PolicyHits: evalResult.PolicyHits,
+		RuleIDs:    finalRuleIDs,
+		Hints:      finalHints,
 		Reports:    validatorResult.Reports,
 	}, nil
 }
