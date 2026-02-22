@@ -20,3 +20,22 @@ test_deny_mass_delete_without_breakglass if {
   d.reason == "mass delete requires breakglass"
   "mass-delete" in d.hits
 }
+
+test_deny_mass_delete_terraform_plan if {
+  d := decision with input as {
+    "tool": "terraform",
+    "operation": "plan",
+    "context": {"environment": "dev"},
+    "actions": [
+      {
+        "kind": "terraform.plan",
+        "target": "infra",
+        "risk_tags": [],
+        "payload": {"destroy_count": 12}
+      }
+    ]
+  }
+  not d.allow
+  d.reason == "mass delete requires breakglass"
+  "mass-delete" in d.hits
+}
