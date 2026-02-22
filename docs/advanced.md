@@ -5,12 +5,13 @@
 - The MCP server (`evidra-mcp`) exposes the `execute` tool, accepts canonical `ToolInvocation` payloads, and enforces the registry → policy → evidence flow.
 - Required flags: `--policy`, `--data`, `--evidence-dir`. Environment variables `EVIDRA_POLICY_PATH`, `EVIDRA_DATA_PATH`, `EVIDRA_PACKS_DIR`, and `EVIDRA_EVIDENCE_PATH` can override them.
 - Use `--packs-dir` or `EVIDRA_PACKS_DIR` to load tool packs such as `packs/_core/ops`. Set `--observe` to collect advisory evidence without blocking execution.
-- `EVIDRA_MODE=enforce|observe` can still override enforcement mode when you prefer env config over flags.
+- `--log-level` controls console verbosity and `--listen` can adjust the TCP/MCP listen address; run `evidra-mcp --help` for the exact flag list.
+- `EVIDRA_MODE=enforce|observe` still overrides enforcement mode when you prefer env config over flags.
 - Registry/packs supply tool metadata; see `packs/_core/ops` for the canonical definitions.
 
-## Auxiliary commands (offline tooling)
+## Offline tools
 
-- `evidra validate <file>` runs the structured validator described above.
+- `evidra validate <file>` runs the structured validator.
 - `evidra policy sim --policy <path> --input <path> [--data <path>]` evaluates policy decisions locally.
 - `evidra evidence <verify|export|violations|cursor>` inspects the append-only evidence store and exports audit packs.
 

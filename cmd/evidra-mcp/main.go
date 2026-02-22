@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -22,9 +23,7 @@ import (
 	"samebits.com/evidra-mcp/pkg/registry"
 )
 
-const (
-	defaultEvidenceDir = "./data/evidence"
-)
+var defaultEvidenceDir = resolveDefaultEvidenceDir()
 
 type serverRunner interface {
 	Run(context.Context, mcp.Transport) error
@@ -41,18 +40,26 @@ func main() {
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("evidra-mcp", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	fs.Usage = func() { printHelp(stderr) }
 	showVersion := fs.Bool("version", false, "Print version information and exit")
 	policyFlag := fs.String("policy", "", "Path to policy rego file (required)")
 	dataFlag := fs.String("data", "", "Path to policy data JSON file (required)")
 	evidenceFlag := fs.String("evidence-dir", "", "Path to store evidence records")
 	packsFlag := fs.String("packs-dir", "", "Optional packs directory to load tool definitions")
 	observeFlag := fs.Bool("observe", false, "Enable observe mode (policy advises but execution proceeds)")
+	logLevelFlag := fs.String("log-level", "info", "Log level (debug|info|warn|error)")
+	listenFlag := fs.String("listen", "", "Optional listen address")
+	helpFlag := fs.Bool("help", false, "Show help")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if *showVersion {
 		fmt.Fprintf(stdout, "evidra-mcp %s\n", version.Version)
 		return 0
+	}
+	if *helpFlag {
+		printHelp(stdout)
+		return 2
 	}
 
 	policyPath, dataPath, err := resolvePolicyPaths(strings.TrimSpace(*policyFlag), strings.TrimSpace(*dataFlag))
@@ -118,7 +125,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}, toolRegistry, policyEngine, evidenceStore)
 
 	logger := log.New(stderr, "", log.LstdFlags)
-	logger.Printf("evidra-mcp running in %s mode", mode)
+	logger.Printf("evidra-mcp running in %s mode (log=%s listen=%s)", mode, *logLevelFlag, *listenFlag)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		fmt.Fprintf(stderr, "run mcp server: %v\n", err)
@@ -136,7 +143,7 @@ func resolvePolicyPaths(policyFlag, dataFlag string) (string, string, error) {
 	if policyEnv != "" && dataEnv != "" {
 		return policyEnv, dataEnv, nil
 	}
-	return "", "", fmt.Errorf("--policy/--data flags or EVIDRA_POLICY_PATH/EVIDRA_DATA_PATH must both be supplied")
+	return "", "", fmt.Errorf("missing --policy/--data (or set EVIDRA_POLICY_PATH/EVIDRA_DATA_PATH)")
 }
 
 func resolveEvidencePath(flagValue string) string {
@@ -193,4 +200,37 @@ func envBool(key string, fallback bool) bool {
 	default:
 		return fallback
 	}
+}
+
+func printHelp(w io.Writer) {
+	fmt.Fprintln(w, "evidra-mcp — Local MCP server that enforces deterministic policy on AI-generated infra changes.")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "USAGE:")
+	fmt.Fprintln(w, "  evidra-mcp --policy <path> --data <path> [flags]")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "REQUIRED:")
+	fmt.Fprintln(w, "  --policy <path>         Path to rego entrypoint (e.g. policy/profiles/ops-v0.1/policy.rego)")
+	fmt.Fprintln(w, "  --data <path>           Path to policy data.json (e.g. policy/profiles/ops-v0.1/data.json)")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "FLAGS:")
+	fmt.Fprintln(w, "  --evidence-dir <dir>    Where to store evidence chain (default: ~/.evidra/evidence)")
+	fmt.Fprintln(w, "  --observe               Observe-only: do not block, only report (default: enforce)")
+	fmt.Fprintln(w, "  --packs-dir <dir>       Optional: custom packs directory")
+	fmt.Fprintln(w, "  --log-level <level>     debug|info|warn|error (default: info)")
+	fmt.Fprintln(w, "  --listen <addr>         Listen address (default: protocol default)")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "EXAMPLES:")
+	fmt.Fprintln(w, "  evidra-mcp --policy policy/profiles/ops-v0.1/policy.rego \\")
+	fmt.Fprintln(w, "             --data   policy/profiles/ops-v0.1/data.json \\")
+	fmt.Fprintln(w, "             --evidence-dir ~/.evidra/evidence")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "NOTES:")
+	fmt.Fprintln(w, "  - Use `evidra` for offline tools (policy sim, evidence inspect/report).")
+}
+
+func resolveDefaultEvidenceDir() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, ".evidra", "evidence")
+	}
+	return filepath.Join(".", "data", "evidence")
 }
