@@ -70,6 +70,7 @@ func looksLikeScenarioJSON(raw []byte) bool {
 	return hasActions
 }
 
+
 func scenarioFromTerraformPlan(raw []byte, path string) (schema.Scenario, error) {
 	var payload map[string]interface{}
 	if err := json.Unmarshal(raw, &payload); err != nil {
@@ -78,7 +79,7 @@ func scenarioFromTerraformPlan(raw []byte, path string) (schema.Scenario, error)
 	if !looksLikeTerraformPlan(payload) {
 		return schema.Scenario{}, ErrUnsupportedInputFormat
 	}
-	resourceCount, destroyCount := summarizeTerraformPlan(payload)
+	resourceCount, destroyCount, resourceAddresses := summarizeTerraformPlan(payload)
 	sc := schema.Scenario{
 		ScenarioID: terraformScenarioID(path, raw),
 		Actor:      schema.Actor{Type: "human", ID: "cli"},
@@ -96,6 +97,7 @@ func scenarioFromTerraformPlan(raw []byte, path string) (schema.Scenario, error)
 					"destroy_count":    destroyCount,
 					"publicly_exposed": false,
 					"plan_json":        filepath.Base(path),
+					"resource_addresses": resourceAddresses,
 				},
 			},
 		},
@@ -155,11 +157,18 @@ func looksLikeTerraformPlan(payload map[string]interface{}) bool {
 	return false
 }
 
-func summarizeTerraformPlan(payload map[string]interface{}) (resourceCount, destroyCount int) {
+func summarizeTerraformPlan(payload map[string]interface{}) (resourceCount, destroyCount int, addresses []string) {
 	list, _ := payload["resource_changes"].([]interface{})
 	resourceCount = len(list)
+	seen := map[string]struct{}{}
 	for _, entry := range list {
 		obj, _ := entry.(map[string]interface{})
+		if address, _ := obj["address"].(string); address != "" {
+			if _, ok := seen[address]; !ok {
+				addresses = append(addresses, address)
+				seen[address] = struct{}{}
+			}
+		}
 		change, _ := obj["change"].(map[string]interface{})
 		actions, _ := change["actions"].([]interface{})
 		for _, act := range actions {

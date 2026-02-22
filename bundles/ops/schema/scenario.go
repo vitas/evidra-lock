@@ -12,8 +12,9 @@ type Scenario struct {
 }
 
 type Actor struct {
-	Type string `json:"type"`
-	ID   string `json:"id,omitempty"`
+	Type   string `json:"type"`
+	ID     string `json:"id,omitempty"`
+	Origin string `json:"origin,omitempty"`
 }
 
 type Action struct {

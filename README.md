@@ -36,6 +36,7 @@ Outputs are deterministic, AI-friendly, and include the evidence ID for audit co
 - `evidra validate examples/terraform_plan_pass.json`
 - `evidra validate examples/terraform_mass_delete_fail.json`
 - `evidra validate examples/terraform_public_exposure_fail.json`
+- Use `--explain` when you want to see the rule IDs, reason, hints, and quick facts for each failing action (e.g., `evidra validate --explain examples/terraform_public_exposure_fail.json`).
 
 ## Advanced topics
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,6 +27,70 @@ func TestValidateScenarioPass(t *testing.T) {
 	}
 	if !strings.Contains(out, "Decision: PASS") {
 		t.Fatalf("expected PASS decision, got: %s", out)
+	}
+}
+
+func TestValidateExplainOutput(t *testing.T) {
+	scenario := filepath.Join("bundles", "ops", "examples", "scenario_kubesystem_block.json")
+	code, out, errOut := runFromRepoRoot(t, []string{"validate", "--explain", scenario})
+	if code != 2 {
+		t.Fatalf("expected exit code 2 for deny, got %d stderr=%s", code, errOut)
+	}
+	if !strings.Contains(out, "Explanation:") {
+		t.Fatalf("expected explanation section, got: %s", out)
+	}
+	if !strings.Contains(out, "Rule IDs:") {
+		t.Fatalf("expected rule IDs, got: %s", out)
+	}
+	if !strings.Contains(out, "Hints:") {
+		t.Fatalf("expected hints section, got: %s", out)
+	}
+	if !strings.Contains(out, "namespace=kube-system") {
+		t.Fatalf("expected namespace fact, got: %s", out)
+	}
+}
+
+func TestValidateFailStructuredOutput(t *testing.T) {
+	scenario := filepath.Join("bundles", "ops", "examples", "scenario_kubesystem_block.json")
+	code, out, errOut := runFromRepoRoot(t, []string{"validate", scenario})
+	if code != 2 {
+		t.Fatalf("expected exit code 2 for deny, got %d stderr=%s", code, errOut)
+	}
+	if !strings.Contains(out, "Rule IDs:") {
+		t.Fatalf("expected Rule IDs section, got: %s", out)
+	}
+	if !strings.Contains(out, "How to fix:") {
+		t.Fatalf("expected How to fix section, got: %s", out)
+	}
+}
+
+func TestValidateFailJSONOutput(t *testing.T) {
+	scenario := filepath.Join("bundles", "ops", "examples", "scenario_kubesystem_block.json")
+	code, out, errOut := runFromRepoRoot(t, []string{"validate", "--json", scenario})
+	if code != 2 {
+		t.Fatalf("expected exit code 2 for deny, got %d stderr=%s", code, errOut)
+	}
+	var resp struct {
+		Status   string   `json:"status"`
+		RuleIDs  []string `json:"rule_ids"`
+		Reason   string   `json:"reason"`
+		Hints    []string `json:"hints"`
+		Evidence string   `json:"evidence_id"`
+	}
+	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if resp.Status != "FAIL" {
+		t.Fatalf("expected FAIL status, got %s", resp.Status)
+	}
+	if len(resp.RuleIDs) == 0 {
+		t.Fatalf("expected rule IDs, got none")
+	}
+	if len(resp.Hints) == 0 {
+		t.Fatalf("expected hints, got none")
+	}
+	if resp.Evidence == "" {
+		t.Fatalf("expected evidence id, got empty")
 	}
 }
 

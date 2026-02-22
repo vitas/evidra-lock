@@ -12,6 +12,7 @@
 - Deny rules declare `deny[label] = message` in their file; warn rules use `warn[label]`.
 - Keep each rule small (10–40 lines) and use `policy/rules/00_normalize.rego` helpers for tags, namespaces, and payload extraction.
 - Rule labels feed into the decision aggregator’s `hits` and, via `data.json`, into human-friendly hints.
+- Use `hits` for short rule IDs when running `evidra validate --explain`; they map directly to the `policy/rules/` filenames and make it easy to point operators to the rego that fired.
 
 ## Testing
 
