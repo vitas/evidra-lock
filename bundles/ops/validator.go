@@ -256,7 +256,10 @@ func dedupeStrings(in []string) []string {
 }
 
 func evidencePath() string {
-	if p := os.Getenv("EVIDRA_EVIDENCE_PATH"); p != "" {
+	if dir := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_DIR")); dir != "" {
+		return dir
+	}
+	if p := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_PATH")); p != "" {
 		return p
 	}
 	return DefaultEvidencePath

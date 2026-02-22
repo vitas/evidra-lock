@@ -47,8 +47,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	evidenceFlag := fs.String("evidence-dir", "", "Path to store evidence records")
 	packsFlag := fs.String("packs-dir", "", "Optional packs directory to load tool definitions")
 	observeFlag := fs.Bool("observe", false, "Enable observe mode (policy advises but execution proceeds)")
-	logLevelFlag := fs.String("log-level", "info", "Log level (debug|info|warn|error)")
-	listenFlag := fs.String("listen", "", "Optional listen address")
 	helpFlag := fs.Bool("help", false, "Show help")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -125,7 +123,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}, toolRegistry, policyEngine, evidenceStore)
 
 	logger := log.New(stderr, "", log.LstdFlags)
-	logger.Printf("evidra-mcp running in %s mode (log=%s listen=%s)", mode, *logLevelFlag, *listenFlag)
+	logger.Printf("evidra-mcp running in %s mode", mode)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		fmt.Fprintf(stderr, "run mcp server: %v\n", err)
@@ -149,6 +147,9 @@ func resolvePolicyPaths(policyFlag, dataFlag string) (string, string, error) {
 func resolveEvidencePath(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
+	}
+	if env := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_DIR")); env != "" {
+		return env
 	}
 	if env := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_PATH")); env != "" {
 		return env
@@ -213,11 +214,9 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --data <path>           Path to policy data.json (e.g. policy/profiles/ops-v0.1/data.json)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "FLAGS:")
-	fmt.Fprintln(w, "  --evidence-dir <dir>    Where to store evidence chain (default: ~/.evidra/evidence)")
+	fmt.Fprintln(w, "  --evidence-dir <dir>    Where to store evidence chain (default: ~/.evidra/evidence; override via EVIDRA_EVIDENCE_DIR/EVIDRA_EVIDENCE_PATH)")
 	fmt.Fprintln(w, "  --observe               Observe-only: do not block, only report (default: enforce)")
 	fmt.Fprintln(w, "  --packs-dir <dir>       Optional: custom packs directory")
-	fmt.Fprintln(w, "  --log-level <level>     debug|info|warn|error (default: info)")
-	fmt.Fprintln(w, "  --listen <addr>         Listen address (default: protocol default)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "EXAMPLES:")
 	fmt.Fprintln(w, "  evidra-mcp --policy policy/profiles/ops-v0.1/policy.rego \\")

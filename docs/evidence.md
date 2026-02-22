@@ -2,7 +2,7 @@
 
 ## Location & layout
 
-- Evidence records live under `./data/evidence` by default (override with `EVIDRA_EVIDENCE_PATH`).
+- Evidence records live under `./data/evidence` by default (override with `EVIDRA_EVIDENCE_DIR`, legacy `EVIDRA_EVIDENCE_PATH` is tolerated).
 - The store contains a manifest (`manifest.json`) plus segmented JSONL files under `segments/`.
 
 ## What each record holds

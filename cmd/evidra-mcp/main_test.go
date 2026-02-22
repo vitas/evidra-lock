@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -89,6 +90,31 @@ func TestRunHonorsEnvFallback(t *testing.T) {
 	}
 	if !stub.called {
 		t.Fatalf("expected server to start via env config")
+	}
+}
+
+func TestResolveEvidencePathPrecedence(t *testing.T) {
+	old := newServerFunc
+	defer func() { newServerFunc = old }()
+	newServerFunc = func(mcpserver.Options, registry.Registry, core.PolicyEngine, core.EvidenceStore) serverRunner {
+		return &fakeServer{}
+	}
+
+	t.Setenv("EVIDRA_EVIDENCE_PATH", t.TempDir())
+	t.Setenv("EVIDRA_EVIDENCE_DIR", filepath.Join(t.TempDir(), "dir"))
+
+	if got := resolveEvidencePath(""); got != os.Getenv("EVIDRA_EVIDENCE_DIR") {
+		t.Fatalf("expected EVIDRA_EVIDENCE_DIR to win, got %q", got)
+	}
+
+	const flagValue = "/tmp/flag-evidence"
+	if got := resolveEvidencePath(flagValue); got != flagValue {
+		t.Fatalf("expected flag to win, got %q", got)
+	}
+
+	t.Setenv("EVIDRA_EVIDENCE_DIR", "")
+	if got := resolveEvidencePath(""); got != os.Getenv("EVIDRA_EVIDENCE_PATH") {
+		t.Fatalf("expected fallback to EVIDRA_EVIDENCE_PATH, got %q", got)
 	}
 }
 
