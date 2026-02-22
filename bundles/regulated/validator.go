@@ -1,16 +1,26 @@
 package regulated
 
 import (
+	"os"
+
 	"samebits.com/evidra-mcp/pkg/runtime"
 )
 
-// TODO(monorepo-split): publish bundles/regulated as a standalone bundle repository.
-// TODO(monorepo-split): switch DefaultPolicyPath to a regulated profile when available.
 
 const (
-	DefaultPolicyPath = "./policy/profiles/ops-v0.1/policy.rego"
-	DefaultDataPath   = "./policy/profiles/ops-v0.1/data.json"
+	regulatedPolicyPath = "./policy/profiles/regulated-v0.1/policy.rego"
+	opsPolicyPath       = "./policy/profiles/ops-v0.1/policy.rego"
+	DefaultDataPath     = "./policy/profiles/ops-v0.1/data.json"
 )
+
+var DefaultPolicyPath = defaultPolicyPath()
+
+func defaultPolicyPath() string {
+	if _, err := os.Stat(regulatedPolicyPath); err == nil {
+		return regulatedPolicyPath
+	}
+	return opsPolicyPath
+}
 
 func ValidateFile(path string) (runtime.ScenarioDecision, error) {
 	eval, err := runtime.NewEvaluator(DefaultPolicyPath, DefaultDataPath)

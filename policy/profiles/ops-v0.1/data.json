@@ -76,29 +76,82 @@
       "reason": "policy_denied_high_risk"
     }
   },
-  "reason_hints": {
-    "policy_denied_default": [
-      "Adjust policy or invocation context, then retry."
-    ],
-    "policy_denied_high_risk": [
-      "High-risk operation denied by default; require explicit override."
-    ],
-    "policy_evaluation_failed": [
-      "Check policy syntax and run evidra-policy-sim."
-    ],
-    "unregistered_tool": [
-      "Install or enable the corresponding tool pack."
-    ],
-    "unsupported_operation": [
-      "Use one of the registered operations for the selected tool."
-    ]
+  "decision_buckets": {
+    "destructive/dev": "destructive_dev",
+    "destructive/prod": "destructive_prod",
+    "read/dev": "read",
+    "read/prod": "read",
+    "unknown/dev": "unknown_operation",
+    "unknown/prod": "unknown_operation",
+    "write/dev": "write_dev",
+    "write/prod": "write_prod"
   },
   "rule_labels": {
+    "autonomous-execution": "warn.autonomous_execution",
+    "deny.default": "deny.default",
+    "deny.high_risk": "deny.high_risk",
+    "deny.policy_eval_failed": "deny.policy_eval_failed",
+    "deny.unregistered_tool": "deny.unregistered_tool",
+    "deny.unsupported_operation": "deny.unsupported_operation",
+    "kube-system-breakglass": "deny.kube_system",
+    "mass-delete": "deny.mass_delete",
     "policy_denied_default": "deny.default",
     "policy_denied_high_risk": "deny.high_risk",
     "policy_evaluation_failed": "deny.policy_eval_failed",
+    "prod-requires-approval": "deny.prod_requires_approval",
+    "public-exposure-requires-approval": "deny.public_exposure",
     "unregistered_tool": "deny.unregistered_tool",
     "unsupported_operation": "deny.unsupported_operation"
+  },
+  "rule_hints": {
+    "autonomous-execution": [
+      "Agent-originated MCP action detected; require explicit human review."
+    ],
+    "deny.default": [
+      "Adjust policy or invocation context, then retry."
+    ],
+    "deny.high_risk": [
+      "High-risk operation denied by default; require explicit override."
+    ],
+    "deny.mass_delete": [
+      "Reduce delete scope below threshold or add risk_tags=[\"breakglass\"]."
+    ],
+    "deny.policy_eval_failed": [
+      "Check policy syntax and run evidra policy sim."
+    ],
+    "deny.prod_requires_approval": [
+      "Add risk_tags=[\"change-approved\"] before targeting prod namespace."
+    ],
+    "deny.public_exposure": [
+      "Add risk_tags=[\"approved_public\"] before allowing public exposure."
+    ],
+    "deny.unregistered_tool": [
+      "Install or enable the corresponding tool pack."
+    ],
+    "deny.unsupported_operation": [
+      "Use one of the registered operations for the selected tool."
+    ],
+    "deny.kube_system": [
+      "Add risk_tags=[\"breakglass\"] for controlled kube-system changes."
+    ],
+    "kube-system-breakglass": [
+      "Add risk_tags=[\"breakglass\"] for controlled kube-system changes."
+    ],
+    "mass-delete": [
+      "Reduce delete scope below threshold or add risk_tags=[\"breakglass\"]."
+    ],
+    "prod-requires-approval": [
+      "Add risk_tags=[\"change-approved\"] before targeting prod namespace."
+    ],
+    "public-exposure-requires-approval": [
+      "Add risk_tags=[\"approved_public\"] before allowing public exposure."
+    ]
+  },
+  "allow_reasons": {
+    "default": "allowed_operation"
+  },
+  "thresholds": {
+    "mass_delete_max": 5
   },
   "long_running_ops": [
     "terraform/plan",
