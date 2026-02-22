@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 
 	"samebits.com/evidra-mcp/bundles/ops"
 	opscli "samebits.com/evidra-mcp/bundles/ops/cli"
-	"samebits.com/evidra-mcp/bundles/regulated"
 	"samebits.com/evidra-mcp/internal/version"
 )
 
@@ -142,23 +140,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "usage: evidra ops <init|validate|explain> ...")
 			return 2
 		}
-	case "regulated":
-		if len(args) != 3 || args[1] != "validate" {
-			fmt.Fprintln(stderr, "usage: evidra regulated validate <file>")
-			return 2
-		}
-		out, err := regulated.ValidateFile(args[2])
-		if err != nil {
-			fmt.Fprintln(stderr, err.Error())
-			return 1
-		}
-		b, err := json.MarshalIndent(out, "", "  ")
-		if err != nil {
-			fmt.Fprintln(stderr, err.Error())
-			return 1
-		}
-		fmt.Fprintln(stdout, string(b))
-		return 0
 	default:
 		printUsage(stderr)
 		return 2
@@ -166,7 +147,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "usage: evidra <mcp|evidence|policy|ops|regulated> <command>")
+	fmt.Fprintln(w, "usage: evidra <mcp|evidence|policy|ops> <command>")
 	fmt.Fprintln(w, "  evidra version")
 	fmt.Fprintln(w, "  evidra mcp [--guarded] [--policy path] [--data path]")
 	fmt.Fprintln(w, "  evidra evidence <verify|export|violations|cursor> ...")
@@ -174,7 +155,6 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  evidra ops init [--path dir] [--force] [--enable-validators] [--with-plugins] [--minimal] [--print]")
 	fmt.Fprintln(w, "  evidra ops validate [--verbose] [--config path] [--enable-validators] [--validators ...] [--list-validators] <file>")
 	fmt.Fprintln(w, "  evidra ops explain <schema|kinds|example|policies> [--verbose]")
-	fmt.Fprintln(w, "  evidra regulated validate <file>")
 }
 
 func parseValidatorsFlag(raw string) (map[string]bool, string, map[string]bool) {
