@@ -28,3 +28,10 @@ release/
 .evidra/
 data/
 audit-pack.tar.gz
+
+#AI stuff
+CLOUDE.*
+AGENTS.md
+.claude/
+.ai/
+

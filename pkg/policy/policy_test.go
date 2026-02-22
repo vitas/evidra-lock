@@ -1,33 +1,34 @@
 package policy
 
 import (
-	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/policysource"
 )
 
 func TestEvaluateDefaultDeny(t *testing.T) {
-	policyPath, err := filepath.Abs(filepath.Join("..", "..", "policy", "profiles", "ops-v0.1", "policy.rego"))
+	policyPath := filepath.Join("..", "..", "policy", "profiles", "ops-v0.1", "policy.rego")
+	dataPath := filepath.Join("..", "..", "policy", "profiles", "ops-v0.1", "data.json")
+
+	src := policysource.NewLocalFileSource(policyPath, dataPath)
+	policyModules, err := src.LoadPolicy()
 	if err != nil {
-		t.Fatalf("filepath.Abs() error = %v", err)
+		t.Fatalf("LoadPolicy() error = %v", err)
 	}
-	dataPath, err := filepath.Abs(filepath.Join("..", "..", "policy", "profiles", "ops-v0.1", "data.json"))
+	for key := range policyModules {
+		if strings.Contains(key, "/tests/") {
+			delete(policyModules, key)
+		}
+	}
+	dataBytes, err := src.LoadData()
 	if err != nil {
-		t.Fatalf("filepath.Abs(data) error = %v", err)
+		t.Fatalf("LoadData() error = %v", err)
 	}
 
-	policyBytes, err := os.ReadFile(policyPath)
-	if err != nil {
-		t.Fatalf("ReadFile(policy.rego) error = %v", err)
-	}
-	dataBytes, err := os.ReadFile(dataPath)
-	if err != nil {
-		t.Fatalf("ReadFile(data.json) error = %v", err)
-	}
-
-	engine, err := NewOPAEngine(policyBytes, dataBytes)
+	engine, err := NewOPAEngine(policyModules, dataBytes)
 	if err != nil {
 		t.Fatalf("NewOPAEngine() error = %v", err)
 	}
@@ -73,7 +74,7 @@ decision := {
 }
 `)
 
-	engine, err := NewOPAEngine(policyBytes, nil)
+	engine, err := NewOPAEngine(map[string][]byte{"policy.rego": policyBytes}, nil)
 	if err != nil {
 		t.Fatalf("NewOPAEngine() error = %v", err)
 	}

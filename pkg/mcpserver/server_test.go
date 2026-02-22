@@ -534,7 +534,7 @@ func TestToolMetadataIncludesDescriptionsAndAnnotations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(policy.rego) error = %v", err)
 	}
-	policyEngine, err := policy.NewOPAEngine(policyBytes, nil)
+	policyEngine, err := policy.NewOPAEngine(map[string][]byte{filepath.Base(policyPath): policyBytes}, nil)
 	if err != nil {
 		t.Fatalf("NewOPAEngine() error = %v", err)
 	}
@@ -625,7 +625,7 @@ func TestMCPExecuteAndGetEventStructuredOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(policy.rego) error = %v", err)
 	}
-	policyEngine, err := policy.NewOPAEngine(policyBytes, nil)
+	policyEngine, err := policy.NewOPAEngine(map[string][]byte{filepath.Base(policyPath): policyBytes}, nil)
 	if err != nil {
 		t.Fatalf("NewOPAEngine() error = %v", err)
 	}
@@ -751,7 +751,7 @@ func newServiceWithGuarded(t *testing.T, guarded bool) *ExecuteService {
 	if err != nil {
 		t.Fatalf("ReadFile(policy.rego) error = %v", err)
 	}
-	policyEngine, err := policy.NewOPAEngine(policyBytes, nil)
+	policyEngine, err := policy.NewOPAEngine(map[string][]byte{filepath.Base(policyPath): policyBytes}, nil)
 	if err != nil {
 		t.Fatalf("NewOPAEngine() error = %v", err)
 	}
@@ -791,7 +791,7 @@ func newServiceWithModeAndPolicyPath(t *testing.T, mode Mode, policyPath string)
 	if err != nil {
 		t.Fatalf("ReadFile(policy.rego) error = %v", err)
 	}
-	policyEngine, err := policy.NewOPAEngine(policyBytes, nil)
+	policyEngine, err := policy.NewOPAEngine(map[string][]byte{filepath.Base(policyPath): policyBytes}, nil)
 	if err != nil {
 		t.Fatalf("NewOPAEngine() error = %v", err)
 	}

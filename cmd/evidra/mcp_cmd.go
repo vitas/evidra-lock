@@ -71,7 +71,7 @@ func runMCPCommand(args []string, stdout io.Writer, stderr io.Writer) int {
 	policyPath, dataPath := resolvePolicyPaths(profile, strings.TrimSpace(*policyFlag), strings.TrimSpace(*dataFlag))
 
 	ps := policysource.NewLocalFileSource(policyPath, dataPath)
-	policyBytes, err := ps.LoadPolicy()
+	policyModules, err := ps.LoadPolicy()
 	if err != nil {
 		fmt.Fprintf(stderr, "load policy source: %v\n", err)
 		return 1
@@ -83,7 +83,7 @@ func runMCPCommand(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 1
 	}
 
-	policyEngine, err := policy.NewOPAEngine(policyBytes, dataBytes)
+	policyEngine, err := policy.NewOPAEngine(policyModules, dataBytes)
 	if err != nil {
 		fmt.Fprintf(stderr, "load policy: %v\n", err)
 		return 1

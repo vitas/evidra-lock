@@ -31,7 +31,7 @@ type Evaluator struct {
 
 func NewEvaluator(policyPath, dataPath string) (*Evaluator, error) {
 	src := policysource.NewLocalFileSource(policyPath, dataPath)
-	policyBytes, err := src.LoadPolicy()
+	policyModules, err := src.LoadPolicy()
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func NewEvaluator(policyPath, dataPath string) (*Evaluator, error) {
 	if err != nil {
 		return nil, err
 	}
-	eng, err := policy.NewOPAEngine(policyBytes, dataBytes)
+	eng, err := policy.NewOPAEngine(policyModules, dataBytes)
 	if err != nil {
 		return nil, err
 	}

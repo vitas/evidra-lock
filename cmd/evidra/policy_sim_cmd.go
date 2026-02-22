@@ -50,7 +50,7 @@ func runPolicySimCommand(args []string, stdout io.Writer, stderr io.Writer) int 
 	}
 
 	source := policysource.NewLocalFileSource(*policyPath, *dataPath)
-	policyBytes, err := source.LoadPolicy()
+	policyModules, err := source.LoadPolicy()
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return policySimExitPolicyError
@@ -61,7 +61,7 @@ func runPolicySimCommand(args []string, stdout io.Writer, stderr io.Writer) int 
 		return policySimExitPolicyError
 	}
 
-	engine, err := policy.NewOPAEngine(policyBytes, dataBytes)
+	engine, err := policy.NewOPAEngine(policyModules, dataBytes)
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return policySimExitPolicyError

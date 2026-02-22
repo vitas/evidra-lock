@@ -1,14 +1,86 @@
 # Evidra
 
+**Policy-Enforced AI Tool Execution with Audit-Ready Evidence**
+
+Let AI propose changes. Evidra decides. Two deployment models:
+
+- 🔍 **AI Governance & Validation Mode**
+- 🛡 **Regulated Enforcement Mode**
+
+---
+
+# 🔍 AI Governance & Validation Mode
+
+Designed for platform teams and AI infrastructure engineers.
+
+## Goal
+
+Make AI tool execution observable, measurable, and tunable.
+
+## Core Principles
+
+- Observe mode (execution allowed with advisory evidence)  
+- Risk scoring and violation filtering  
+- Policy simulation  
+- Tool pack validation  
+- Execution transparency  
+
+## Typical Use Cases
+
+- Internal AI tooling  
+- Safety boundary testing  
+- Policy tuning before enforcement  
+- ML platform governance  
+
+---
+
+# 🛡 Regulated Enforcement Mode
+
+Designed for financial services, healthcare, public sector, and compliance-heavy SaaS platforms.
+
+## Goal
+
+Prevent unauthorized or unsafe AI automation before it happens.
+
+## Core Principles
+
+- Default-deny execution  
+- Registered tools only  
+- Policy evaluation before execution  
+- Guarded Mode (no direct shell bypass)  
+- Tamper-evident evidence records  
+- Exportable audit artifacts  
+
+## Typical Use Cases
+
+- AI agents operating in production  
+- Controlled Kubernetes operations  
+- Compliance audit workflows  
+- Incident-ready evidence export  
+
+---
+
+# Quick Start
+
+See:
+
+- docs/QUICKSTART.md  
+- docs/POLICY_GUIDE.md  
+- docs/EVIDENCE_GUIDE.md  
+
+---
+
+# Security Model
+
+See:
+
+- docs/MCP_GUIDE.md  
+- spec/SCOPE_AND_ASSUMPTIONS.md  
+
 Let AI propose changes. Evidra decides.
 
 Evidra is a monorepo with a shared core policy/evidence runtime and bundle-specific validation flows. The primary entry point today is `evidra ops validate`, which checks infra scenarios before execution and writes immutable evidence.
 
-## Monorepo Layers
-
-- `core/`: narrative-neutral policy runtime, evaluator interfaces, registry, and evidence primitives.
-- `bundles/ops/`: AI-first scenario validation flow for infrastructure changes.
-- `bundles/regulated/`: controlled environment validation flow for compliance-oriented operations.
 
 ## Guarded Mode
 
@@ -89,9 +161,3 @@ evidra regulated validate <file>
 - `docs/EVIDENCE_GUIDE.md`
 - `docs/MCP_GUIDE.md`
 
-## Architecture Notes (Concise)
-
-- Validation decisions are policy-driven.
-- Evidence records are append-only and hash-linked.
-- Bundles can depend on `core`, but `core` does not depend on bundles.
-- Bundle policies and examples live with each bundle to keep intent explicit.

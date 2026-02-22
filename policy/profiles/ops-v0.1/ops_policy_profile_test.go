@@ -1,25 +1,34 @@
 package opsprofile_test
 
 import (
-	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/policy"
+	"samebits.com/evidra-mcp/pkg/policysource"
 )
 
 func TestOpsPolicyKitDecisions(t *testing.T) {
-	policyBytes, err := os.ReadFile(filepath.Join("policy.rego"))
+	policyPath := filepath.Join("policy.rego")
+	dataPath := filepath.Join("data.json")
+	src := policysource.NewLocalFileSource(policyPath, dataPath)
+	policyModules, err := src.LoadPolicy()
 	if err != nil {
-		t.Fatalf("ReadFile(policy.rego) error = %v", err)
+		t.Fatalf("LoadPolicy() error = %v", err)
 	}
-	dataBytes, err := os.ReadFile(filepath.Join("data.json"))
+	for key := range policyModules {
+		if strings.Contains(key, "/tests/") {
+			delete(policyModules, key)
+		}
+	}
+	dataBytes, err := src.LoadData()
 	if err != nil {
-		t.Fatalf("ReadFile(data.json) error = %v", err)
+		t.Fatalf("LoadData() error = %v", err)
 	}
 
-	engine, err := policy.NewOPAEngine(policyBytes, dataBytes)
+	engine, err := policy.NewOPAEngine(policyModules, dataBytes)
 	if err != nil {
 		t.Fatalf("NewOPAEngine() error = %v", err)
 	}

@@ -85,7 +85,7 @@ func runSuite(t *testing.T, suitePath string) {
 		}
 	}
 
-	engine, err := policy.NewOPAEngine(policyBytes, dataBytes)
+	engine, err := policy.NewOPAEngine(map[string][]byte{filepath.Base(policyPath): policyBytes}, dataBytes)
 	if err != nil {
 		t.Fatalf("NewOPAEngine(%q): %v", suitePath, err)
 	}
