@@ -27,16 +27,11 @@ import (
 )
 
 type Options struct {
-	PolicyPath       string
-	DataPath         string
-	EvidenceDir      string
-	ConfigPath       string
-	EnableValidators *bool
-	BuiltinFilter    map[string]bool
-	ExecMode         string
-	ExecFilter       map[string]bool
-	BundleProfile    string
-	SkipEvidence     bool
+	PolicyPath   string
+	DataPath     string
+	EvidenceDir  string
+	ConfigPath   string
+	SkipEvidence bool
 }
 
 type Result struct {
@@ -108,11 +103,7 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 
 	wd, _ := os.Getwd()
 	validatorResult, validatorMeta, err := validators.RunForScenario(ctx, sc, wd, validators.RunOptions{
-		Config:         cfg,
-		EnableOverride: opts.EnableValidators,
-		BuiltinFilter:  opts.BuiltinFilter,
-		ExecMode:       opts.ExecMode,
-		ExecFilter:     opts.ExecFilter,
+		Config: cfg,
 	})
 	if err != nil {
 		return Result{}, err
@@ -140,10 +131,6 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 		}
 		evidenceID = fmt.Sprintf("evt-%d", time.Now().UTC().UnixNano())
 	}
-	bundleProfile := opts.BundleProfile
-	if bundleProfile == "" {
-		bundleProfile = "ops"
-	}
 	rec := evidence.EvidenceRecord{
 		EventID:   evidenceID,
 		Timestamp: time.Now().UTC(),
@@ -167,7 +154,7 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 			"reports":        validatorResult.Reports,
 			"validator_meta": validatorMeta,
 			"action_count":   len(sc.Actions),
-			"bundle_profile": bundleProfile,
+			"bundle_profile": "ops",
 		},
 		PolicyDecision: evidence.PolicyDecision{
 			Allow:     finalPass,
