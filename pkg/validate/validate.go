@@ -470,7 +470,7 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 		res.RuleIDs = append(res.RuleIDs, decision.Hits...)
 		res.Hints = append(res.Hints, decision.Hints...)
 		if !decision.Allow && len(decision.Hits) == 0 {
-			res.RuleIDs = append(res.RuleIDs, "UNLABELED_DENY")
+			res.RuleIDs = append(res.RuleIDs, "POL-UNLABELED-01")
 		}
 	}
 	res.RuleIDs = dedupeStrings(res.RuleIDs)

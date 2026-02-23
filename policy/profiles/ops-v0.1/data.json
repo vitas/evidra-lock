@@ -22,6 +22,10 @@
     "WARN-AUTO-01": [
       "Review changes manually before apply"
     ],
+    "POL-UNLABELED-01": [
+      "Add stable rule labels to deny rules (POL-*) so the decision is explainable.",
+      "Ensure each deny rule emits a label and message."
+    ],
     "WARN-BREAKGLASS-01": [
       "Use breakglass only for emergencies and ensure thorough review.",
       "Prefer change-approved tags for non-emergency production changes."
