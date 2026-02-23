@@ -13,7 +13,6 @@ type ScenarioDecision struct {
 	RiskLevel   string   `json:"risk_level"`
 	Reason      string   `json:"reason"`
 	PolicyRef   string   `json:"policy_ref,omitempty"`
-	Hint        string   `json:"hint,omitempty"`
 	Hits        []string `json:"hits,omitempty"`
 	Hints       []string `json:"hints,omitempty"`
 	Reasons     []string `json:"reasons,omitempty"`
@@ -63,7 +62,6 @@ func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (ScenarioD
 		RiskLevel:   d.RiskLevel,
 		Reason:      d.Reason,
 		PolicyRef:   e.policyRef,
-		Hint:        d.Hint,
 		Hits:        d.Hits,
 		Hints:       d.Hints,
 		Reasons:     d.Reasons,

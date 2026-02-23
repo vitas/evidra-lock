@@ -21,13 +21,12 @@ type Decision struct {
 	Reasons     []string `json:"reasons,omitempty"`
 	Hints       []string `json:"hints,omitempty"`
 	Hits        []string `json:"hits,omitempty"`
-	Hint        string   `json:"hint,omitempty"`
 	LongRunning bool     `json:"long_running,omitempty"`
 }
 
 type Engine struct {
-	query rego.PreparedEvalQuery
-	ruleHints map[string][]string
+	query      rego.PreparedEvalQuery
+	ruleHints  map[string][]string
 	thresholds map[string]interface{}
 }
 
@@ -153,12 +152,6 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 	}
 	if hits, ok := readStringSlice(out, "hits"); ok {
 		decision.Hits = hits
-	}
-	if hint, ok := out["hint"].(string); ok {
-		decision.Hint = hint
-	}
-	if decision.Hint == "" && len(decision.Hints) > 0 {
-		decision.Hint = decision.Hints[0]
 	}
 	if len(decision.Reasons) == 0 && decision.Reason != "" {
 		decision.Reasons = []string{decision.Reason}
