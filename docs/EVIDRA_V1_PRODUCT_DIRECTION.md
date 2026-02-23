@@ -83,13 +83,12 @@ Instead of generic errors, return structured output like:
 
 The following features are intentionally excluded from v1:
 
--   SOC2 bundles
--   HIPAA bundles
+-   SOC2/HIPAA marketing narratives
 -   CI passive training mode
 -   JSON-LD export
 -   Jira integrations
 -   Splunk integrations
--   Signed export bundles
+-   Signed export artifacts
 -   Approval workflow systems
 -   Compliance dashboards
 -   Enterprise governance layers

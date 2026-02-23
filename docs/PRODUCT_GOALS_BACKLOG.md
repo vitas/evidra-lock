@@ -40,7 +40,7 @@
 - Ensure docs describe MCP server startup plus offline tools.
 
 ## Lower-Priority Ideas (review before implementation)
-- Policy export bundles (evidence+policy+signed metadata).
+- Policy export artifacts (evidence+policy+signed metadata).
 - SOC2/HIPAA starter scenarios under `examples/` (only if they stay relevant after the slim focus).
 - Context capture: store the triggering prompt or diff context in evidence. (Evaluate privacy/complexity.)
 - CI reporting mode: record violations without blocking to train policies before enforcing.

@@ -5,9 +5,9 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 ## Repository Layout
 
 - `cmd/` – CLI binaries (`evidra` plus any policy simulation helpers). Each command lives under `cmd/<name>` and is wired to the core packages.
-- `bundles/` – packaged scenarios; the Ops bundle now only carries the scenario/schema helpers and no validator/evaluator stack.
+- Legacy packaged scenarios have been retired; scenario/schema helpers and fixtures now live under `pkg/scenario` and `examples/`.
 - `docs/` – end-user and contributor guidance. Key files:
-  - `docs/QUICKSTART.md`: How to run `evidra validate` on Terraform/Kubernetes fixtures.
+  - `docs/QUICKSTART.md`: How to run `evidra validate` on plan/manifest fixtures.
   - `docs/policy.md`: Policy input/output contract you just added.
   - `docs/advanced.md`: MCP/advanced concepts moved out of the core narrative.
 - `files/` – (if exists) additional assets.

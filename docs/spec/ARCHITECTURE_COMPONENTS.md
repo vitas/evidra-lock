@@ -8,22 +8,17 @@ Related docs:
 - `docs/EVIDENCE_GUIDE.md`
 - `docs/RELEASE_CHECKLIST.md`
 
-Evidra v0.1 has three core components:
-- Registry: static tool surface and operation validation.
-- Policy (OPA): deterministic allow/deny evaluation for ToolInvocation input.
-- Evidence: append-only, hash-chained audit log for every attempt.
-
-## Core Interfaces
-- `core.PolicySource`: loads policy/data bytes and exposes deterministic `PolicyRef()`.
-- `core.PolicyEngine`: evaluates canonical `ToolInvocation` into deterministic policy decisions.
-- `core.EvidenceStore`: appends records, validates chain, and exposes `LastHash()`.
+Evidra v0.1 has three core responsibilities:
+- `pkg/mcpserver`: adapters (CLI + MCP) that accept ToolInvocation-like input and forward it to the shared pipeline.
+- `pkg/validate`: shared core that consolidates scenario loading (`pkg/scenario`), policy evaluation (`pkg/runtime` + `policy`), and evidence recording (`pkg/evidence`).
+- `pkg/evidence`: append-only, hash-chained audit log for every validation attempt.
 
 ## Local Deployment
-- Policy source: local Rego file.
-- Policy engine: local embedded OPA using loaded policy/data bytes.
-- Evidence store: local JSONL append-only log.
+- CLI/MCP adapters load files or invocations.
+- `pkg/validate` loads the policy profile `policy/profiles/ops-v0.1`, evaluates it with OPA, and records hits/hints into evidence.
+- `pkg/evidence` persists JSONL segments plus resource link manifests.
 
 ## Server-Driven Future (High Level)
-- PolicySource can be replaced by a remote policy source.
-- EvidenceStore can be replaced by a remote evidence backend.
-- Registry/Policy/Evidence flow remains the same; only source/store implementations change.
+- Adapters remain the entrypoints.
+- Policy modules can be swapped via `--policy`/`--data` without touching the Go pipeline.
+- Evidence can be exported or forwarded once generated.

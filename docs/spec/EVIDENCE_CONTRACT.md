@@ -57,7 +57,7 @@ Minimum required fields:
 ## 4. Enforcement Rules
 
 - Evidence must be written before returning execution result to the caller.
-- If execution is denied (by registry or policy), an EvidenceRecord must still be written.
+- If execution is denied by policy validation, an EvidenceRecord must still be written.
 - If writing evidence fails, execution must be treated as failed.
 
 ---

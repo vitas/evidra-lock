@@ -28,7 +28,7 @@ make lint
 - Preserve existing behavior unless the PR explicitly changes it.
 - Avoid introducing heavy dependencies.
 - Keep core (`/core`) narrative-neutral.
-- Put bundle-specific logic under `/bundles/*`.
+- Keep scenario or policy adjustments near `pkg/validate`/`policy/profiles/ops-v0.1` and the `examples/` fixtures.
 
 ## Tests
 

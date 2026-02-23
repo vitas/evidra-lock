@@ -127,4 +127,4 @@ deny["POL-EXAMPLE-01"] = msg if {
 
 ## Single Source of Truth
 
-The structured profile under `policy/profiles/ops-v0.1` (shim + `policy/` directory + `data.json`) is the single source of truth. Do not edit the old bundles-based policies/documentation; edit this profile instead. policy tests and runtime integration already point to this directory.
+The structured profile under `policy/profiles/ops-v0.1` (shim + `policy/` directory + `data.json`) is the single source of truth. Edit this profile directly—policy tests and runtime integration already point to these files.
