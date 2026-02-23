@@ -46,6 +46,6 @@
 - CI reporting mode: record violations without blocking to train policies before enforcing.
 
 ## Essentials to Maintain
-- Keep policy, engine, and registry behavior stable; avoid new dependencies.
-- Tests are a priority: add unit/integration coverage for the registry, policy, CLI, and server config.
+- Keep the shared validation core and evidence behavior stable; avoid new dependencies.
+- Tests are a priority: add unit/integration coverage for policy, CLI, and server configuration.
 - Documentation must stay concise: root README for quick start, docs/advanced.md for deeper topics.

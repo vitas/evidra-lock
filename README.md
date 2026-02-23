@@ -31,7 +31,7 @@ evidra-mcp \
 - Both `--policy` and `--data` are required (or set `EVIDRA_POLICY_PATH` / `EVIDRA_DATA_PATH`).
 - Evidence defaults to `~/.evidra/evidence`, or override with `--evidence-dir` / `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
 - Pass `--observe` to collect advisory output while still evaluating policy decisions and evidence.
-- Connect your MCP client (Codex, scripts, etc.) to submit ToolInvocations through the registry → policy → evidence pipeline.
+- Connect your MCP client (Codex, scripts, etc.) to submit ToolInvocations through the validate → policy → evidence pipeline.
 
 ## Offline tools (`evidra`)
 
@@ -55,10 +55,22 @@ evidra evidence inspect --evidence-dir ~/.evidra/evidence
 - Evidence records live under `~/.evidra/evidence` (or your configured path); see `docs/evidence.md` for the JSONL schema and inspection commands.
 - `docs/policy.md` explains the policy contract and how to run `opa test` against the profile.
 - `docs/advanced.md` covers MCP server configuration and advanced workflows.
+- `docs/architecture.md` summarizes the v0.1 runtime graph from Codex through MCP to policy/evidence.
 
-## Not in v1
-- No regulated bundle or multiple policy profiles—`ops-v0.1` is the single source of truth.
-- No hosted MCP service; everything runs locally via `evidra-mcp` or the offline CLI.
-- No demo executors or shell-level command runners baked into the registry.
-- No `--log-level` / `--listen` flags or hidden configuration knobs (only the flags listed above).
-- No features that require runtime downloads or additional dependencies.
+## Features (v0.1)
+
+- MCP `validate` tool plus `get_event` evidence lookup.
+- Policy decisions always include hits, hints, and reasons for any deny.
+- Immutable evidence chain stored under `~/.evidra/evidence`.
+- Offline `evidra validate` auto-detects Terraform/Kubernetes inputs and prints structured summaries.
+- Evidence inspection/reporting via `evidra evidence inspect`/`report`.
+
+## Architecture (v0.1)
+
+- See `docs/architecture.md` for the call graph from Codex through `evidra-mcp`, `pkg/validate`, `pkg/runtime`, and `pkg/evidence`.
+
+## Not in v0.1
+
+- `execute` tool, registry packs, and plugin-based executors are not part of v0.1.
+- No external pack/registry onboarding; policy/profile edits stay under `policy/profiles/ops-v0.1`.
+- No hosted MCP service or runtime downloads; everything runs locally via `evidra-mcp` or `evidra`.
