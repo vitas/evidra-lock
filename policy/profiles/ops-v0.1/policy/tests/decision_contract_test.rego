@@ -41,7 +41,7 @@ test_allowed_operation_reason if {
   }
   d := data.evidra.policy.decision with input as payload
   d.allow
-  d.risk_level == "normal"
+  d.risk_level == "low"
   d.reason == "ok"
   count(d.reasons) == 0
 }
@@ -91,6 +91,6 @@ test_risk_high_with_breakglass_tag if {
   }
   d := data.evidra.policy.decision with input as payload
   d.allow
-  d.risk_level == "high"
+  d.risk_level == "medium"
   d.reason == "ok"
 }

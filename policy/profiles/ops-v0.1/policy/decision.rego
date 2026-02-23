@@ -27,11 +27,11 @@ hints := dedupe([hint |
 risk_level := "high" if {
   count(denies) > 0
 }
-risk_level := "high" if {
+risk_level := "medium" if {
   count(denies) == 0
   has_any_risk_tag("breakglass")
 }
-risk_level := "normal" if {
+risk_level := "low" if {
   count(denies) == 0
   not has_any_risk_tag("breakglass")
 }

@@ -48,8 +48,8 @@ func TestRuntimeEvaluatorPolicyWiring(t *testing.T) {
 	if !allowed.Allow {
 		t.Fatalf("expected allow decision for safe action, got deny")
 	}
-	if allowed.RiskLevel != "normal" {
-		t.Fatalf("expected risk_level normal, got %q", allowed.RiskLevel)
+	if allowed.RiskLevel != "low" {
+		t.Fatalf("expected risk_level low, got %q", allowed.RiskLevel)
 	}
 }
 

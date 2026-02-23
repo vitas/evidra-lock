@@ -155,7 +155,7 @@ func readStringSlice(m map[string]interface{}, key string) ([]string, bool) {
 
 func isValidRiskLevel(level string) bool {
 	switch level {
-	case "high", "normal":
+	case "high", "medium", "low":
 		return true
 	default:
 		return false

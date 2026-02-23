@@ -20,7 +20,7 @@ test_warn_autonomous_execution_collects_hits_and_hints if {
   }
   d := data.evidra.policy.decision with input as payload
   d.allow
-  d.risk_level == "normal"
+  d.risk_level == "low"
   "WARN-AUTO-01" in d.hits
   "Review changes manually before apply" in d.hints
   d.reason == "ok"
