@@ -18,6 +18,7 @@ type Decision struct {
 	Allow     bool     `json:"allow"`
 	RiskLevel string   `json:"risk_level"`
 	Reason    string   `json:"reason"`
+	PolicyRef string   `json:"policy_ref,omitempty"`
 	Reasons   []string `json:"reasons,omitempty"`
 	Hints     []string `json:"hints,omitempty"`
 	Hits      []string `json:"hits,omitempty"`

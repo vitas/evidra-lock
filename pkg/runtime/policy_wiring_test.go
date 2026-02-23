@@ -1,10 +1,12 @@
 package runtime_test
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
 	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/runtime"
 )
 
@@ -64,7 +66,7 @@ func newPolicyEvaluator(t *testing.T) *runtime.Evaluator {
 	return eval
 }
 
-func evaluateInvocation(t *testing.T, eval *runtime.Evaluator, actions []map[string]interface{}, env, operation string) runtime.ScenarioDecision {
+func evaluateInvocation(t *testing.T, eval *runtime.Evaluator, actions []map[string]interface{}, env, operation string) policy.Decision {
 	t.Helper()
 	inv := invocation.ToolInvocation{
 		Actor:     invocation.Actor{Type: "human", ID: "test-user", Origin: "runtime-test"},
@@ -107,4 +109,56 @@ func assertNotEmpty(t *testing.T, slice []string, name string) {
 	if len(slice) == 0 {
 		t.Fatalf("expected %s to be populated", name)
 	}
+}
+
+func TestEvaluateInvocationSetsPolicyRef(t *testing.T) {
+	eval := newPolicyEvaluator(t)
+	action := map[string]interface{}{
+		"kind":      "kubectl.apply",
+		"risk_tags": []string{},
+		"payload":   map[string]interface{}{"namespace": "default"},
+	}
+	decision := evaluateInvocation(t, eval, []map[string]interface{}{action}, "dev", "apply")
+	if decision.PolicyRef == "" {
+		t.Fatal("expected PolicyRef to be set on returned Decision, got empty string")
+	}
+}
+
+func TestDecisionJSONShape(t *testing.T) {
+	sd := policy.Decision{
+		Allow:     true,
+		RiskLevel: "medium",
+		Reason:    "breakglass",
+		PolicyRef: "sha256:abc123",
+		Reasons:   []string{"breakglass"},
+		Hints:     []string{"hint-1"},
+		Hits:      []string{"WARN-BREAKGLASS-01"},
+	}
+	data, err := json.Marshal(sd)
+	if err != nil {
+		t.Fatalf("json.Marshal error: %v", err)
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatalf("json.Unmarshal error: %v", err)
+	}
+	for _, key := range []string{"allow", "risk_level", "reason", "reasons", "hints", "hits", "policy_ref"} {
+		if _, ok := m[key]; !ok {
+			t.Errorf("JSON output missing key %q; got keys: %v", key, mapKeys(m))
+		}
+	}
+	if m["allow"] != true {
+		t.Errorf("allow: got %v, want true", m["allow"])
+	}
+	if m["policy_ref"] != "sha256:abc123" {
+		t.Errorf("policy_ref: got %v, want sha256:abc123", m["policy_ref"])
+	}
+}
+
+func mapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

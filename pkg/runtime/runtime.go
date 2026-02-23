@@ -6,18 +6,8 @@ import (
 	"samebits.com/evidra-mcp/pkg/policysource"
 )
 
-type ScenarioDecision struct {
-	Allow     bool     `json:"allow"`
-	RiskLevel string   `json:"risk_level"`
-	Reason    string   `json:"reason"`
-	PolicyRef string   `json:"policy_ref,omitempty"`
-	Hits      []string `json:"hits,omitempty"`
-	Hints     []string `json:"hints,omitempty"`
-	Reasons   []string `json:"reasons,omitempty"`
-}
-
 type ScenarioEvaluator interface {
-	EvaluateInvocation(inv invocation.ToolInvocation) (ScenarioDecision, error)
+	EvaluateInvocation(inv invocation.ToolInvocation) (policy.Decision, error)
 }
 
 type Evaluator struct {
@@ -46,21 +36,14 @@ func NewEvaluator(policyPath, dataPath string) (*Evaluator, error) {
 	return &Evaluator{engine: eng, policyRef: ref}, nil
 }
 
-func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (ScenarioDecision, error) {
+func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (policy.Decision, error) {
 	if err := inv.ValidateStructure(); err != nil {
-		return ScenarioDecision{}, err
+		return policy.Decision{}, err
 	}
 	d, err := e.engine.Evaluate(inv)
 	if err != nil {
-		return ScenarioDecision{}, err
+		return policy.Decision{}, err
 	}
-	return ScenarioDecision{
-		Allow:     d.Allow,
-		RiskLevel: d.RiskLevel,
-		Reason:    d.Reason,
-		PolicyRef: e.policyRef,
-		Hits:      d.Hits,
-		Hints:     d.Hints,
-		Reasons:   d.Reasons,
-	}, nil
+	d.PolicyRef = e.policyRef
+	return d, nil
 }
