@@ -34,11 +34,11 @@ audit-pack.tar.gz
 **/cmd/**/data/evidence/
 
 #AI stuff
-CLAUDE.*
-GEMINI.*
+CLAUDE.md
+GEMINI.md
 AGENTS.md
 .claude/
-.gemini
-.codex
+.gemini/
+.codex/
 .ai/
 ai/
