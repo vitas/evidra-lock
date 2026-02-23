@@ -181,9 +181,6 @@ func buildActionList(params map[string]interface{}) []map[string]interface{} {
 			}
 			return actions
 		}
-		if arr, ok2 := raw.([]map[string]interface{}); ok2 {
-			return arr
-		}
 	}
 	return nil
 }

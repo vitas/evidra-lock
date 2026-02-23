@@ -116,11 +116,6 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		Params: map[string]interface{}{
 			"scenario_id":   sc.ScenarioID,
 			"scenario_hash": scenarioHash(sc),
-			"rule_ids":      finalRuleIDs,
-			"hints":         finalHints,
-			"risk_level":    finalRisk,
-			"decision":      passDecision(finalPass),
-			"reasons":       finalReasons,
 			"action_count":  len(sc.Actions),
 		},
 		PolicyDecision: evidence.PolicyDecision{

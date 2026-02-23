@@ -13,6 +13,7 @@
   - `medium` → decision allowed but breakglass/exception tags were present.
   - `high` → policy denied or evaluation failed.
 - `execution_result`: status/exit codes when a tool was run.
+- `params`: contains scenario metadata (`scenario_id`, `scenario_hash`, `action_count`); decision data resides in `policy_decision`.
 - Hash chain fields: `previous_hash` links records, and `hash` protects the record contents.
 
 ## Inspecting the store
