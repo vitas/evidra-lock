@@ -8,7 +8,7 @@
 ## Smoke validation
 
 - [ ] `./bin/evidra validate examples/terraform_plan_pass.json`
-- [ ] Validate a Terraform plan:
+- [ ] Validate a plan file:
   - `terraform plan -out=plan.tfplan`
   - `terraform show -json plan.tfplan > plan.json`
   - `./bin/evidra validate plan.json`

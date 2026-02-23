@@ -1,6 +1,6 @@
 # Evidra v1-slim
 
-Evidra  deterministically enforces policy on Terraform plans and Kubernetes changes through a local MCP server plus focused offline tooling.
+Evidra deterministically enforces policy on infrastructure changes through a local MCP server plus focused offline tooling.
 
 ## Features
 ### MCP server (evidra-mcp)
@@ -13,7 +13,7 @@ Evidra  deterministically enforces policy on Terraform plans and Kubernetes chan
 - Both `evidra` and `evidra-mcp` rely on the same Go evaluation core (`pkg/validate` + `pkg/opscore` wrapper) that uses `pkg/scenario` for scenario loading, policy evaluation, and evidence writing. The shared core ensures identical decision output, hits, hints, and evidence IDs regardless of entry point.
 
 ### Offline CLI (evidra)
-- `evidra validate <file>` auto-detects Terraform plan JSON or Kubernetes manifests and prints PASS/FAIL along with rule IDs, hints, and evidence IDs.
+- `evidra validate <file>` auto-detects structured plan/manifest files—examples include Terraform plan JSON and Kubernetes manifests—and prints PASS/FAIL along with rule IDs, hints, and evidence IDs.
 - `--explain` surfaces matching rule labels, reasons, and key action facts; `--json` emits a structured decision payload for automation.
 - `evidra policy sim` lets you exercise or debug policy decisions locally.
 - `evidra evidence inspect` / `evidra evidence report` explore the hash-linked evidence store.
@@ -62,7 +62,7 @@ evidra evidence inspect --evidence-dir ~/.evidra/evidence
 - MCP `validate` tool plus `get_event` evidence lookup.
 - Policy decisions always include hits, hints, and reasons for any deny.
 - Immutable evidence chain stored under `~/.evidra/evidence`.
-- Offline `evidra validate` auto-detects Terraform/Kubernetes inputs and prints structured summaries.
+- Offline `evidra validate` auto-detects plan or manifest inputs and prints structured summaries.
 - Evidence inspection/reporting via `evidra evidence inspect`/`report`.
 
 ## Architecture (v0.1)

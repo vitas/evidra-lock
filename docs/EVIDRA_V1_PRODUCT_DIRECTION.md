@@ -35,7 +35,7 @@ run.
 
 It does not filter command strings.
 
-It evaluates: - Terraform plan JSON - Kubernetes diff
+It evaluates structured plan/diff descriptions of the intended changes. (for example: Terraform plan JSON - Kubernetes diff)
 
 Then applies deterministic policy and returns:
 
@@ -50,8 +50,7 @@ Then applies deterministic policy and returns:
 
 ### 1️⃣ Outcome-Based Validation
 
--   Evaluate Terraform plan JSON
--   Evaluate Kubernetes diff
+-   Evaluate structured plan/diff artifacts (for example Evaluate Terraform plan JSON and Kubernetes diff)
 -   Decision based on resulting changes, not commands
 
 ### 2️⃣ Deterministic Decision Output

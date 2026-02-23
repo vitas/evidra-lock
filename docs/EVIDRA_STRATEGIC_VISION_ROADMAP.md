@@ -32,8 +32,7 @@ But this evolution must be staged carefully.
 
 Focus:
 
--   Terraform plan validation
--   Kubernetes diff validation
+-   Validate plan and manifest artifacts
 -   Deterministic policy (deny/warn)
 -   Immutable evidence chain
 -   Clean CLI UX
@@ -53,8 +52,7 @@ No enterprise features. No compliance marketing. No workflow automation.
 
 Focus:
 
--   Improve outcome parsers (Terraform plan richness, Kubernetes diff
-    clarity)
+-   Improve outcome parsers for plan and manifest data
 -   Smarter risk classification (based on change type, resource
     criticality)
 -   Policy modularization (small deny/warn rules)

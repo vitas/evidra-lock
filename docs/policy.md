@@ -27,7 +27,7 @@ input = {
 - `actor.type` records who triggered the run; alerts like autonomous execution rely on `agent`.
 - `source` distinguishes CLI runs from MCP/agent runs so policies can honor different guardrails.
 
-Minimal Terraform input:
+Minimal plan input:
 
 ```
 {
@@ -47,7 +47,7 @@ Minimal Terraform input:
 }
 ```
 
-Minimal Kubernetes input:
+Minimal manifest input:
 
 ```
 {
