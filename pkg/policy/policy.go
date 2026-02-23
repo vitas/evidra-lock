@@ -166,32 +166,26 @@ func buildActionList(params map[string]interface{}) []map[string]interface{} {
 	if params == nil {
 		return nil
 	}
-	var actions []map[string]interface{}
-	appendRaw := func(raw interface{}) {
-		switch v := raw.(type) {
-		case []interface{}:
-			for _, item := range v {
-				if action, ok := normalizeAction(item); ok {
-					actions = append(actions, action)
-				}
-			}
-		case []map[string]interface{}:
-			for _, action := range v {
-				actions = append(actions, action)
-			}
-		default:
-			if action, ok := normalizeAction(v); ok {
-				actions = append(actions, action)
-			}
+	if raw, ok := params["action"]; ok {
+		if action, ok2 := normalizeAction(raw); ok2 {
+			return []map[string]interface{}{action}
 		}
 	}
 	if raw, ok := params["actions"]; ok {
-		appendRaw(raw)
+		if arr, ok2 := raw.([]interface{}); ok2 {
+			var actions []map[string]interface{}
+			for _, item := range arr {
+				if action, ok3 := normalizeAction(item); ok3 {
+					actions = append(actions, action)
+				}
+			}
+			return actions
+		}
+		if arr, ok2 := raw.([]map[string]interface{}); ok2 {
+			return arr
+		}
 	}
-	if raw, ok := params["action"]; ok {
-		appendRaw(raw)
-	}
-	return actions
+	return nil
 }
 
 func normalizeAction(raw interface{}) (map[string]interface{}, bool) {

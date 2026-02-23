@@ -44,18 +44,17 @@ type ErrorSummary struct {
 	Message   string `json:"message"`
 	RiskLevel string `json:"risk_level,omitempty"`
 	Reason    string `json:"reason,omitempty"`
-	Hint      string `json:"hint,omitempty"`
 }
 
 type ValidateOutput struct {
-	OK        bool           `json:"ok"`
-	EventID   string         `json:"event_id,omitempty"`
-	Policy    PolicySummary  `json:"policy"`
-	RuleIDs   []string               `json:"rule_ids,omitempty"`
-	Hints     []string               `json:"hints,omitempty"`
-	Reasons   []string               `json:"reasons,omitempty"`
+	OK        bool                    `json:"ok"`
+	EventID   string                  `json:"event_id,omitempty"`
+	Policy    PolicySummary           `json:"policy"`
+	RuleIDs   []string                `json:"rule_ids,omitempty"`
+	Hints     []string                `json:"hints,omitempty"`
+	Reasons   []string                `json:"reasons,omitempty"`
 	Resources []evidence.ResourceLink `json:"resources,omitempty"`
-	Error     *ErrorSummary  `json:"error,omitempty"`
+	Error     *ErrorSummary           `json:"error,omitempty"`
 }
 
 type validateHandler struct {
@@ -207,10 +206,10 @@ type ValidateService struct {
 }
 
 type GetEventOutput struct {
-	OK        bool             `json:"ok"`
-	Record    *evidence.Record `json:"record,omitempty"`
+	OK        bool                    `json:"ok"`
+	Record    *evidence.Record        `json:"record,omitempty"`
 	Resources []evidence.ResourceLink `json:"resources,omitempty"`
-	Error     *ErrorSummary    `json:"error,omitempty"`
+	Error     *ErrorSummary           `json:"error,omitempty"`
 }
 
 func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvocation) ValidateOutput {
@@ -219,7 +218,7 @@ func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvoc
 			OK: false,
 			Policy: PolicySummary{
 				Allow:     false,
-				RiskLevel: "critical",
+				RiskLevel: "high",
 				Reason:    "invalid_input",
 				PolicyRef: s.policyRef,
 			},
@@ -240,7 +239,7 @@ func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvoc
 			OK: false,
 			Policy: PolicySummary{
 				Allow:     false,
-				RiskLevel: "critical",
+				RiskLevel: "high",
 				Reason:    "internal_error",
 				PolicyRef: s.policyRef,
 			},

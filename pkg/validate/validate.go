@@ -472,8 +472,11 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 		if !decision.Allow {
 			res.Pass = false
 			res.RiskLevel = "high"
-			reason := fmt.Sprintf("action[%d] %s: %s", i, action.Kind, decision.Reason)
-			res.Reasons = append(res.Reasons, reason)
+			if len(decision.Reasons) > 0 {
+				res.Reasons = append(res.Reasons, decision.Reasons...)
+			} else if decision.Reason != "" {
+				res.Reasons = append(res.Reasons, decision.Reason)
+			}
 		}
 
 		res.RuleIDs = append(res.RuleIDs, decision.Hits...)
