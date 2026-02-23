@@ -6,8 +6,6 @@ import (
 	"samebits.com/evidra-mcp/pkg/policysource"
 )
 
-// TODO(monorepo-split): move runtime evaluator and contracts into standalone core module.
-
 type ScenarioDecision struct {
 	Allow       bool     `json:"allow"`
 	RiskLevel   string   `json:"risk_level"`
