@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart LR
-  codex(Codex client / CLI) --> mcp(evidra-mcp server)
+  codex(AI client / CLI) --> mcp(evidra-mcp server)
   mcp --> validate(Validate service)
   validate --> runtime(OPA runtime / policy)
   runtime --> evidence(Evidence store)

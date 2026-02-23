@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-mcp/internal/version"
 	"samebits.com/evidra-mcp/pkg/validate"
+	"samebits.com/evidra-mcp/pkg/version"
 )
 
 func main() {
