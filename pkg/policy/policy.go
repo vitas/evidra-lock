@@ -15,13 +15,12 @@ import (
 )
 
 type Decision struct {
-	Allow       bool     `json:"allow"`
-	RiskLevel   string   `json:"risk_level"`
-	Reason      string   `json:"reason"`
-	Reasons     []string `json:"reasons,omitempty"`
-	Hints       []string `json:"hints,omitempty"`
-	Hits        []string `json:"hits,omitempty"`
-	LongRunning bool     `json:"long_running,omitempty"`
+	Allow     bool     `json:"allow"`
+	RiskLevel string   `json:"risk_level"`
+	Reason    string   `json:"reason"`
+	Reasons   []string `json:"reasons,omitempty"`
+	Hints     []string `json:"hints,omitempty"`
+	Hits      []string `json:"hits,omitempty"`
 }
 
 type Engine struct {
@@ -90,17 +89,16 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 		return Decision{Allow: false, RiskLevel: "critical", Reason: "policy_evaluation_failed"}, err
 	}
 	if len(results) == 0 || len(results[0].Expressions) == 0 {
-		return Decision{Allow: false, RiskLevel: "critical", Reason: "policy_evaluation_failed"}, errors.New("policy decision not found")
+		return Decision{Allow: false, RiskLevel: "high", Reason: "policy_evaluation_failed"}, errors.New("policy decision not found")
 	}
-
 	out, ok := results[0].Expressions[0].Value.(map[string]interface{})
 	if !ok {
-		return Decision{Allow: false, RiskLevel: "critical", Reason: "policy_evaluation_failed"}, errors.New("policy decision has invalid type")
+		return Decision{Allow: false, RiskLevel: "high", Reason: "policy_evaluation_failed"}, errors.New("policy decision has invalid type")
 	}
 
 	decision := Decision{
 		Allow:     false,
-		RiskLevel: "critical",
+		RiskLevel: "high",
 		Reason:    "policy_evaluation_failed",
 	}
 
@@ -132,9 +130,6 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 	if len(decision.Reasons) == 0 && decision.Reason != "" {
 		decision.Reasons = []string{decision.Reason}
 	}
-	if longRunning, ok := out["long_running"].(bool); ok {
-		decision.LongRunning = longRunning
-	}
 	return decision, nil
 }
 
@@ -160,7 +155,7 @@ func readStringSlice(m map[string]interface{}, key string) ([]string, bool) {
 
 func isValidRiskLevel(level string) bool {
 	switch level {
-	case "low", "medium", "high", "critical", "normal":
+	case "high", "normal":
 		return true
 	default:
 		return false

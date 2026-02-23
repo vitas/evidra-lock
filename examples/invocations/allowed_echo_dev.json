@@ -2,6 +2,8 @@
   "actor": {"type": "human", "id": "local-dev", "origin": "cli"},
   "tool": "argocd",
   "operation": "app-get",
-  "params": {"app": "payments-api"},
+  "params": {
+    "payload": {"app": "payments-api"}
+  },
   "context": {"environment": "dev", "cluster": "local"}
 }

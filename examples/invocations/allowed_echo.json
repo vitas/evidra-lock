@@ -2,6 +2,8 @@
   "actor": {"type": "human", "id": "local-dev", "origin": "cli"},
   "tool": "kubectl",
   "operation": "get",
-  "params": {"resource": "pods", "namespace": "default"},
+  "params": {
+    "target": {"resource": "pods", "namespace": "default"}
+  },
   "context": {"environment": "dev", "cluster": "local"}
 }

@@ -25,7 +25,9 @@ func TestValidateServiceReturnsDeny(t *testing.T) {
 		Tool:      "kubectl",
 		Operation: "delete",
 		Params: map[string]interface{}{
-			"namespace": "prod",
+			"payload": map[string]interface{}{
+				"namespace": "prod",
+			},
 		},
 		Context: map[string]interface{}{},
 	}

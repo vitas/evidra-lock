@@ -116,12 +116,12 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		Params: map[string]interface{}{
 			"scenario_id":   sc.ScenarioID,
 			"scenario_hash": scenarioHash(sc),
-			"rule_ids":     finalRuleIDs,
-			"hints":        finalHints,
-			"risk_level":   finalRisk,
-			"decision":     passDecision(finalPass),
-			"reasons":      finalReasons,
-			"action_count": len(sc.Actions),
+			"rule_ids":      finalRuleIDs,
+			"hints":         finalHints,
+			"risk_level":    finalRisk,
+			"decision":      passDecision(finalPass),
+			"reasons":       finalReasons,
+			"action_count":  len(sc.Actions),
 		},
 		PolicyDecision: evidence.PolicyDecision{
 			Allow:     finalPass,
@@ -171,7 +171,7 @@ func invocationToScenario(inv invocation.ToolInvocation) scenario.Scenario {
 				Kind:     fmt.Sprintf("%s.%s", inv.Tool, inv.Operation),
 				Target:   mapFromValue(inv.Params["target"]),
 				Intent:   contextString(inv.Context, "intent", ""),
-				Payload:  copyMap(inv.Params),
+				Payload:  mapFromValue(inv.Params["payload"]),
 				RiskTags: toStringSlice(inv.Params["risk_tags"]),
 			},
 		},
@@ -481,11 +481,6 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 		if !decision.Allow && len(decision.Hits) == 0 {
 			res.RuleIDs = append(res.RuleIDs, "UNLABELED_DENY")
 		}
-		if decision.LongRunning {
-			res.RiskLevel = "high"
-		}
-
-
 	}
 	if len(res.Reasons) == 0 {
 		res.Reasons = append(res.Reasons, "all actions passed policy validation")
@@ -505,13 +500,4 @@ func splitKind(kind string) (string, string, bool) {
 		return "", "", false
 	}
 	return parts[0], parts[1], true
-}
-
-func hasTag(tags []string, target string) bool {
-	for _, t := range tags {
-		if t == target {
-			return true
-		}
-	}
-	return false
 }

@@ -3,9 +3,11 @@
   "tool": "helm",
   "operation": "upgrade",
   "params": {
-    "release": "payments-api",
-    "chart": "./charts/payments-api",
-    "namespace": "payments"
+    "payload": {
+      "release": "payments-api",
+      "chart": "./charts/payments-api",
+      "namespace": "payments"
+    }
   },
   "context": {"environment": "prod", "cluster": "remote"}
 }

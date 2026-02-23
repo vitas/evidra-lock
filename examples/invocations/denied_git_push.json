@@ -2,6 +2,8 @@
   "actor": {"type": "human", "id": "local-dev", "origin": "cli"},
   "tool": "kubectl",
   "operation": "delete",
-  "params": {"resource": "deployment", "name": "payments-api", "namespace": "default"},
+  "params": {
+    "target": {"resource": "deployment", "name": "payments-api", "namespace": "default"}
+  },
   "context": {"environment": "prod", "cluster": "remote"}
 }
