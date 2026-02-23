@@ -12,7 +12,7 @@ The format is based on Keep a Changelog.
 
 ## [0.1.0] 
 
-- MCP gateway for ops tools with `execute` and `get_event`.
+- MCP gateway for ops tools with `validate` and `get_event`.
 - OPA/Rego policy enforcement with structured decisions (`allow`, `risk_level`, `reason`).
 - Ops-first runtime profile and official ops packs (`kubectl`, `helm`, `argocd`, `terraform`).
 - Segmented append-only evidence store with sealing and hash-chain validation.

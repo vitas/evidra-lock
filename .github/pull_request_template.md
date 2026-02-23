@@ -5,8 +5,6 @@
 ## Scope
 
 - [ ] Core
-- [ ] Ops bundle
-- [ ] Regulated bundle
 - [ ] Docs only
 
 ## Validation
