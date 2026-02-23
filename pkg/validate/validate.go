@@ -486,10 +486,6 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 		}
 
 
-		if hasTag(action.RiskTags, "breakglass") {
-			res.RuleIDs = append(res.RuleIDs, "breakglass")
-			res.Reasons = append(res.Reasons, fmt.Sprintf("action[%d] %s: breakglass tag present", i, action.Kind))
-		}
 	}
 	if len(res.Reasons) == 0 {
 		res.Reasons = append(res.Reasons, "all actions passed policy validation")

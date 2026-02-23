@@ -21,6 +21,10 @@
     ],
     "WARN-AUTO-01": [
       "Review changes manually before apply"
+    ],
+    "WARN-BREAKGLASS-01": [
+      "Use breakglass only for emergencies and ensure thorough review.",
+      "Prefer change-approved tags for non-emergency production changes."
     ]
   }
 }
