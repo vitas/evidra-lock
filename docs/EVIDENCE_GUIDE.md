@@ -7,7 +7,11 @@ Every execution attempt should produce an evidence record.
 
 ## 2) Store Layout
 
-Default path: `./data/evidence`
+Default path: `~/.evidra/evidence`
+
+Override path:
+- MCP server: `--evidence-store` (or `--evidence-dir`)
+- All binaries: `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`)
 
 - `manifest.json`
 - `segments/evidence-000001.jsonl`, `evidence-000002.jsonl`, ...
@@ -27,9 +31,9 @@ Manifest includes:
 
 ## 4) Inspecting the log
 
-- `cat ./data/evidence/manifest.json`
-- `tail -n 1 ./data/evidence/segments/evidence-000001.jsonl`
-- Use `jq` to filter: `jq '.records' ./data/evidence/manifest.json`
+- `cat ~/.evidra/evidence/manifest.json`
+- `tail -n 1 ~/.evidra/evidence/segments/evidence-000001.jsonl`
+- Use `jq` to filter: `jq '.records' ~/.evidra/evidence/manifest.json`
   (manifests contain counts, hashes, and segment metadata).
 
 ## 5) Audit Pack

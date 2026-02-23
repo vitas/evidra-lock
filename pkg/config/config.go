@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -16,16 +15,7 @@ const (
 
 var (
 	repoPolicyFallbackOnce sync.Once
-	DefaultEvidenceDir     string
 )
-
-func init() {
-	if home, err := os.UserHomeDir(); err == nil {
-		DefaultEvidenceDir = filepath.Join(home, ".evidra", "evidence")
-	} else {
-		DefaultEvidenceDir = filepath.Join(".", "data", "evidence")
-	}
-}
 
 func ResolvePolicyData(policyFlag, dataFlag string) (string, string, error) {
 	policyFlag = strings.TrimSpace(policyFlag)
@@ -45,19 +35,6 @@ func ResolvePolicyData(policyFlag, dataFlag string) (string, string, error) {
 		return DefaultPolicyPath, DefaultDataPath, nil
 	}
 	return "", "", fmt.Errorf("missing policy/data paths; provide --policy/--data or set EVIDRA_POLICY_PATH/EVIDRA_DATA_PATH")
-}
-
-func ResolveEvidenceDir(flagValue string) string {
-	if path := strings.TrimSpace(flagValue); path != "" {
-		return path
-	}
-	if dir := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_DIR")); dir != "" {
-		return dir
-	}
-	if path := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_PATH")); path != "" {
-		return path
-	}
-	return DefaultEvidenceDir
 }
 
 func fileExists(path string) bool {

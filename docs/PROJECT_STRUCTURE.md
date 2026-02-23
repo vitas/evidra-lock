@@ -27,7 +27,7 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 - `pkg/runtime`: legacy runtime evaluator that loads policy+data; kept for backward compatibility but the v1 core now lives in `pkg/validate`.
 - `pkg/scenario`: scenario schema and loader shared by the CLI and MCP entrypoints.
 - `pkg/validate`: single evaluation core that uses `pkg/scenario` for scenario loading and drives policy evaluation plus evidence recording for both CLI validation and MCP execution.
-- `pkg/config`: shared resolver for `--policy`, `--data`, and `--evidence-dir` flags plus `EVIDRA_*` env vars so both binaries use the same paths.
+- `pkg/config`: shared resolver for `--policy`, `--data`, and evidence store flags (`--evidence-store` alias `--evidence-dir`) plus `EVIDRA_*` env vars so both binaries use the same paths.
 - `pkg/evidence`: append-only evidence store that records policy hits, hints, and decision metadata.
 - `pkg/evidence`: append-only evidence store and helper functions for generating resource links/manifests for MCP clients.
 - `pkg/mcpserver`: MCP adapter that receives `ToolInvocation`, runs the core decision/evidence flow, and exposes tools via MCP.

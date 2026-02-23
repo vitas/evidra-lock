@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"samebits.com/evidra-mcp/pkg/config"
 	"samebits.com/evidra-mcp/pkg/invocation"
 )
 
@@ -56,16 +57,7 @@ func TestComputeHashExcludesHashField(t *testing.T) {
 }
 
 func TestAppendAndValidateChain(t *testing.T) {
-	temp := t.TempDir()
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd() error = %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWd) }()
-
-	if err := os.Chdir(temp); err != nil {
-		t.Fatalf("Chdir(temp) error = %v", err)
-	}
+	setupDefaultEvidenceHome(t)
 
 	r1, err := Append(testRecord("evt-1", "echo", "run"))
 	if err != nil {
@@ -89,16 +81,7 @@ func TestAppendAndValidateChain(t *testing.T) {
 }
 
 func TestValidateChainDetectsTamper(t *testing.T) {
-	temp := t.TempDir()
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd() error = %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWd) }()
-
-	if err := os.Chdir(temp); err != nil {
-		t.Fatalf("Chdir(temp) error = %v", err)
-	}
+	defaultEvidencePath := setupDefaultEvidenceHome(t)
 
 	if _, err := Append(testRecord("evt-1", "echo", "run")); err != nil {
 		t.Fatalf("Append(r1) error = %v", err)
@@ -107,7 +90,7 @@ func TestValidateChainDetectsTamper(t *testing.T) {
 		t.Fatalf("Append(r2) error = %v", err)
 	}
 
-	path := filepath.Join("data", "evidence", "segments", "evidence-000001.jsonl")
+	path := filepath.Join(defaultEvidencePath, "segments", "evidence-000001.jsonl")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile(log) error = %v", err)
@@ -140,16 +123,7 @@ func TestValidateChainDetectsTamper(t *testing.T) {
 }
 
 func TestEvidenceRecordContainsPolicyRef(t *testing.T) {
-	temp := t.TempDir()
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd() error = %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWd) }()
-
-	if err := os.Chdir(temp); err != nil {
-		t.Fatalf("Chdir(temp) error = %v", err)
-	}
+	defaultEvidencePath := setupDefaultEvidenceHome(t)
 
 	rec := testRecord("evt-policy-ref", "echo", "run")
 	rec.PolicyRef = "abc123policyref"
@@ -157,7 +131,7 @@ func TestEvidenceRecordContainsPolicyRef(t *testing.T) {
 		t.Fatalf("Append(rec) error = %v", err)
 	}
 
-	raw, err := os.ReadFile(filepath.Join("data", "evidence", "segments", "evidence-000001.jsonl"))
+	raw, err := os.ReadFile(filepath.Join(defaultEvidencePath, "segments", "evidence-000001.jsonl"))
 	if err != nil {
 		t.Fatalf("ReadFile(evidence.log) error = %v", err)
 	}
@@ -274,4 +248,14 @@ func testRecord(eventID, tool, operation string) EvidenceRecord {
 
 func intPtr(v int) *int {
 	return &v
+}
+
+func setupDefaultEvidenceHome(t *testing.T) string {
+	t.Helper()
+
+	home := t.TempDir()
+	t.Setenv("EVIDRA_HOME", home)
+	t.Setenv("EVIDRA_EVIDENCE_DIR", "")
+	t.Setenv("EVIDRA_EVIDENCE_PATH", "")
+	return filepath.Join(home, filepath.FromSlash(config.DefaultEvidenceRelativeDir))
 }

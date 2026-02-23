@@ -5,10 +5,16 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"samebits.com/evidra-mcp/pkg/config"
 )
 
 func NewStore() *Store {
-	return NewStoreWithPath(defaultEvidenceRoot)
+	path, err := config.ResolveEvidencePath("")
+	if err != nil {
+		path = filepath.FromSlash(config.DefaultEvidenceRelativeDir)
+	}
+	return NewStoreWithPath(path)
 }
 
 type Store struct {

@@ -90,7 +90,10 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 	var store *evidence.Store
 	var evidenceID string
 	if !opts.SkipEvidence {
-		evidenceDir := config.ResolveEvidenceDir(opts.EvidenceDir)
+		evidenceDir, err := config.ResolveEvidencePath(opts.EvidenceDir)
+		if err != nil {
+			return Result{}, fmt.Errorf("%w: %w", ErrEvidenceWrite, err)
+		}
 		store = evidence.NewStoreWithPath(evidenceDir)
 		if err := store.Init(); err != nil {
 			return Result{}, fmt.Errorf("%w: %w", ErrEvidenceWrite, err)
@@ -304,16 +307,16 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 			Params: map[string]interface{}{
 				invocation.KeyScenarioID: sc.ScenarioID,
 				"action": map[string]interface{}{
-					"kind":                action.Kind,
-					invocation.KeyTarget:  action.Target,
-					invocation.KeyIntent:  action.Intent,
-					invocation.KeyPayload: action.Payload,
+					"kind":                 action.Kind,
+					invocation.KeyTarget:   action.Target,
+					invocation.KeyIntent:   action.Intent,
+					invocation.KeyPayload:  action.Payload,
 					invocation.KeyRiskTags: action.RiskTags,
 				},
 			},
 			Context: map[string]interface{}{
-				"timestamp":             sc.Timestamp.Format(time.RFC3339),
-				invocation.KeySource:    sc.Source,
+				"timestamp":          sc.Timestamp.Format(time.RFC3339),
+				invocation.KeySource: sc.Source,
 			},
 		}
 

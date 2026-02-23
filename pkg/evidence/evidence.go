@@ -11,14 +11,24 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"samebits.com/evidra-mcp/pkg/config"
 )
 
 func Append(record EvidenceRecord) (EvidenceRecord, error) {
-	return appendAtPath(defaultEvidenceRoot, record)
+	path, err := config.ResolveEvidencePath("")
+	if err != nil {
+		return EvidenceRecord{}, err
+	}
+	return appendAtPath(path, record)
 }
 
 func ValidateChain() error {
-	return validateChainAtPath(defaultEvidenceRoot)
+	path, err := config.ResolveEvidencePath("")
+	if err != nil {
+		return err
+	}
+	return validateChainAtPath(path)
 }
 
 func ValidateChainAtPath(path string) error {

@@ -8,7 +8,7 @@ Deliver a single-purpose, deterministic DevOps validator that reads Terraform pl
 
 - `evidra validate <file>` as the canonical entry point.
 - The ops policy profile under `policy/profiles/ops-v0.1/` with structured deny/warn rules and data-driven hints.
-- Evidence logging under `./data/evidence` capturing every decision for later inspection.
+- Evidence logging under `~/.evidra/evidence` capturing every decision for later inspection.
 - Clear documentation and example inputs so new users can get started in under one minute.
 
 ## Out of scope

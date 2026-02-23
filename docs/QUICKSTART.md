@@ -22,3 +22,9 @@
 ## 5) Tests
 
 - `go test ./...`
+
+## Evidence store default
+
+- Default evidence path is always `~/.evidra/evidence`.
+- Override for MCP server with `--evidence-store` (or `--evidence-dir`).
+- Override for CLI and server with `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).

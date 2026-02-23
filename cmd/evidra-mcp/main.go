@@ -37,6 +37,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	policyFlag := fs.String("policy", "", "Path to policy rego file (required)")
 	dataFlag := fs.String("data", "", "Path to policy data JSON file (required)")
 	evidenceFlag := fs.String("evidence-dir", "", "Path to store evidence records")
+	evidenceStoreFlag := fs.String("evidence-store", "", "Alias for --evidence-dir")
 	observeFlag := fs.Bool("observe", false, "Enable observe mode (policy advises but execution proceeds)")
 	helpFlag := fs.Bool("help", false, "Show help")
 	if err := fs.Parse(args); err != nil {
@@ -64,6 +65,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
+	evidenceExplicit, err := resolveEvidenceFlagValue(*evidenceStoreFlag, *evidenceFlag)
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 1
+	}
+	evidencePath, err := config.ResolveEvidencePath(evidenceExplicit)
+	if err != nil {
+		fmt.Fprintf(stderr, "resolve evidence path: %v\n", err)
+		return 1
+	}
 
 	server := newServerFunc(mcpserver.Options{
 		Name:                     "evidra-mcp",
@@ -72,7 +83,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		PolicyRef:                policyRefOrEmpty(ps),
 		PolicyPath:               policyPath,
 		DataPath:                 dataPath,
-		EvidencePath:             config.ResolveEvidenceDir(strings.TrimSpace(*evidenceFlag)),
+		EvidencePath:             evidencePath,
 		IncludeFileResourceLinks: envBool("EVIDRA_INCLUDE_FILE_RESOURCE_LINKS", false),
 	})
 
@@ -103,6 +114,18 @@ func resolveMode(observeFlag bool) (mcpserver.Mode, error) {
 	return mcpserver.ModeEnforce, nil
 }
 
+func resolveEvidenceFlagValue(evidenceStoreFlag, evidenceDirFlag string) (string, error) {
+	store := strings.TrimSpace(evidenceStoreFlag)
+	dir := strings.TrimSpace(evidenceDirFlag)
+	if store != "" && dir != "" && store != dir {
+		return "", fmt.Errorf("conflicting values for --evidence-store and --evidence-dir")
+	}
+	if store != "" {
+		return store, nil
+	}
+	return dir, nil
+}
+
 func policyRefOrEmpty(ps *policysource.LocalFileSource) string {
 	ref, err := ps.PolicyRef()
 	if err != nil {
@@ -126,6 +149,8 @@ func envBool(key string, fallback bool) bool {
 }
 
 func printHelp(w io.Writer) {
+	defaultEvidence := config.DefaultEvidencePathDescription()
+
 	fmt.Fprintln(w, "evidra-mcp — Local MCP server that enforces deterministic policy on AI-generated infra changes.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "USAGE:")
@@ -136,13 +161,14 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --data <path>           Path to policy data.json (e.g. policy/profiles/ops-v0.1/data.json)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "FLAGS:")
-	fmt.Fprintln(w, "  --evidence-dir <dir>    Where to store evidence chain (default: ~/.evidra/evidence; override via EVIDRA_EVIDENCE_DIR/EVIDRA_EVIDENCE_PATH)")
+	fmt.Fprintf(w, "  --evidence-dir <dir>    Where to store evidence chain (default: %s; override via EVIDRA_EVIDENCE_DIR/EVIDRA_EVIDENCE_PATH)\n", defaultEvidence)
+	fmt.Fprintln(w, "  --evidence-store <dir>  Alias for --evidence-dir")
 	fmt.Fprintln(w, "  --observe               Observe-only: do not block, only report (default: enforce)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "EXAMPLES:")
 	fmt.Fprintln(w, "  evidra-mcp --policy policy/profiles/ops-v0.1/policy.rego \\")
 	fmt.Fprintln(w, "             --data   policy/profiles/ops-v0.1/data.json \\")
-	fmt.Fprintln(w, "             --evidence-dir ~/.evidra/evidence")
+	fmt.Fprintf(w, "             --evidence-dir %s\n", defaultEvidence)
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "NOTES:")
 	fmt.Fprintln(w, "  - Use `evidra` for offline tools (policy sim, evidence inspect/report).")

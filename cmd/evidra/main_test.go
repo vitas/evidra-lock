@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"samebits.com/evidra-mcp/pkg/config"
 )
 
 func TestValidateUsage(t *testing.T) {
@@ -14,7 +16,7 @@ func TestValidateUsage(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("expected exit code 2 for missing file, got %d", code)
 	}
-	if !strings.Contains(stderr, "usage: evidra validate <file>") {
+	if !strings.Contains(stderr, "usage: evidra validate [--policy <path> --data <path>] <file>") {
 		t.Fatalf("expected usage message, got: %s", stderr)
 	}
 }
@@ -99,6 +101,38 @@ func TestVersionCommand(t *testing.T) {
 	}
 	if !strings.Contains(out, "Version:") {
 		t.Fatalf("expected version output, got: %s", out)
+	}
+}
+
+func TestHelpMentionsDefaultEvidenceStore(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("EVIDRA_HOME", home)
+	t.Setenv("EVIDRA_EVIDENCE_DIR", "")
+	t.Setenv("EVIDRA_EVIDENCE_PATH", "")
+
+	code, _, errOut := runFromRepoRoot(t, []string{"--help"})
+	if code != 2 {
+		t.Fatalf("expected code 2 for help, got %d", code)
+	}
+	wantPath := filepath.Join(home, filepath.FromSlash(config.DefaultEvidenceRelativeDir))
+	if !strings.Contains(errOut, wantPath) {
+		t.Fatalf("expected help to mention %q, got: %s", wantPath, errOut)
+	}
+}
+
+func TestValidateHelpMentionsDefaultEvidenceStore(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("EVIDRA_HOME", home)
+	t.Setenv("EVIDRA_EVIDENCE_DIR", "")
+	t.Setenv("EVIDRA_EVIDENCE_PATH", "")
+
+	code, _, errOut := runFromRepoRoot(t, []string{"validate", "--help"})
+	if code != 2 {
+		t.Fatalf("expected code 2 for help, got %d", code)
+	}
+	wantPath := filepath.Join(home, filepath.FromSlash(config.DefaultEvidenceRelativeDir))
+	if !strings.Contains(errOut, wantPath) {
+		t.Fatalf("expected validate help to mention %q, got: %s", wantPath, errOut)
 	}
 }
 

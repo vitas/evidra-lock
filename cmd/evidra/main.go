@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"samebits.com/evidra-mcp/pkg/config"
 	"samebits.com/evidra-mcp/pkg/validate"
 	"samebits.com/evidra-mcp/pkg/version"
 )
@@ -51,6 +52,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func runValidate(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
+		printValidateUsage(stderr)
+		return 2
+	}
+
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	jsonOut := fs.Bool("json", false, "output structured JSON")
@@ -58,7 +64,7 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 	policyFlag := fs.String("policy", "", "Path to policy rego file")
 	dataFlag := fs.String("data", "", "Path to policy data JSON file")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 1 {
-		fmt.Fprintln(stderr, "usage: evidra validate <file>")
+		printValidateUsage(stderr)
 		return 2
 	}
 
@@ -204,11 +210,24 @@ func firstN(items []string, limit int) []string {
 }
 
 func printUsage(w io.Writer) {
+	defaultEvidence := config.DefaultEvidencePathDescription()
+
 	fmt.Fprintln(w, "usage: evidra <validate|version>")
 	fmt.Fprintln(w, "  evidra validate [--policy <path> --data <path>] <file>")
 	fmt.Fprintln(w, "  evidra version")
 	fmt.Fprintln(w, "")
+	fmt.Fprintf(w, "Default evidence store: %s\n", defaultEvidence)
+	fmt.Fprintln(w, "Override via EVIDRA_EVIDENCE_DIR or legacy EVIDRA_EVIDENCE_PATH.")
+	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Advanced commands are described in docs/advanced.md:")
 	fmt.Fprintln(w, "  evidra evidence <verify|export|violations|cursor> ...")
 	fmt.Fprintln(w, "  evidra policy sim --policy <path> --input <path> [--data <path>]")
+}
+
+func printValidateUsage(w io.Writer) {
+	defaultEvidence := config.DefaultEvidencePathDescription()
+
+	fmt.Fprintln(w, "usage: evidra validate [--policy <path> --data <path>] <file>")
+	fmt.Fprintf(w, "Evidence is written to: %s\n", defaultEvidence)
+	fmt.Fprintln(w, "Override via EVIDRA_EVIDENCE_DIR or legacy EVIDRA_EVIDENCE_PATH.")
 }

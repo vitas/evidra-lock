@@ -96,8 +96,6 @@ type Metadata struct {
 type Record = EvidenceRecord
 
 const (
-	defaultEvidenceRoot          = "./data/evidence"
-	defaultLegacyLogPath         = "./data/evidence.log"
 	defaultSegmentMaxBytes int64 = 5_000_000
 	segmentMaxBytesEnv           = "EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES"
 	manifestFileName             = "manifest.json"

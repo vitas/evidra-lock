@@ -7,7 +7,7 @@ Evidra deterministically enforces policy on infrastructure changes through a loc
 - Enforces the structured policy under `policy/profiles/ops-v0.1` via OPA and records every decision as an immutable evidence record.
 - Exposes the `validate` tool (and `get_event` for fetching evidence) so MCP clients can submit ToolInvocations, review hits/hints, and link decisions to evidence.
 - Supports `--observe` for advisory runs while still logging policy hits, hints, and evidence identifiers.
-- Evidence defaults to `~/.evidra/evidence`; override with `--evidence-dir` or `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
+- Evidence defaults to `~/.evidra/evidence`; override with `--evidence-store` (or `--evidence-dir`) or `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
 
 ### Shared evaluation core
 - Both `evidra` and `evidra-mcp` rely on the same Go evaluation core (`pkg/validate`) that uses `pkg/scenario` for input loading, runs policy via `pkg/runtime`/`pkg/policy`, and records every decision through `pkg/evidence`. This pipeline preserves identical decision output, hits, hints, and evidence IDs regardless of entry point.
@@ -24,12 +24,12 @@ Evidra deterministically enforces policy on infrastructure changes through a loc
 evidra-mcp \
   --policy policy/profiles/ops-v0.1/policy.rego \
   --data   policy/profiles/ops-v0.1/data.json \
-  --evidence-dir ~/.evidra/evidence \
+  --evidence-store ~/.evidra/evidence \
   [--observe]
 ```
 
 - Both `--policy` and `--data` are required (or set `EVIDRA_POLICY_PATH` / `EVIDRA_DATA_PATH`).
-- Evidence defaults to `~/.evidra/evidence`, or override with `--evidence-dir` / `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
+- Evidence defaults to `~/.evidra/evidence`, or override with `--evidence-store` (or `--evidence-dir`) / `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
 - Pass `--observe` to collect advisory output while still evaluating policy decisions and evidence.
 - Connect your MCP client (Codex, scripts, etc.) to submit ToolInvocations through the validate → policy → evidence pipeline.
 
@@ -45,9 +45,7 @@ Add `--explain` to see hits, hints, and action facts, or `--json` to produce a s
 evidra policy sim --policy policy/profiles/ops-v0.1/policy.rego --input examples/terraform_mass_delete_fail.json
 ```
 
-```bash
-evidra evidence inspect --evidence-dir ~/.evidra/evidence
-```
+Use `EVIDRA_EVIDENCE_DIR` (or legacy `EVIDRA_EVIDENCE_PATH`) to override the evidence store path for offline commands.
 
 ## Policy & evidence
 

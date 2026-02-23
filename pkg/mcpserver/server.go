@@ -23,12 +23,12 @@ const (
 
 // Error codes used in ErrorSummary.Code.
 const (
-	ErrCodeInvalidInput     = "invalid_input"
-	ErrCodePolicyFailure    = "policy_failure"
-	ErrCodeEvidenceWrite    = "evidence_write_failed"
-	ErrCodeChainInvalid     = "evidence_chain_invalid"
-	ErrCodeNotFound         = "not_found"
-	ErrCodeInternalError    = "internal_error"
+	ErrCodeInvalidInput  = "invalid_input"
+	ErrCodePolicyFailure = "policy_failure"
+	ErrCodeEvidenceWrite = "evidence_write_failed"
+	ErrCodeChainInvalid  = "evidence_chain_invalid"
+	ErrCodeNotFound      = "not_found"
+	ErrCodeInternalError = "internal_error"
 )
 
 type Options struct {
@@ -90,7 +90,10 @@ func NewServer(opts Options) *mcp.Server {
 		opts.Mode = ModeEnforce
 	}
 	if opts.EvidencePath == "" {
-		opts.EvidencePath = config.DefaultEvidenceDir
+		resolved, err := config.ResolveEvidencePath("")
+		if err == nil {
+			opts.EvidencePath = resolved
+		}
 	}
 
 	svc := newValidateService(opts)
