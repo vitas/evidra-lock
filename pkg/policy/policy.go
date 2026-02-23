@@ -86,7 +86,7 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 
 	results, err := e.query.Eval(context.Background(), rego.EvalInput(input))
 	if err != nil {
-		return Decision{Allow: false, RiskLevel: "critical", Reason: "policy_evaluation_failed"}, err
+		return Decision{Allow: false, RiskLevel: "high", Reason: "policy_evaluation_failed"}, err
 	}
 	if len(results) == 0 || len(results[0].Expressions) == 0 {
 		return Decision{Allow: false, RiskLevel: "high", Reason: "policy_evaluation_failed"}, errors.New("policy decision not found")

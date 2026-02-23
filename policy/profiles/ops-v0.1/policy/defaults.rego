@@ -18,21 +18,3 @@ action_namespace(a) := ns if {
   ns := object.get(target, "namespace", "")
   ns != ""
 }
-
-action_namespace(a) := ns if {
-  payload := object.get(a, "payload", {})
-  object.get(payload, "namespace", "") == ""
-  target := object.get(a, "target", {})
-  object.get(target, "namespace", "") == ""
-  targetStr := object.get(a, "target", "")
-  ns := targetStr
-  ns != ""
-}
-
-action_namespace(a) := "" if {
-  payload := object.get(a, "payload", {})
-  object.get(payload, "namespace", "") == ""
-  target := object.get(a, "target", {})
-  object.get(target, "namespace", "") == ""
-  object.get(a, "target", "") == ""
-}

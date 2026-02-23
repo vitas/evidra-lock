@@ -204,7 +204,7 @@ func mapFromValue(value interface{}) map[string]interface{} {
 	if m, ok := value.(map[string]interface{}); ok {
 		return copyMap(m)
 	}
-	return nil
+	return map[string]interface{}{}
 }
 
 func copyMap(src map[string]interface{}) map[string]interface{} {

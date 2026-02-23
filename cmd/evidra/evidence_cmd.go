@@ -320,7 +320,7 @@ func runViolations(args []string, stdout io.Writer, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	evidencePath := fs.String("evidence", "", "Path to evidence log")
 	since := fs.String("since", "", "Optional duration window (e.g. 24h)")
-	minRisk := fs.String("min-risk", "high", "Minimum risk level: low|medium|high|critical")
+	minRisk := fs.String("min-risk", "high", "Minimum risk level: normal|high")
 	_ = fs.Bool("json", true, "Output JSON")
 	if err := fs.Parse(args); err != nil {
 		return exitInputError
@@ -336,7 +336,7 @@ func runViolations(args []string, stdout io.Writer, stderr io.Writer) int {
 
 	minRiskRank, ok := riskRank(*minRisk)
 	if !ok {
-		fmt.Fprintln(stderr, "--min-risk must be one of: low|medium|high|critical")
+		fmt.Fprintln(stderr, "--min-risk must be one of: normal|high")
 		return exitInputError
 	}
 
@@ -727,24 +727,27 @@ func sha256Hex(b []byte) string {
 
 func riskRank(level string) (int, bool) {
 	switch strings.ToLower(strings.TrimSpace(level)) {
-	case "low":
+	case "normal":
 		return 0, true
-	case "medium":
-		return 1, true
 	case "high":
-		return 2, true
-	case "critical":
-		return 3, true
+		return 1, true
 	default:
-		return 3, false
+		switch strings.ToLower(strings.TrimSpace(level)) {
+		case "low", "medium":
+			return 0, false
+		case "critical":
+			return 1, false
+		}
+		return 1, false
 	}
 }
 
 func normalizedRiskLevel(level string) string {
-	if _, ok := riskRank(level); !ok {
-		return "critical"
+	lvl := strings.ToLower(strings.TrimSpace(level))
+	if lvl == "normal" || lvl == "high" {
+		return lvl
 	}
-	return strings.ToLower(strings.TrimSpace(level))
+	return "high"
 }
 
 func buildReasonCounts(input map[string]int, limit int) []reasonCount {

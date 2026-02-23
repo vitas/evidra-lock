@@ -1,6 +1,7 @@
 // Package invocation defines the canonical execution request structure used by
 // Evidra’s evaluation surface.
 //
-// This package is intentionally transport-agnostic and has no dependencies on
-// registry, policy, or evidence packages.
+// ToolInvocations describe the actor/tool/operation/params/context tuples that
+// drive the scenario → policy → evidence pipeline without including transport
+// details or execution helpers.
 package invocation

@@ -256,7 +256,7 @@ func TestViolationsMinRiskFilter(t *testing.T) {
 
 	var out strings.Builder
 	var errOut strings.Builder
-	code := runEvidenceCommand([]string{"violations", "--evidence", logPath, "--min-risk", "critical"}, &out, &errOut)
+	code := runEvidenceCommand([]string{"violations", "--evidence", logPath, "--min-risk", "high"}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
 	}
