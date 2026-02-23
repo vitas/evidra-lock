@@ -119,9 +119,6 @@ func printValidationResult(result validate.Result, stdout io.Writer, jsonOut boo
 		fmt.Fprintf(stdout, "Reason: %s\n", reason)
 		if result.Pass {
 			fmt.Fprintln(stdout, "No deny rules matched.")
-			if len(result.PolicyHits) > 0 {
-				fmt.Fprintf(stdout, "Warnings: %s\n", strings.Join(result.PolicyHits, ", "))
-			}
 		} else {
 			printListWithCap("Rule IDs", result.RuleIDs, 10, stdout)
 			printReasons(result.Reasons, reason, stdout)
@@ -139,13 +136,6 @@ func printValidationResult(result validate.Result, stdout io.Writer, jsonOut boo
 
 func printExplanation(result validate.Result, stdout io.Writer) {
 	fmt.Fprintln(stdout, "Explanation:")
-	if result.Pass {
-		fmt.Fprintln(stdout, "- No deny rules matched.")
-		if len(result.PolicyHits) > 0 {
-			fmt.Fprintf(stdout, "- Warnings: %s\n", strings.Join(result.PolicyHits, ", "))
-		}
-		return
-	}
 	if len(result.RuleIDs) > 0 {
 		fmt.Fprintf(stdout, "- Rule IDs: %s\n", strings.Join(result.RuleIDs, ", "))
 	}

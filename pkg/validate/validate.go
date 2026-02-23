@@ -32,20 +32,18 @@ type Result struct {
 	RiskLevel   string
 	EvidenceID  string
 	Reasons     []string
-	PolicyHits  []string
 	RuleIDs     []string
 	Hints       []string
 	ActionFacts []ActionFact
 }
 
 type scenarioEvaluation struct {
-	Pass       bool
-	RiskLevel  string
-	Reasons    []string
-	PolicyHits []string
-	RuleIDs    []string
-	Hints      []string
-	PolicyRef  string
+	Pass      bool
+	RiskLevel string
+	Reasons   []string
+	RuleIDs   []string
+	Hints     []string
+	PolicyRef string
 }
 
 type ActionFact struct {
@@ -116,16 +114,14 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		Tool:      "ops.scenario",
 		Operation: "validate",
 		Params: map[string]interface{}{
-			"scenario_id":    sc.ScenarioID,
-			"scenario_hash":  scenarioHash(sc),
-			"policy_hits":    evalResult.PolicyHits,
-			"rule_ids":       finalRuleIDs,
-			"hints":          finalHints,
-			"risk_level":     finalRisk,
-			"decision":       passDecision(finalPass),
-			"reasons":        finalReasons,
-			"action_count":   len(sc.Actions),
-			"bundle_profile": "ops",
+			"scenario_id":   sc.ScenarioID,
+			"scenario_hash": scenarioHash(sc),
+			"rule_ids":     finalRuleIDs,
+			"hints":        finalHints,
+			"risk_level":   finalRisk,
+			"decision":     passDecision(finalPass),
+			"reasons":      finalReasons,
+			"action_count": len(sc.Actions),
 		},
 		PolicyDecision: evidence.PolicyDecision{
 			Allow:     finalPass,
@@ -154,7 +150,6 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		RiskLevel:   finalRisk,
 		EvidenceID:  evidenceID,
 		Reasons:     dedupeStrings(finalReasons),
-		PolicyHits:  evalResult.PolicyHits,
 		RuleIDs:     finalRuleIDs,
 		Hints:       finalHints,
 		ActionFacts: collectActionFacts(sc.Actions),
@@ -435,7 +430,6 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 			res.RiskLevel = "high"
 			reason := fmt.Sprintf("action[%d] invalid kind: %s", i, action.Kind)
 			res.Reasons = append(res.Reasons, reason)
-			res.PolicyHits = append(res.PolicyHits, "invalid_action_kind")
 			continue
 		}
 
@@ -484,18 +478,13 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 
 		res.RuleIDs = append(res.RuleIDs, decision.Hits...)
 		res.Hints = append(res.Hints, decision.Hints...)
-		if len(decision.Hits) == 0 {
-			res.RuleIDs = append(res.RuleIDs, decision.Reason)
+		if !decision.Allow && len(decision.Hits) == 0 {
+			res.RuleIDs = append(res.RuleIDs, "UNLABELED_DENY")
 		}
 		if decision.LongRunning {
 			res.RiskLevel = "high"
 		}
 
-		if len(decision.Hits) == 0 {
-			res.PolicyHits = append(res.PolicyHits, decision.Reason)
-		} else {
-			res.PolicyHits = append(res.PolicyHits, decision.Hits...)
-		}
 
 		if hasTag(action.RiskTags, "breakglass") {
 			res.RuleIDs = append(res.RuleIDs, "breakglass")
@@ -507,7 +496,6 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 	}
 	res.RuleIDs = dedupeStrings(res.RuleIDs)
 	res.Hints = dedupeStrings(res.Hints)
-	res.PolicyHits = dedupeStrings(res.PolicyHits)
 	res.Reasons = dedupeStrings(res.Reasons)
 	return res, nil
 }
