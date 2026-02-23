@@ -5,6 +5,16 @@ import (
 	"fmt"
 )
 
+// Canonical keys for ToolInvocation.Params and ToolInvocation.Context.
+const (
+	KeyTarget     = "target"
+	KeyPayload    = "payload"
+	KeyRiskTags   = "risk_tags"
+	KeyScenarioID = "scenario_id"
+	KeySource     = "source"
+	KeyIntent     = "intent"
+)
+
 type Actor struct {
 	Type   string `json:"type"`
 	ID     string `json:"id"`
@@ -39,13 +49,13 @@ func (ti *ToolInvocation) ValidateStructure() error {
 		return errors.New("params is required")
 	}
 
-	if err := validateMap(ti.Params, "target"); err != nil {
+	if err := validateMap(ti.Params, KeyTarget); err != nil {
 		return err
 	}
-	if err := validateMap(ti.Params, "payload"); err != nil {
+	if err := validateMap(ti.Params, KeyPayload); err != nil {
 		return err
 	}
-	if err := validateRiskTags(ti.Params["risk_tags"]); err != nil {
+	if err := validateRiskTags(ti.Params[KeyRiskTags]); err != nil {
 		return err
 	}
 

@@ -153,25 +153,25 @@ func invocationToScenario(inv invocation.ToolInvocation) scenario.Scenario {
 			ID:     inv.Actor.ID,
 			Origin: inv.Actor.Origin,
 		},
-		Source:    contextString(inv.Context, "source", inv.Actor.Origin),
+		Source:    contextString(inv.Context, invocation.KeySource, inv.Actor.Origin),
 		Timestamp: time.Now().UTC(),
 		Actions: []scenario.Action{
 			{
 				Kind:     fmt.Sprintf("%s.%s", inv.Tool, inv.Operation),
-				Target:   mapFromValue(inv.Params["target"]),
-				Intent:   contextString(inv.Context, "intent", ""),
-				Payload:  mapFromValue(inv.Params["payload"]),
-				RiskTags: toStringSlice(inv.Params["risk_tags"]),
+				Target:   mapFromValue(inv.Params[invocation.KeyTarget]),
+				Intent:   contextString(inv.Context, invocation.KeyIntent, ""),
+				Payload:  mapFromValue(inv.Params[invocation.KeyPayload]),
+				RiskTags: toStringSlice(inv.Params[invocation.KeyRiskTags]),
 			},
 		},
 	}
 }
 
 func scenarioIDFromInvocation(inv invocation.ToolInvocation) string {
-	if id := contextString(inv.Context, "scenario_id", ""); id != "" {
+	if id := contextString(inv.Context, invocation.KeyScenarioID, ""); id != "" {
 		return id
 	}
-	if id, ok := inv.Params["scenario_id"].(string); ok && strings.TrimSpace(id) != "" {
+	if id, ok := inv.Params[invocation.KeyScenarioID].(string); ok && strings.TrimSpace(id) != "" {
 		return id
 	}
 	return fmt.Sprintf("%s.%s.%d", inv.Tool, inv.Operation, time.Now().UTC().UnixNano())
@@ -302,18 +302,18 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 			Tool:      tool,
 			Operation: operation,
 			Params: map[string]interface{}{
-				"scenario_id": sc.ScenarioID,
+				invocation.KeyScenarioID: sc.ScenarioID,
 				"action": map[string]interface{}{
-					"kind":      action.Kind,
-					"target":    action.Target,
-					"intent":    action.Intent,
-					"payload":   action.Payload,
-					"risk_tags": action.RiskTags,
+					"kind":                action.Kind,
+					invocation.KeyTarget:  action.Target,
+					invocation.KeyIntent:  action.Intent,
+					invocation.KeyPayload: action.Payload,
+					invocation.KeyRiskTags: action.RiskTags,
 				},
 			},
 			Context: map[string]interface{}{
-				"timestamp": sc.Timestamp.Format(time.RFC3339),
-				"source":    sc.Source,
+				"timestamp":             sc.Timestamp.Format(time.RFC3339),
+				invocation.KeySource:    sc.Source,
 			},
 		}
 

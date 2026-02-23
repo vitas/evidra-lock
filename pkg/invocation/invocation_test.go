@@ -104,7 +104,7 @@ func TestValidateStructure_InvalidTargetFails(t *testing.T) {
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
 		Tool: "test", Operation: "run",
 		Params: map[string]interface{}{
-			"target": "not-a-map",
+			KeyTarget: "not-a-map",
 		},
 	}
 	err := ti.ValidateStructure()
@@ -121,7 +121,7 @@ func TestValidateStructure_InvalidPayloadFails(t *testing.T) {
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
 		Tool: "test", Operation: "run",
 		Params: map[string]interface{}{
-			"payload": 123,
+			KeyPayload: 123,
 		},
 	}
 	err := ti.ValidateStructure()
@@ -138,7 +138,7 @@ func TestValidateStructure_InvalidRiskTagsFails(t *testing.T) {
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
 		Tool: "test", Operation: "run",
 		Params: map[string]interface{}{
-			"risk_tags": []interface{}{"high", 123},
+			KeyRiskTags: []interface{}{"high", 123},
 		},
 	}
 	err := ti.ValidateStructure()
