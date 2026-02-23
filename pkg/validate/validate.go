@@ -14,10 +14,8 @@ import (
 
 	"go.yaml.in/yaml/v3"
 	"samebits.com/evidra-mcp/pkg/config"
-	"samebits.com/evidra-mcp/pkg/core"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
-	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/runtime"
 	"samebits.com/evidra-mcp/pkg/scenario"
 )
@@ -532,46 +530,4 @@ func hasTag(tags []string, target string) bool {
 		}
 	}
 	return false
-}
-
-type PolicyEngine struct {
-	options Options
-}
-
-func NewPolicyEngine(opts Options) core.PolicyEngine {
-	opts.SkipEvidence = true
-	return &PolicyEngine{options: opts}
-}
-
-func (p *PolicyEngine) Evaluate(inv invocation.ToolInvocation) (policy.Decision, error) {
-	ctx := context.Background()
-	res, err := EvaluateInvocation(ctx, inv, p.options)
-	if err != nil {
-		return decisionForPolicyError(), err
-	}
-	return decisionFromResult(res), nil
-}
-
-func decisionForPolicyError() policy.Decision {
-	return policy.Decision{
-		Allow:     false,
-		RiskLevel: "critical",
-		Reason:    "policy_evaluation_failed",
-	}
-}
-
-func decisionFromResult(res Result) policy.Decision {
-	decision := policy.Decision{
-		Allow:     res.Pass,
-		RiskLevel: res.RiskLevel,
-		Hints:     res.Hints,
-		Hits:      res.RuleIDs,
-		Reasons:   res.Reasons,
-	}
-	if len(res.Reasons) > 0 {
-		decision.Reason = res.Reasons[0]
-	} else if res.RiskLevel != "" {
-		decision.Reason = res.RiskLevel
-	}
-	return decision
 }

@@ -1,7 +1,6 @@
 // Package invocation defines the canonical execution request structure used by
-// Evidra core.
+// Evidra’s evaluation surface.
 //
-// This package must remain transport-agnostic.
-//
-// This package must not depend on registry, policy, or evidence packages.
+// This package is intentionally transport-agnostic and has no dependencies on
+// registry, policy, or evidence packages.
 package invocation
