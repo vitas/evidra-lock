@@ -82,7 +82,7 @@ decision = {
 ```
 
 - `allow` drives enforcement: true permits the invocation, false denies it.
-`risk_level` is `"high"` whenever a deny fires, `"medium"` when a breakglass tag is present, and `"low"` otherwise.
+`risk_level` is `"high"` whenever a deny fires, `"medium"` when a breakglass tag is present, and `"low"` otherwise. The `low`/`medium` labels mark allowed flows, while `high` flags decisions that should be blocked or reviewed.
 - `reason` remains the legacy single-string summary (first deny message) that many adapters log.
 - `reasons` is the ordered list of all deny messages emitted during evaluation.
 - `hits` enumerates stable rule IDs (`POL-*` or `WARN-*`) whose `deny`/`warn` bodies matched.

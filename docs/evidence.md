@@ -8,6 +8,10 @@
 ## What each record holds
 
 - `policy_decision`: `{allow,risk_level,reason}` plus optional `hints`.
+- `risk_level` meaning:
+  - `low` → decision allowed with no breakglass/risk tags.
+  - `medium` → decision allowed but breakglass/exception tags were present.
+  - `high` → policy denied or evaluation failed.
 - `execution_result`: status/exit codes when a tool was run.
 - Hash chain fields: `previous_hash` links records, and `hash` protects the record contents.
 

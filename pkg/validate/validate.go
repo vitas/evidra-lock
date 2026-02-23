@@ -125,7 +125,7 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		},
 		PolicyDecision: evidence.PolicyDecision{
 			Allow:     finalPass,
-			RiskLevel: evidenceRiskLevel(finalRisk),
+			RiskLevel: finalRisk,
 			Reason:    primaryReason(finalReasons),
 			Reasons:   dedupeStrings(finalReasons),
 			Hints:     finalHints,
@@ -266,13 +266,6 @@ func passDecision(pass bool) string {
 		return "PASS"
 	}
 	return "FAIL"
-}
-
-func evidenceRiskLevel(level string) string {
-	if level == "high" {
-		return "high"
-	}
-	return "low"
 }
 
 func dedupeStrings(in []string) []string {
@@ -421,7 +414,7 @@ func parseYAMLKinds(content string) []string {
 func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evaluator, sc scenario.Scenario) (scenarioEvaluation, error) {
 	res := scenarioEvaluation{
 		Pass:      true,
-		RiskLevel: "normal",
+		RiskLevel: "low",
 	}
 	for i, action := range sc.Actions {
 		tool, operation, ok := splitKind(action.Kind)

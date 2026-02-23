@@ -31,12 +31,15 @@ Policy returns:
 ```json
 {
   "allow": true,
-  "risk_level": "low | medium | high | critical",
+  "risk_level": "low | medium | high",
   "reason": "string"
 }
 ```
 
-`allow=false` blocks execution in enforce mode.
+`allow=false` blocks execution in enforce mode. The policy records categorize risk as:
+- `low` when no breakglass/exemption tags appeared,
+- `medium` when breakglass tags are present but no denial occurred,
+- `high` when a deny was emitted or the evaluation failed.
 
 ## 3) Data-Driven Configuration
 
