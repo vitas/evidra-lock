@@ -29,6 +29,7 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 - `pkg/config`: shared resolver for `--policy`, `--data`, and `--evidence-dir` flags plus `EVIDRA_*` env vars so both binaries use the same paths.
 - `internal/advanced/registry`: legacy tool registry and validation helpers kept for advanced pack-based experimentation.
 - `pkg/evidence`: append-only evidence store that records policy hits, hints, and decision metadata.
+- `pkg/evidence`: append-only evidence store and helper functions for generating resource links/manifests for MCP clients.
 - `pkg/mcpserver`: MCP adapter that receives `ToolInvocation`, runs the core decision/evidence flow, and exposes tools via MCP.
 - `internal/advanced/engine`: legacy execution engine that routes invocations through registry, validators, policy, and execution results (advanced flow).
 - `pkg/packs`: pack loading utilities used by bundles/ops and tests.

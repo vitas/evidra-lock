@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -50,20 +48,14 @@ type ErrorSummary struct {
 	Hint      string `json:"hint,omitempty"`
 }
 
-type ResourceLink struct {
-	URI      string `json:"uri"`
-	Name     string `json:"name"`
-	MIMEType string `json:"mimeType,omitempty"`
-}
-
 type ValidateOutput struct {
 	OK        bool           `json:"ok"`
 	EventID   string         `json:"event_id,omitempty"`
 	Policy    PolicySummary  `json:"policy"`
-	RuleIDs   []string       `json:"rule_ids,omitempty"`
-	Hints     []string       `json:"hints,omitempty"`
-	Reasons   []string       `json:"reasons,omitempty"`
-	Resources []ResourceLink `json:"resources,omitempty"`
+	RuleIDs   []string               `json:"rule_ids,omitempty"`
+	Hints     []string               `json:"hints,omitempty"`
+	Reasons   []string               `json:"reasons,omitempty"`
+	Resources []evidence.ResourceLink `json:"resources,omitempty"`
 	Error     *ErrorSummary  `json:"error,omitempty"`
 }
 
@@ -221,7 +213,7 @@ type ValidateService struct {
 type GetEventOutput struct {
 	OK        bool             `json:"ok"`
 	Record    *evidence.Record `json:"record,omitempty"`
-	Resources []ResourceLink   `json:"resources,omitempty"`
+	Resources []evidence.ResourceLink `json:"resources,omitempty"`
 	Error     *ErrorSummary    `json:"error,omitempty"`
 }
 
@@ -308,31 +300,11 @@ func (s *ValidateService) GetEvent(_ context.Context, eventID string) GetEventOu
 	return GetEventOutput{OK: true, Record: &rec, Resources: s.resourceLinks(rec.EventID)}
 }
 
-func (s *ValidateService) resourceLinks(eventID string) []ResourceLink {
-	if eventID == "" {
-		return nil
-	}
-	links := []ResourceLink{{
-		URI:      fmt.Sprintf("evidra://event/%s", eventID),
-		Name:     "Evidence record",
-		MIMEType: "application/json",
-	}}
-	mode, resolved, err := evidenceStorePathInfo(s.evidencePath)
-	if err == nil && mode == "segmented" {
-		links = append(links, ResourceLink{URI: "evidra://evidence/manifest", Name: "Evidence manifest", MIMEType: "application/json"})
-		links = append(links, ResourceLink{URI: "evidra://evidence/segments", Name: "Evidence segments", MIMEType: "application/json"})
-	}
-	if s.includeFileResourceLinks {
-		if err == nil {
-			if abs, absErr := filepath.Abs(resolved); absErr == nil {
-				links = append(links, ResourceLink{URI: "file://" + filepath.ToSlash(abs), Name: "Local evidence path", MIMEType: "text/plain"})
-			}
-		}
-	}
-	return links
+func (s *ValidateService) resourceLinks(eventID string) []evidence.ResourceLink {
+	return evidence.ResourceLinks(eventID, s.evidencePath, s.includeFileResourceLinks)
 }
 
-func resourceLinksToContent(links []ResourceLink) []mcp.Content {
+func resourceLinksToContent(links []evidence.ResourceLink) []mcp.Content {
 	if len(links) == 0 {
 		return nil
 	}
@@ -341,20 +313,6 @@ func resourceLinksToContent(links []ResourceLink) []mcp.Content {
 		out = append(out, &mcp.ResourceLink{URI: l.URI, Name: l.Name, MIMEType: l.MIMEType})
 	}
 	return out
-}
-
-func evidenceStorePathInfo(path string) (mode string, resolved string, err error) {
-	mode, err = evidence.StoreFormatAtPath(path)
-	if err != nil {
-		return "", "", err
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		resolved = path
-	} else {
-		resolved = abs
-	}
-	return mode, resolved, nil
 }
 
 func (s *ValidateService) readResourceEvent(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
