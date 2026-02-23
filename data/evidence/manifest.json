@@ -1,13 +1,13 @@
 {
   "format": "evidra-evidence-manifest-v0.1",
   "created_at": "2026-02-21T11:23:16Z",
-  "updated_at": "2026-02-23T07:45:48Z",
+  "updated_at": "2026-02-23T08:41:51Z",
   "segments_dir": "segments",
   "current_segment": "evidence-000001.jsonl",
   "sealed_segments": [],
   "segment_max_bytes": 5000000,
-  "records_total": 12,
-  "last_hash": "6e3224c842c8f5d1b7809acba3126ee7c5ba9901de6c4d4a9b3206b983a53ab2",
+  "records_total": 42,
+  "last_hash": "ca7b57de2ac43a65e79f06be8cd4f3921ec9df9a5ddbc04f83637332ed5d3cdd",
   "policy_ref": "d9ad731f16a8aa341d66e2ee01c3b5d479e363688a375ea628293a55ef443c79",
   "notes": "Local segmented evidence store"
 }

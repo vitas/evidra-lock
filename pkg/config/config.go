@@ -3,18 +3,29 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 )
 
 const (
-	DefaultPolicyDir   = "policy/profiles/ops-v0.1"
-	DefaultPolicyPath  = DefaultPolicyDir + "/policy.rego"
-	DefaultDataPath    = DefaultPolicyDir + "/data.json"
-	DefaultEvidenceDir = "./data/evidence"
+	DefaultPolicyDir  = "policy/profiles/ops-v0.1"
+	DefaultPolicyPath = DefaultPolicyDir + "/policy.rego"
+	DefaultDataPath   = DefaultPolicyDir + "/data.json"
 )
 
-var repoPolicyFallbackOnce sync.Once
+var (
+	repoPolicyFallbackOnce sync.Once
+	DefaultEvidenceDir     string
+)
+
+func init() {
+	if home, err := os.UserHomeDir(); err == nil {
+		DefaultEvidenceDir = filepath.Join(home, ".evidra", "evidence")
+	} else {
+		DefaultEvidenceDir = filepath.Join(".", "data", "evidence")
+	}
+}
 
 func ResolvePolicyData(policyFlag, dataFlag string) (string, string, error) {
 	policyFlag = strings.TrimSpace(policyFlag)

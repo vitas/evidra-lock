@@ -7,31 +7,22 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"samebits.com/evidra-mcp/internal/version"
 	"samebits.com/evidra-mcp/pkg/config"
-	"samebits.com/evidra-mcp/pkg/core"
-	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/mcpserver"
-	"samebits.com/evidra-mcp/pkg/outputlimit"
-	"samebits.com/evidra-mcp/pkg/packs"
 	"samebits.com/evidra-mcp/pkg/policysource"
-	"samebits.com/evidra-mcp/pkg/registry"
-	"samebits.com/evidra-mcp/pkg/validate"
 )
-
-var defaultEvidenceDir = resolveDefaultEvidenceDir()
 
 type serverRunner interface {
 	Run(context.Context, mcp.Transport) error
 }
 
-var newServerFunc = func(opts mcpserver.Options, reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore) serverRunner {
-	return mcpserver.NewServer(opts, reg, policyEngine, evidenceStore)
+var newServerFunc = func(opts mcpserver.Options) serverRunner {
+	return mcpserver.NewServer(opts)
 }
 
 func main() {
@@ -46,7 +37,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	policyFlag := fs.String("policy", "", "Path to policy rego file (required)")
 	dataFlag := fs.String("data", "", "Path to policy data JSON file (required)")
 	evidenceFlag := fs.String("evidence-dir", "", "Path to store evidence records")
-	packsFlag := fs.String("packs-dir", "", "Optional packs directory to load tool definitions")
 	observeFlag := fs.Bool("observe", false, "Enable observe mode (policy advises but execution proceeds)")
 	helpFlag := fs.Bool("help", false, "Show help")
 	if err := fs.Parse(args); err != nil {
@@ -68,33 +58,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	ps := policysource.NewLocalFileSource(policyPath, dataPath)
-	policyEngine := validate.NewPolicyEngine(validate.Options{
-		PolicyPath: policyPath,
-		DataPath:   dataPath,
-	})
-
-	evidencePath := config.ResolveEvidenceDir(strings.TrimSpace(*evidenceFlag))
-	evidenceStore := evidence.NewStoreWithPath(evidencePath)
-	if err := evidenceStore.Init(); err != nil {
-		fmt.Fprintf(stderr, "init evidence store: %v\n", err)
-		return 1
-	}
-
-	toolRegistry := registry.NewInMemoryRegistry(nil)
-	packsDir := resolvePacksDir(strings.TrimSpace(*packsFlag))
-	if packsDir != "" {
-		defs, err := packs.LoadToolDefinitions(packsDir, toolRegistry.ToolNames())
-		if err != nil {
-			fmt.Fprintf(stderr, "load tool packs: %v\n", err)
-			return 1
-		}
-		for _, def := range defs {
-			if err := toolRegistry.RegisterTool(def); err != nil {
-				fmt.Fprintf(stderr, "register tool %q: %v\n", def.Name, err)
-				return 1
-			}
-		}
-	}
 
 	mode, err := resolveMode(*observeFlag)
 	if err != nil {
@@ -107,10 +70,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		Version:                  version.Version,
 		Mode:                     mode,
 		PolicyRef:                policyRefOrEmpty(ps),
-		EvidencePath:             evidencePath,
+		PolicyPath:               policyPath,
+		DataPath:                 dataPath,
+		EvidencePath:             config.ResolveEvidenceDir(strings.TrimSpace(*evidenceFlag)),
 		IncludeFileResourceLinks: envBool("EVIDRA_INCLUDE_FILE_RESOURCE_LINKS", false),
-		MaxOutputBytes:           outputlimit.MaxBytesFromEnv("EVIDRA_MAX_OUTPUT_BYTES", outputlimit.DefaultMaxBytes),
-	}, toolRegistry, policyEngine, evidenceStore)
+	})
 
 	logger := log.New(stderr, "", log.LstdFlags)
 	logger.Printf("evidra-mcp running in %s mode", mode)
@@ -120,13 +84,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
-}
-
-func resolvePacksDir(flagValue string) string {
-	if flagValue != "" {
-		return flagValue
-	}
-	return strings.TrimSpace(os.Getenv("EVIDRA_PACKS_DIR"))
 }
 
 func resolveMode(observeFlag bool) (mcpserver.Mode, error) {
@@ -181,7 +138,6 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "FLAGS:")
 	fmt.Fprintln(w, "  --evidence-dir <dir>    Where to store evidence chain (default: ~/.evidra/evidence; override via EVIDRA_EVIDENCE_DIR/EVIDRA_EVIDENCE_PATH)")
 	fmt.Fprintln(w, "  --observe               Observe-only: do not block, only report (default: enforce)")
-	fmt.Fprintln(w, "  --packs-dir <dir>       Optional: custom packs directory")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "EXAMPLES:")
 	fmt.Fprintln(w, "  evidra-mcp --policy policy/profiles/ops-v0.1/policy.rego \\")
@@ -190,11 +146,4 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "NOTES:")
 	fmt.Fprintln(w, "  - Use `evidra` for offline tools (policy sim, evidence inspect/report).")
-}
-
-func resolveDefaultEvidenceDir() string {
-	if home, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(home, ".evidra", "evidence")
-	}
-	return filepath.Join(".", "data", "evidence")
 }

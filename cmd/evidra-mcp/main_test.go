@@ -11,9 +11,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"samebits.com/evidra-mcp/pkg/config"
-	"samebits.com/evidra-mcp/pkg/core"
 	"samebits.com/evidra-mcp/pkg/mcpserver"
-	"samebits.com/evidra-mcp/pkg/registry"
 )
 
 func TestRunLoadsPolicyAndStartsServer(t *testing.T) {
@@ -22,7 +20,7 @@ func TestRunLoadsPolicyAndStartsServer(t *testing.T) {
 
 	var capturedOpts mcpserver.Options
 	stub := &fakeServer{}
-	newServerFunc = func(opts mcpserver.Options, reg registry.Registry, policyEngine core.PolicyEngine, evidenceStore core.EvidenceStore) serverRunner {
+	newServerFunc = func(opts mcpserver.Options) serverRunner {
 		capturedOpts = opts
 		return stub
 	}
@@ -52,7 +50,7 @@ func TestRunLoadsPolicyAndStartsServer(t *testing.T) {
 func TestRunRequiresPolicyAndData(t *testing.T) {
 	old := newServerFunc
 	defer func() { newServerFunc = old }()
-	newServerFunc = func(mcpserver.Options, registry.Registry, core.PolicyEngine, core.EvidenceStore) serverRunner {
+	newServerFunc = func(mcpserver.Options) serverRunner {
 		t.Fatalf("server should not start when policy/data missing")
 		return &fakeServer{}
 	}
@@ -72,7 +70,7 @@ func TestRunHonorsEnvFallback(t *testing.T) {
 	old := newServerFunc
 	defer func() { newServerFunc = old }()
 	stub := &fakeServer{}
-	newServerFunc = func(mcpserver.Options, registry.Registry, core.PolicyEngine, core.EvidenceStore) serverRunner {
+	newServerFunc = func(mcpserver.Options) serverRunner {
 		return stub
 	}
 
@@ -95,12 +93,6 @@ func TestRunHonorsEnvFallback(t *testing.T) {
 }
 
 func TestResolveEvidencePathPrecedence(t *testing.T) {
-	old := newServerFunc
-	defer func() { newServerFunc = old }()
-	newServerFunc = func(mcpserver.Options, registry.Registry, core.PolicyEngine, core.EvidenceStore) serverRunner {
-		return &fakeServer{}
-	}
-
 	t.Setenv("EVIDRA_EVIDENCE_PATH", t.TempDir())
 	t.Setenv("EVIDRA_EVIDENCE_DIR", filepath.Join(t.TempDir(), "dir"))
 

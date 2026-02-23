@@ -24,11 +24,13 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 - `pkg/invocation`: canonical `ToolInvocation` shape plus validation.
 - `pkg/policysource`: local file loader for policy modules and data; used by runtime and tests to load `policy/profiles/ops-v0.1`.
 - `pkg/policy`: OPA engine wrapper that evaluates the `data.evidra.policy.decision` query and maps the result into Go `Decision` structs (allow/risk/reason/hints/hits).
-- `pkg/runtime`: runtime evaluator that loads policy+data via `pkg/policysource`, exposes `ScenarioEvaluator`, and provides CLI-friendly helpers/tests.
-- `pkg/registry`: tool registry and validation helpers (interacts with packs).
+- `pkg/runtime`: legacy runtime evaluator that loads policy+data; kept for backward compatibility but the v1 core now lives in `pkg/validate`.
+- `pkg/validate`: single evaluation core wrapping `bundles/ops` that powers both CLI validation and MCP execution, including evidence recording.
+- `pkg/config`: shared resolver for `--policy`, `--data`, and `--evidence-dir` flags plus `EVIDRA_*` env vars so both binaries use the same paths.
+- `pkg/registry`: tool registry and validation helpers (reserved for advanced pack-based flows; not part of the core path).
 - `pkg/evidence`: append-only evidence store that records policy hits, hints, and decision metadata.
-- `pkg/mcpserver`: MCP adapter/j RPC server (if still part of repo) that receives `ToolInvocation`, runs the registry → policy → evidence flow.
-- `pkg/engine`: execution engine that routes invocations through registry, validators, policy, and execution results, used by the CLI and bundles.
+- `pkg/mcpserver`: MCP adapter that receives `ToolInvocation`, runs the core decision/evidence flow, and exposes tools via MCP.
+- `pkg/engine`: execution engine that routes invocations through registry, validators, policy, and execution results (advanced flow).
 - `pkg/packs`: pack loading utilities used by bundles/ops and tests.
 
 ## Build/Test Notes

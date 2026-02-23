@@ -5,9 +5,12 @@ Evidra  deterministically enforces policy on Terraform plans and Kubernetes chan
 ## Features
 ### MCP server (evidra-mcp)
 - Enforces the structured policy under `policy/profiles/ops-v0.1` via OPA and records every decision as an immutable evidence record.
+- Exposes the `validate` tool (and `get_event` for fetching evidence) so MCP clients can submit ToolInvocations, review hits/hints, and link decisions to evidence.
 - Supports `--observe` for advisory runs while still logging policy hits, hints, and evidence identifiers.
-- Optional `--packs-dir` can load additional tool metadata to shape validations.
-- Evidence defaults to `~/.evidra/evidence`; override with `--evidence-dir` or `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`) to keep compliance artifacts elsewhere.
+- Evidence defaults to `~/.evidra/evidence`; override with `--evidence-dir` or `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
+
+### Shared evaluation core
+- Both `evidra` and `evidra-mcp` rely on the same Go evaluation core (`pkg/validate` + `pkg/opscore` wrapper) that calls into `bundles/ops` for scenario validation, policy evaluation, and evidence writing. The shared core ensures identical decision output, hits, hints, and evidence IDs regardless of entry point.
 
 ### Offline CLI (evidra)
 - `evidra validate <file>` auto-detects Terraform plan JSON or Kubernetes manifests and prints PASS/FAIL along with rule IDs, hints, and evidence IDs.
@@ -22,7 +25,6 @@ evidra-mcp \
   --policy policy/profiles/ops-v0.1/policy.rego \
   --data   policy/profiles/ops-v0.1/data.json \
   --evidence-dir ~/.evidra/evidence \
-  [--packs-dir ./packs/_core/ops] \
   [--observe]
 ```
 
