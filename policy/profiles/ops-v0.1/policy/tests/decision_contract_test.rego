@@ -3,7 +3,7 @@ package evidra.policy
 import rego.v1
 
 test_decision_contract if {
-  d := decision with input as {
+  payload := {
     "tool": "kubectl",
     "operation": "apply",
     "context": {"environment": "dev"},
@@ -16,6 +16,7 @@ test_decision_contract if {
       }
     ]
   }
+  d := data.evidra.policy.decision with input as payload
   not d.allow
   d.risk_level == "high"
   count(d.reasons) == 1
@@ -25,7 +26,7 @@ test_decision_contract if {
 }
 
 test_allowed_operation_reason if {
-  d := decision with input as {
+  payload := {
     "tool": "kubectl",
     "operation": "get",
     "context": {"environment": "dev"},
@@ -38,6 +39,7 @@ test_allowed_operation_reason if {
       }
     ]
   }
+  d := data.evidra.policy.decision with input as payload
   d.allow
   d.risk_level == "normal"
   d.reason == "ok"
@@ -45,7 +47,7 @@ test_allowed_operation_reason if {
 }
 
 test_hints_dedup if {
-  d := decision with input as {
+  payload := {
     "tool": "kubectl",
     "operation": "apply",
     "context": {"environment": "dev"},
@@ -64,8 +66,9 @@ test_hints_dedup if {
       }
     ]
   }
- not d.allow
- count(d.hints) == 2
+  d := data.evidra.policy.decision with input as payload
+  not d.allow
+  count(d.hints) == 2
   some idx1
   d.hints[idx1] == "Reduce deletion scope"
   some idx2
@@ -73,7 +76,7 @@ test_hints_dedup if {
 }
 
 test_risk_high_with_breakglass_tag if {
-  d := decision with input as {
+  payload := {
     "tool": "kubectl",
     "operation": "get",
     "context": {"environment": "dev"},
@@ -86,6 +89,7 @@ test_risk_high_with_breakglass_tag if {
       }
     ]
   }
+  d := data.evidra.policy.decision with input as payload
   d.allow
   d.risk_level == "high"
   d.reason == "ok"

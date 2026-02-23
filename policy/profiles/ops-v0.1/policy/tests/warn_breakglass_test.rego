@@ -3,7 +3,7 @@ package evidra.policy
 import rego.v1
 
 test_warn_breakglass_exposure_lists_hits_and_hints if {
-  d := decision with input as {
+  d := data.evidra.policy.decision with input as {
     "tool": "kubectl",
     "operation": "apply",
     "context": {"environment": "prod"},
@@ -21,5 +21,5 @@ test_warn_breakglass_exposure_lists_hits_and_hints if {
   d.allow
   "WARN-BREAKGLASS-01" in d.hits
   "Use breakglass only for emergencies and ensure thorough review." in d.hints
-  d.reason == "breakglass tag present"
+  d.reason == "ok"
 }

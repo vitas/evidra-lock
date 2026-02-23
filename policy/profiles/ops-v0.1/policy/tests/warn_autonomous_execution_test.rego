@@ -3,7 +3,7 @@ package evidra.policy
 import rego.v1
 
 test_warn_autonomous_execution_collects_hits_and_hints if {
-  d := decision with input as {
+  payload := {
     "tool": "kubectl",
     "operation": "apply",
     "context": {"environment": "dev"},
@@ -18,6 +18,7 @@ test_warn_autonomous_execution_collects_hits_and_hints if {
       }
     ]
   }
+  d := data.evidra.policy.decision with input as payload
   d.allow
   d.risk_level == "normal"
   "WARN-AUTO-01" in d.hits

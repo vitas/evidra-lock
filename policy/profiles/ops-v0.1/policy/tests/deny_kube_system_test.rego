@@ -3,7 +3,7 @@ package evidra.policy
 import rego.v1
 
 test_deny_kube_system_without_breakglass if {
-  d := decision with input as {
+  payload := {
     "tool": "kubectl",
     "operation": "apply",
     "context": {"environment": "dev"},
@@ -16,6 +16,7 @@ test_deny_kube_system_without_breakglass if {
       }
     ]
   }
+  d := data.evidra.policy.decision with input as payload
   not d.allow
   d.reason == "Changes in kube-system require breakglass"
   "POL-KUBE-01" in d.hits
