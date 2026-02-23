@@ -54,7 +54,7 @@ evidra evidence inspect --evidence-dir ~/.evidra/evidence
 - Policy rules live under `policy/profiles/ops-v0.1/policy/`; rewrite decisions in small deny/warn files and keep hints in `data.json`.
 - Evidence records live under `~/.evidra/evidence` (or your configured path); see `docs/evidence.md` for the JSONL schema and inspection commands.
 - `docs/policy.md` explains the policy contract and how to run `opa test` against the profile.
-- `docs/advanced.md` covers MCP server configuration, registry/packs, and advanced workflows.
+- `docs/advanced.md` covers MCP server configuration and advanced workflows.
 
 ## Not in v1
 - No regulated bundle or multiple policy profiles—`ops-v0.1` is the single source of truth.

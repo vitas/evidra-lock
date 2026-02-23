@@ -30,7 +30,6 @@ type Options struct {
 	DataPath                 string
 	EvidencePath             string
 	IncludeFileResourceLinks bool
-	EnableExecute            bool
 }
 
 type PolicySummary struct {
@@ -125,9 +124,6 @@ func NewServer(opts Options) *mcp.Server {
 			},
 		},
 	}, validateTool.Handle)
-	if opts.EnableExecute {
-		registerExecuteTool(server, svc)
-	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_event",
 		Title:       "Get Evidence Event",

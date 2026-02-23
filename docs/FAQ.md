@@ -12,8 +12,8 @@ Segmented logs scale better operationally and allow stable sealed units for expo
 ## How does prod vs dev work?
 Callers set `context.environment` in ToolInvocation. Policies use this field to differentiate risk/allow decisions.
 
-## Can I write my own policy and packs?
-Yes. Use local Rego policy files and declarative pack files loaded from `EVIDRA_PACKS_DIR`.
+## Can I write my own policy?
+Yes. Replace or extend `policy/profiles/ops-v0.1` with your own Rego modules and data; reload the MCP server or offline CLI with `--policy`/`--data` to test changes.
 
 ## Is this SaaS?
 No. v0.1 is local-first and does not require remote services.

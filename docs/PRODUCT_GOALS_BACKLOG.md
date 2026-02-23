@@ -30,7 +30,7 @@
 ### 4. Registry & Execution Hygiene
 - Registry purely declarative: no built-in executors; command building lives in engine/runner.
 - Typed errors for tool/operation resolution and validation, with unit tests.
-- Tests use fixture packs instead of demo executors (remove echo/git executors).
+- Tests rely on fixture scenarios instead of demo executors (remove echo/git executors).
 - `go test ./...` must pass on Go 1.23 for offline builds.
 
 ### 5. Self-Hosting & Server Configuration
@@ -41,7 +41,7 @@
 
 ## Lower-Priority Ideas (review before implementation)
 - Policy export bundles (evidence+policy+signed metadata).
-- SOC2/HIPAA starter packs under `bundles/` (only if they stay relevant after the slim focus).
+- SOC2/HIPAA starter scenarios under `examples/` (only if they stay relevant after the slim focus).
 - Context capture: store the triggering prompt or diff context in evidence. (Evaluate privacy/complexity.)
 - CI reporting mode: record violations without blocking to train policies before enforcing.
 
@@ -49,4 +49,3 @@
 - Keep policy, engine, and registry behavior stable; avoid new dependencies.
 - Tests are a priority: add unit/integration coverage for the registry, policy, CLI, and server config.
 - Documentation must stay concise: root README for quick start, docs/advanced.md for deeper topics.
-

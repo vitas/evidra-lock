@@ -17,7 +17,7 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
   - `policy/decision.rego` (aggregator) + `policy/rules/*.rego`.
   - `data.json` for thresholds/hints.
 - `data/` – evidence store and staging (must be persisted by evidence tests and CI).
-- `packs/`/`internal/` – helper libraries/tools referenced by other systems (CLI, registry).
+- `packs/` and `internal/advanced/` were removed; the remaining directories focus on policy, CLI, and evidence.
 
 ## Package Modules
 
@@ -25,14 +25,13 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 - `pkg/policysource`: local file loader for policy modules and data; used by runtime and tests to load `policy/profiles/ops-v0.1`.
 - `pkg/policy`: OPA engine wrapper that evaluates the `data.evidra.policy.decision` query and maps the result into Go `Decision` structs (allow/risk/reason/hints/hits).
 - `pkg/runtime`: legacy runtime evaluator that loads policy+data; kept for backward compatibility but the v1 core now lives in `pkg/validate`.
+- `pkg/scenario`: scenario schema and loader shared by the CLI and MCP entrypoints.
 - `pkg/validate`: single evaluation core that uses `pkg/scenario` for scenario loading and drives policy evaluation plus evidence recording for both CLI validation and MCP execution.
 - `pkg/config`: shared resolver for `--policy`, `--data`, and `--evidence-dir` flags plus `EVIDRA_*` env vars so both binaries use the same paths.
-- `internal/advanced/registry`: legacy tool registry and validation helpers kept for advanced pack-based experimentation.
 - `pkg/evidence`: append-only evidence store that records policy hits, hints, and decision metadata.
 - `pkg/evidence`: append-only evidence store and helper functions for generating resource links/manifests for MCP clients.
 - `pkg/mcpserver`: MCP adapter that receives `ToolInvocation`, runs the core decision/evidence flow, and exposes tools via MCP.
-- `internal/advanced/engine`: legacy execution engine that routes invocations through registry, policy, and execution results (advanced flow).
-- `pkg/packs`: pack loading utilities used by advanced scenarios and tests.
+**Legacy:** The previous `internal/advanced` and `pkg/packs` layers were removed; no advanced helper packages remain in the v1 tree.
 
 ## Build/Test Notes
 
@@ -42,7 +41,7 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 
 ## Advanced / Legacy namespaces
 
-- `internal/advanced` now hosts the legacy `engine` and `registry` modules. Treat those packages as reference material for future advanced flows; they are not used by `cmd/evidra` or `cmd/evidra-mcp` in v1.
+Legacy advanced helpers were removed; all remaining packages belong to the v1 core evaluation path.
 
 ## Single Source of Truth
 

@@ -74,7 +74,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		DataPath:                 dataPath,
 		EvidencePath:             config.ResolveEvidenceDir(strings.TrimSpace(*evidenceFlag)),
 		IncludeFileResourceLinks: envBool("EVIDRA_INCLUDE_FILE_RESOURCE_LINKS", false),
-		EnableExecute:            envBool("EVIDRA_ENABLE_EXECUTE", false),
 	})
 
 	logger := log.New(stderr, "", log.LstdFlags)

@@ -12,7 +12,7 @@
 
 - `evidra validate <file>` runs the structured validator.
 - `evidra policy sim --policy <path> --input <path> [--data <path>]` evaluates policy decisions locally.
-- `evidra evidence <verify|export|violations|cursor>` inspects the append-only evidence store and exports audit packs.
+- `evidra evidence <verify|export|violations|cursor>` inspects the append-only evidence store and exports audit artifacts.
 
 ## When to dive deeper
 

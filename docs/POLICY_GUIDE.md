@@ -45,7 +45,7 @@ Prefer `data.json` changes over Rego edits for routine tuning.
 Common edits:
 1. Add/remove allowed container registries.
 2. Add/remove S3 delete allowlist prefixes.
-3. Adjust operation-specific allowlists used by ops tool packs.
+3. Adjust operation-specific allowlists defined in `data.json`.
 
 ## 4) Environment Context
 

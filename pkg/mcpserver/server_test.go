@@ -90,7 +90,7 @@ func TestValidateServiceRecordsEvidence(t *testing.T) {
 }
 
 func TestServerRegistersValidateTool(t *testing.T) {
-	server := newTestServer(t, false)
+	server := newTestServer(t)
 	tools := listToolNamesFromServer(t, server)
 	if !containsTool(tools, "validate") {
 		t.Fatalf("expected validate tool in %v", tools)
@@ -100,15 +100,7 @@ func TestServerRegistersValidateTool(t *testing.T) {
 	}
 }
 
-func TestServerRegistersExecuteWhenEnabled(t *testing.T) {
-	server := newTestServer(t, true)
-	tools := listToolNamesFromServer(t, server)
-	if !containsTool(tools, "execute") {
-		t.Fatalf("expected execute tool when enabled, got %v", tools)
-	}
-}
-
-func newTestServer(t *testing.T, enableExecute bool) *mcp.Server {
+func newTestServer(t *testing.T) *mcp.Server {
 	t.Helper()
 	profileDir := filepath.Join("..", "..", "policy", "profiles", "ops-v0.1")
 	opts := Options{
@@ -116,7 +108,6 @@ func newTestServer(t *testing.T, enableExecute bool) *mcp.Server {
 		DataPath:      filepath.Join(profileDir, "data.json"),
 		EvidencePath:  t.TempDir(),
 		Mode:          ModeEnforce,
-		EnableExecute: enableExecute,
 	}
 	return NewServer(opts)
 }
