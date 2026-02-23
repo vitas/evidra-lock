@@ -11,7 +11,7 @@ func TestPolicyRefStableForSameContent(t *testing.T) {
 	path := filepath.Join(temp, "policy.rego")
 	content := []byte(`package evidra.policy
 import rego.v1
-decision := {"allow": false, "risk_level": "critical", "reason": "policy_denied_default"}
+decision := {"allow": false, "risk_level": "high", "reason": "policy_denied_default"}
 `)
 
 	if err := os.WriteFile(path, content, 0o644); err != nil {

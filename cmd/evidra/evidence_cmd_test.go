@@ -251,7 +251,7 @@ func TestViolationsReportCountsDeniesAndHighRisk(t *testing.T) {
 func TestViolationsMinRiskFilter(t *testing.T) {
 	logPath := writeEvidenceLog(t, []evidence.EvidenceRecord{
 		newViolationRecord("evt-medium", "policy-abc", "git", "status", "alice", true, "medium", "allowed_by_rule"),
-		newViolationRecord("evt-critical", "policy-abc", "git", "push", "alice", true, "critical", "allowed_by_rule"),
+		newViolationRecord("evt-high", "policy-abc", "git", "push", "alice", true, "high", "allowed_by_rule"),
 	})
 
 	var out strings.Builder

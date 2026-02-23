@@ -4,7 +4,7 @@ import rego.v1
 
 default decision := {
   "allow": false,
-  "risk_level": "critical",
+  "risk_level": "high",
   "reason": "policy_denied_default",
 }
 
