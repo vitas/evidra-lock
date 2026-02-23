@@ -3,8 +3,16 @@ package runtime
 import (
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/policy"
-	"samebits.com/evidra-mcp/pkg/policysource"
 )
+
+// PolicySource is the interface for loading policy modules, data, and a stable
+// content-addressed reference. Callers inject a concrete implementation into
+// NewEvaluator; pkg/policysource.LocalFileSource satisfies this interface.
+type PolicySource interface {
+	LoadPolicy() (map[string][]byte, error)
+	LoadData() ([]byte, error)
+	PolicyRef() (string, error)
+}
 
 type ScenarioEvaluator interface {
 	EvaluateInvocation(inv invocation.ToolInvocation) (policy.Decision, error)
@@ -15,8 +23,7 @@ type Evaluator struct {
 	policyRef string
 }
 
-func NewEvaluator(policyPath, dataPath string) (*Evaluator, error) {
-	src := policysource.NewLocalFileSource(policyPath, dataPath)
+func NewEvaluator(src PolicySource) (*Evaluator, error) {
 	policyModules, err := src.LoadPolicy()
 	if err != nil {
 		return nil, err

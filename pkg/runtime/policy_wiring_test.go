@@ -2,13 +2,29 @@ package runtime_test
 
 import (
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"testing"
 
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/policy"
+	"samebits.com/evidra-mcp/pkg/policysource"
 	"samebits.com/evidra-mcp/pkg/runtime"
 )
+
+// fakeSource is a test double for runtime.PolicySource.
+type fakeSource struct {
+	modules       map[string][]byte
+	data          []byte
+	ref           string
+	loadPolicyErr error
+	loadDataErr   error
+	policyRefErr  error
+}
+
+func (f *fakeSource) LoadPolicy() (map[string][]byte, error) { return f.modules, f.loadPolicyErr }
+func (f *fakeSource) LoadData() ([]byte, error)              { return f.data, f.loadDataErr }
+func (f *fakeSource) PolicyRef() (string, error)             { return f.ref, f.policyRefErr }
 
 var policyProfileDir = filepath.Join("..", "..", "policy", "profiles", "ops-v0.1")
 
@@ -59,7 +75,7 @@ func newPolicyEvaluator(t *testing.T) *runtime.Evaluator {
 	t.Helper()
 	policyPath := filepath.Join(policyProfileDir, "policy.rego")
 	dataPath := filepath.Join(policyProfileDir, "data.json")
-	eval, err := runtime.NewEvaluator(policyPath, dataPath)
+	eval, err := runtime.NewEvaluator(policysource.NewLocalFileSource(policyPath, dataPath))
 	if err != nil {
 		t.Fatalf("NewEvaluator() error = %v", err)
 	}
@@ -121,6 +137,49 @@ func TestEvaluateInvocationSetsPolicyRef(t *testing.T) {
 	decision := evaluateInvocation(t, eval, []map[string]interface{}{action}, "dev", "apply")
 	if decision.PolicyRef == "" {
 		t.Fatal("expected PolicyRef to be set on returned Decision, got empty string")
+	}
+}
+
+func TestNewEvaluatorLoadPolicyError(t *testing.T) {
+	src := &fakeSource{loadPolicyErr: errors.New("disk read failed")}
+	_, err := runtime.NewEvaluator(src)
+	if err == nil {
+		t.Fatal("expected error when LoadPolicy fails, got nil")
+	}
+}
+
+func TestNewEvaluatorLoadDataError(t *testing.T) {
+	src := &fakeSource{
+		modules:     map[string][]byte{"p.rego": []byte(`package p`)},
+		loadDataErr: errors.New("data read failed"),
+	}
+	_, err := runtime.NewEvaluator(src)
+	if err == nil {
+		t.Fatal("expected error when LoadData fails, got nil")
+	}
+}
+
+func TestNewEvaluatorPolicyRefError(t *testing.T) {
+	// Use a real policy dir so OPA compilation succeeds; only PolicyRef fails.
+	policyPath := filepath.Join(policyProfileDir, "policy.rego")
+	dataPath := filepath.Join(policyProfileDir, "data.json")
+	real := policysource.NewLocalFileSource(policyPath, dataPath)
+	modules, err := real.LoadPolicy()
+	if err != nil {
+		t.Fatalf("setup: LoadPolicy: %v", err)
+	}
+	data, err := real.LoadData()
+	if err != nil {
+		t.Fatalf("setup: LoadData: %v", err)
+	}
+	src := &fakeSource{
+		modules:      modules,
+		data:         data,
+		policyRefErr: errors.New("ref hash failed"),
+	}
+	_, err = runtime.NewEvaluator(src)
+	if err == nil {
+		t.Fatal("expected error when PolicyRef fails, got nil")
 	}
 }
 

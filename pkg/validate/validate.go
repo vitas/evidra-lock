@@ -12,6 +12,7 @@ import (
 	"samebits.com/evidra-mcp/pkg/config"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/policysource"
 	"samebits.com/evidra-mcp/pkg/runtime"
 	"samebits.com/evidra-mcp/pkg/scenario"
 )
@@ -62,7 +63,7 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 	if err != nil {
 		return Result{}, err
 	}
-	runtimeEval, err := runtime.NewEvaluator(policyPath, dataPath)
+	runtimeEval, err := runtime.NewEvaluator(policysource.NewLocalFileSource(policyPath, dataPath))
 	if err != nil {
 		return Result{}, err
 	}
