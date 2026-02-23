@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-mcp/bundles/ops"
 	"samebits.com/evidra-mcp/internal/version"
+	"samebits.com/evidra-mcp/pkg/validate"
 )
 
 func main() {
@@ -62,7 +63,7 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 	}
 
 	path := fs.Arg(0)
-	result, err := ops.ValidateFileWithOptions(path, ops.ValidateOptions{
+	result, err := validate.EvaluateFile(context.Background(), path, validate.Options{
 		PolicyPath: strings.TrimSpace(*policyFlag),
 		DataPath:   strings.TrimSpace(*dataFlag),
 	})
@@ -85,7 +86,7 @@ type validationJSON struct {
 	Timestamp  string   `json:"timestamp"`
 }
 
-func printValidationResult(result ops.ValidationOutput, stdout io.Writer, jsonOut bool, explain bool) int {
+func printValidationResult(result validate.Result, stdout io.Writer, jsonOut bool, explain bool) int {
 	status := "FAIL"
 	if result.Pass {
 		status = "PASS"
@@ -136,7 +137,7 @@ func printValidationResult(result ops.ValidationOutput, stdout io.Writer, jsonOu
 	return 2
 }
 
-func printExplanation(result ops.ValidationOutput, stdout io.Writer) {
+func printExplanation(result validate.Result, stdout io.Writer) {
 	fmt.Fprintln(stdout, "Explanation:")
 	if result.Pass {
 		fmt.Fprintln(stdout, "- No deny rules matched.")
@@ -160,7 +161,7 @@ func printExplanation(result ops.ValidationOutput, stdout io.Writer) {
 	printActionFacts(result.ActionFacts, stdout)
 }
 
-func printActionFacts(facts []ops.ActionFact, stdout io.Writer) {
+func printActionFacts(facts []validate.ActionFact, stdout io.Writer) {
 	if len(facts) == 0 {
 		return
 	}
