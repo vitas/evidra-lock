@@ -1,6 +1,6 @@
 # Evidra v1-slim
 
-Evidra v1-slim deterministically enforces policy on Terraform plans and Kubernetes changes through a local MCP server plus focused offline tooling.
+Evidra  deterministically enforces policy on Terraform plans and Kubernetes changes through a local MCP server plus focused offline tooling.
 
 ## Features
 ### MCP server (evidra-mcp)

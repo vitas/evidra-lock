@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -27,11 +29,7 @@ import (
 // TODO(monorepo-split): publish bundles/ops as a standalone bundle repository.
 // TODO(monorepo-split): move ops-specific policy profile and evidence adapters into the ops bundle repository.
 
-const (
-	DefaultPolicyPath   = "./policy/profiles/ops-v0.1/policy.rego"
-	DefaultDataPath     = "./policy/profiles/ops-v0.1/data.json"
-	DefaultEvidencePath = "./data/evidence"
-)
+const DefaultEvidencePath = "./data/evidence"
 
 type ValidationOutput struct {
 	Pass        bool
@@ -56,6 +54,8 @@ type ActionFact struct {
 }
 
 type ValidateOptions struct {
+	PolicyPath       string
+	DataPath         string
 	ConfigPath       string
 	EnableValidators *bool
 	BuiltinFilter    map[string]bool
@@ -82,7 +82,12 @@ func ValidateFileWithOptions(path string, opts ValidateOptions) (ValidationOutpu
 		return ValidationOutput{}, err
 	}
 
-	coreEval, err := runtime.NewEvaluator(DefaultPolicyPath, DefaultDataPath)
+	policyPath, dataPath, err := resolvePolicyData(opts)
+	if err != nil {
+		return ValidationOutput{}, err
+	}
+
+	coreEval, err := runtime.NewEvaluator(policyPath, dataPath)
 	if err != nil {
 		return ValidationOutput{}, err
 	}
@@ -263,6 +268,35 @@ func evidencePath() string {
 		return p
 	}
 	return DefaultEvidencePath
+}
+
+var repoPolicyFallbackOnce sync.Once
+
+func resolvePolicyData(opts ValidateOptions) (string, string, error) {
+	if opts.PolicyPath != "" && opts.DataPath != "" {
+		return opts.PolicyPath, opts.DataPath, nil
+	}
+	policyEnv := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_PATH"))
+	dataEnv := strings.TrimSpace(os.Getenv("EVIDRA_DATA_PATH"))
+	if policyEnv != "" && dataEnv != "" {
+		return policyEnv, dataEnv, nil
+	}
+	policyPath := filepath.Join("policy", "profiles", "ops-v0.1", "policy.rego")
+	dataPath := filepath.Join("policy", "profiles", "ops-v0.1", "data.json")
+	if fileExists(policyPath) && fileExists(dataPath) {
+		repoPolicyFallbackOnce.Do(func() {
+			fmt.Fprintln(os.Stderr, "warning: loading policy/data from repo fallback; set --policy/--data or env vars for production")
+		})
+		return policyPath, dataPath, nil
+	}
+	return "", "", fmt.Errorf("missing policy/data paths; provide --policy/--data or set EVIDRA_POLICY_PATH/EVIDRA_DATA_PATH")
+}
+
+func fileExists(path string) bool {
+	if _, err := os.Stat(path); err == nil {
+		return true
+	}
+	return false
 }
 
 func collectActionFacts(actions []schema.Action) []ActionFact {

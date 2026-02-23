@@ -1,10 +1,6 @@
 package runtime
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/policysource"
@@ -73,16 +69,4 @@ func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (ScenarioD
 		Reasons:     d.Reasons,
 		LongRunning: d.LongRunning,
 	}, nil
-}
-
-func ReadInvocationFile(path string) (invocation.ToolInvocation, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return invocation.ToolInvocation{}, fmt.Errorf("read invocation file: %w", err)
-	}
-	var inv invocation.ToolInvocation
-	if err := json.Unmarshal(raw, &inv); err != nil {
-		return invocation.ToolInvocation{}, fmt.Errorf("parse invocation JSON: %w", err)
-	}
-	return inv, nil
 }

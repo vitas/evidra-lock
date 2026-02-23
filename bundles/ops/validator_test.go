@@ -6,25 +6,6 @@ import (
 	"testing"
 )
 
-func TestDefaultPolicyPathsExist(t *testing.T) {
-	if DefaultPolicyPath != "./policy/profiles/ops-v0.1/policy.rego" {
-		t.Fatalf("expected DefaultPolicyPath to point to structured profile, got %q", DefaultPolicyPath)
-	}
-	if DefaultDataPath != "./policy/profiles/ops-v0.1/data.json" {
-		t.Fatalf("expected DefaultDataPath to point to structured data, got %q", DefaultDataPath)
-	}
-
-	root := filepath.Join("..", "..")
-	policyPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "policy.rego")
-	dataPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "data.json")
-	if _, err := os.Stat(policyPath); err != nil {
-		t.Fatalf("default policy file missing: %v", err)
-	}
-	if _, err := os.Stat(dataPath); err != nil {
-		t.Fatalf("default policy data missing: %v", err)
-	}
-}
-
 func TestValidateFileScenarioPass(t *testing.T) {
 	withRepoRoot(t, func() {
 		path := filepath.Join("bundles", "ops", "examples", "scenario_pass.json")

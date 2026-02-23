@@ -155,4 +155,4 @@ deny["POL-PROD-01"] = msg if {
 
 ## 7. Single Source of Truth
 
-`policy/profiles/ops-v0.1` (shim + `policy/` directory + `data.json`) is the single authoritative policy profile. The runtime and bundles load `DefaultPolicyPath = "./policy/profiles/ops-v0.1/policy.rego"` plus `data.json`, so edits should happen only in this directory.
+`policy/profiles/ops-v0.1` (shim + `policy/` directory + `data.json`) is the single authoritative profile. The runtime, bundles, and CLI default to the files in this directory when no overrides are supplied via `--policy`/`--data` or `EVIDRA_POLICY_PATH`/`EVIDRA_DATA_PATH`. No other directories should be treated as authoritative.

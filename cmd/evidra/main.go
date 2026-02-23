@@ -54,13 +54,18 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(io.Discard)
 	jsonOut := fs.Bool("json", false, "output structured JSON")
 	explain := fs.Bool("explain", false, "print a human-readable explanation for the decision")
+	policyFlag := fs.String("policy", "", "Path to policy rego file")
+	dataFlag := fs.String("data", "", "Path to policy data JSON file")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 1 {
 		fmt.Fprintln(stderr, "usage: evidra validate <file>")
 		return 2
 	}
 
 	path := fs.Arg(0)
-	result, err := ops.ValidateFile(path)
+	result, err := ops.ValidateFileWithOptions(path, ops.ValidateOptions{
+		PolicyPath: strings.TrimSpace(*policyFlag),
+		DataPath:   strings.TrimSpace(*dataFlag),
+	})
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return 1
@@ -239,7 +244,7 @@ func firstN(items []string, limit int) []string {
 
 func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "usage: evidra <validate|version>")
-	fmt.Fprintln(w, "  evidra validate <file>")
+	fmt.Fprintln(w, "  evidra validate [--policy <path> --data <path>] <file>")
 	fmt.Fprintln(w, "  evidra version")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Advanced commands are described in docs/advanced.md:")

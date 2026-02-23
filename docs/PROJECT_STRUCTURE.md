@@ -39,4 +39,4 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 
 ## Single Source of Truth
 
-Everyone edits policy under `policy/profiles/ops-v0.1`. The Go runtime, bundles, and CLI reference `DefaultPolicyPath = "./policy/profiles/ops-v0.1/policy.rego"` plus `data.json` every time they evaluate decisions. No other directories should be treated as authoritative. 
+Everyone edits policy under `policy/profiles/ops-v0.1`. The Go runtime, bundles, and CLI resolve policy/data from this profile by default (unless overridden via `--policy`/`--data` or `EVIDRA_POLICY_PATH`/`EVIDRA_DATA_PATH`). No other directories should be treated as authoritative.
