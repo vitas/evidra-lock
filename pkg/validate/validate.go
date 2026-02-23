@@ -478,9 +478,6 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 			res.RuleIDs = append(res.RuleIDs, "UNLABELED_DENY")
 		}
 	}
-	if len(res.Reasons) == 0 {
-		res.Reasons = append(res.Reasons, "all actions passed policy validation")
-	}
 	res.RuleIDs = dedupeStrings(res.RuleIDs)
 	res.Hints = dedupeStrings(res.Hints)
 	res.Reasons = dedupeStrings(res.Reasons)
