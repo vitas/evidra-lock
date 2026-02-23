@@ -15,7 +15,6 @@ import (
 
 	"go.yaml.in/yaml/v3"
 	opscfg "samebits.com/evidra-mcp/bundles/ops/config"
-	"samebits.com/evidra-mcp/bundles/ops/evaluator"
 	"samebits.com/evidra-mcp/bundles/ops/scenario"
 	"samebits.com/evidra-mcp/bundles/ops/schema"
 	"samebits.com/evidra-mcp/bundles/ops/validators"
@@ -50,6 +49,16 @@ type Result struct {
 	Hints       []string
 	ActionFacts []ActionFact
 	Reports     []validators.Report
+}
+
+type scenarioEvaluation struct {
+	Pass       bool
+	RiskLevel  string
+	Reasons    []string
+	PolicyHits []string
+	RuleIDs    []string
+	Hints      []string
+	PolicyRef  string
 }
 
 type ActionFact struct {
@@ -88,12 +97,11 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 	if err != nil {
 		return Result{}, err
 	}
-	coreEval, err := runtime.NewEvaluator(policyPath, dataPath)
+	runtimeEval, err := runtime.NewEvaluator(policyPath, dataPath)
 	if err != nil {
 		return Result{}, err
 	}
-	opsEval := evaluator.New(coreEval)
-	evalResult, err := opsEval.EvaluateScenario(sc)
+	evalResult, err := evaluateScenarioWithRuntime(ctx, runtimeEval, sc)
 	if err != nil {
 		return Result{}, err
 	}
@@ -456,6 +464,115 @@ func parseYAMLKinds(content string) []string {
 	}
 	sort.Strings(kinds)
 	return kinds
+}
+
+func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evaluator, sc schema.Scenario) (scenarioEvaluation, error) {
+	res := scenarioEvaluation{
+		Pass:      true,
+		RiskLevel: "normal",
+	}
+	for i, action := range sc.Actions {
+		tool, operation, ok := splitKind(action.Kind)
+		if !ok {
+			res.Pass = false
+			res.RiskLevel = "high"
+			reason := fmt.Sprintf("action[%d] invalid kind: %s", i, action.Kind)
+			res.Reasons = append(res.Reasons, reason)
+			res.PolicyHits = append(res.PolicyHits, "invalid_action_kind")
+			continue
+		}
+
+		actorID := strings.TrimSpace(sc.Actor.ID)
+		if actorID == "" {
+			actorID = sc.ScenarioID
+		}
+
+		inv := invocation.ToolInvocation{
+			Actor: invocation.Actor{
+				Type:   sc.Actor.Type,
+				ID:     actorID,
+				Origin: sc.Source,
+			},
+			Tool:      tool,
+			Operation: operation,
+			Params: map[string]interface{}{
+				"scenario_id": sc.ScenarioID,
+				"action": map[string]interface{}{
+					"kind":      action.Kind,
+					"target":    action.Target,
+					"intent":    action.Intent,
+					"payload":   action.Payload,
+					"risk_tags": action.RiskTags,
+				},
+			},
+			Context: map[string]interface{}{
+				"timestamp": sc.Timestamp.Format(time.RFC3339),
+				"source":    sc.Source,
+			},
+		}
+
+		decision, err := runtimeEval.EvaluateInvocation(inv)
+		if err != nil {
+			return scenarioEvaluation{}, err
+		}
+		if res.PolicyRef == "" {
+			res.PolicyRef = decision.PolicyRef
+		}
+		if !decision.Allow {
+			res.Pass = false
+			res.RiskLevel = "high"
+			reason := fmt.Sprintf("action[%d] %s: %s", i, action.Kind, decision.Reason)
+			res.Reasons = append(res.Reasons, reason)
+		}
+
+		res.RuleIDs = append(res.RuleIDs, decision.Hits...)
+		res.Hints = append(res.Hints, decision.Hints...)
+		if len(decision.Hits) == 0 {
+			res.RuleIDs = append(res.RuleIDs, decision.Reason)
+		}
+		if decision.LongRunning {
+			res.RiskLevel = "high"
+		}
+
+		if len(decision.Hits) == 0 {
+			res.PolicyHits = append(res.PolicyHits, decision.Reason)
+		} else {
+			res.PolicyHits = append(res.PolicyHits, decision.Hits...)
+		}
+
+		if hasTag(action.RiskTags, "breakglass") {
+			res.RuleIDs = append(res.RuleIDs, "breakglass")
+			res.Reasons = append(res.Reasons, fmt.Sprintf("action[%d] %s: breakglass tag present", i, action.Kind))
+		}
+	}
+	if len(res.Reasons) == 0 {
+		res.Reasons = append(res.Reasons, "all actions passed policy validation")
+	}
+	res.RuleIDs = dedupeStrings(res.RuleIDs)
+	res.Hints = dedupeStrings(res.Hints)
+	res.PolicyHits = dedupeStrings(res.PolicyHits)
+	res.Reasons = dedupeStrings(res.Reasons)
+	return res, nil
+}
+
+func splitKind(kind string) (string, string, bool) {
+	parts := strings.SplitN(strings.TrimSpace(kind), ".", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	if strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
+func hasTag(tags []string, target string) bool {
+	for _, t := range tags {
+		if t == target {
+			return true
+		}
+	}
+	return false
 }
 
 type PolicyEngine struct {
