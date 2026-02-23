@@ -67,6 +67,14 @@ func EvaluateFile(ctx context.Context, path string, opts Options) (Result, error
 	return EvaluateScenario(ctx, sc, opts)
 }
 
+func EvaluateInvocation(ctx context.Context, inv invocation.ToolInvocation, opts Options) (Result, error) {
+	if err := inv.ValidateStructure(); err != nil {
+		return Result{}, err
+	}
+	sc := invocationToScenario(inv)
+	return EvaluateScenario(ctx, sc, opts)
+}
+
 func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Result, error) {
 	cfg, err := opscfg.Load(opts.ConfigPath)
 	if err != nil {
@@ -176,6 +184,84 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 		ActionFacts: collectActionFacts(sc.Actions),
 		Reports:     validatorResult.Reports,
 	}, nil
+}
+
+func invocationToScenario(inv invocation.ToolInvocation) schema.Scenario {
+	return schema.Scenario{
+		ScenarioID: scenarioIDFromInvocation(inv),
+		Actor: schema.Actor{
+			Type:   inv.Actor.Type,
+			ID:     inv.Actor.ID,
+			Origin: inv.Actor.Origin,
+		},
+		Source:    contextString(inv.Context, "source", inv.Actor.Origin),
+		Timestamp: time.Now().UTC(),
+		Actions: []schema.Action{
+			{
+				Kind:     fmt.Sprintf("%s.%s", inv.Tool, inv.Operation),
+				Target:   mapFromValue(inv.Params["target"]),
+				Intent:   contextString(inv.Context, "intent", ""),
+				Payload:  copyMap(inv.Params),
+				RiskTags: toStringSlice(inv.Params["risk_tags"]),
+			},
+		},
+	}
+}
+
+func scenarioIDFromInvocation(inv invocation.ToolInvocation) string {
+	if id := contextString(inv.Context, "scenario_id", ""); id != "" {
+		return id
+	}
+	if id, ok := inv.Params["scenario_id"].(string); ok && strings.TrimSpace(id) != "" {
+		return id
+	}
+	return fmt.Sprintf("%s.%s.%d", inv.Tool, inv.Operation, time.Now().UTC().UnixNano())
+}
+
+func contextString(ctx map[string]interface{}, key, fallback string) string {
+	if ctx == nil {
+		return fallback
+	}
+	if v, ok := ctx[key]; ok {
+		if s, ok := v.(string); ok && s != "" {
+			return s
+		}
+	}
+	return fallback
+}
+
+func mapFromValue(value interface{}) map[string]interface{} {
+	if m, ok := value.(map[string]interface{}); ok {
+		return copyMap(m)
+	}
+	return nil
+}
+
+func copyMap(src map[string]interface{}) map[string]interface{} {
+	if src == nil {
+		return nil
+	}
+	out := make(map[string]interface{}, len(src))
+	for k, v := range src {
+		out[k] = v
+	}
+	return out
+}
+
+func toStringSlice(value interface{}) []string {
+	switch v := value.(type) {
+	case []string:
+		return v
+	case []interface{}:
+		out := make([]string, 0, len(v))
+		for _, entry := range v {
+			if s, ok := entry.(string); ok && s != "" {
+				out = append(out, strings.TrimSpace(s))
+			}
+		}
+		return out
+	}
+	return nil
 }
 
 func scenarioHash(v interface{}) string {
