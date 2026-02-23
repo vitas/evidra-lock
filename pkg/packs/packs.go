@@ -10,7 +10,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"samebits.com/evidra-mcp/pkg/registry"
+	"samebits.com/evidra-mcp/internal/advanced/registry"
 	"samebits.com/evidra-mcp/pkg/tokens"
 )
 

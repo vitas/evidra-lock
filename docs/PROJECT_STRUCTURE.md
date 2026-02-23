@@ -27,10 +27,10 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 - `pkg/runtime`: legacy runtime evaluator that loads policy+data; kept for backward compatibility but the v1 core now lives in `pkg/validate`.
 - `pkg/validate`: single evaluation core wrapping `bundles/ops` that powers both CLI validation and MCP execution, including evidence recording.
 - `pkg/config`: shared resolver for `--policy`, `--data`, and `--evidence-dir` flags plus `EVIDRA_*` env vars so both binaries use the same paths.
-- `pkg/registry`: tool registry and validation helpers (reserved for advanced pack-based flows; not part of the core path).
+- `internal/advanced/registry`: legacy tool registry and validation helpers kept for advanced pack-based experimentation.
 - `pkg/evidence`: append-only evidence store that records policy hits, hints, and decision metadata.
 - `pkg/mcpserver`: MCP adapter that receives `ToolInvocation`, runs the core decision/evidence flow, and exposes tools via MCP.
-- `pkg/engine`: execution engine that routes invocations through registry, validators, policy, and execution results (advanced flow).
+- `internal/advanced/engine`: legacy execution engine that routes invocations through registry, validators, policy, and execution results (advanced flow).
 - `pkg/packs`: pack loading utilities used by bundles/ops and tests.
 
 ## Build/Test Notes

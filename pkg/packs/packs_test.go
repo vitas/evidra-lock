@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"samebits.com/evidra-mcp/pkg/registry"
+	"samebits.com/evidra-mcp/internal/advanced/registry"
 )
 
 func TestLoadToolDefinitionsParsesPackAndBuildsDefs(t *testing.T) {

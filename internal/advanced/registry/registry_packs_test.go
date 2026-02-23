@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"samebits.com/evidra-mcp/pkg/packs"
-	"samebits.com/evidra-mcp/pkg/registry"
+	"samebits.com/evidra-mcp/internal/advanced/registry"
 )
 
 func TestInMemoryRegistryRegistersPackDefinitions(t *testing.T) {
@@ -14,7 +14,7 @@ func TestInMemoryRegistryRegistersPackDefinitions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("os.Getwd() error = %v", err)
 	}
-	root := filepath.Clean(filepath.Join(wd, "..", ".."))
+	root := filepath.Clean(filepath.Join(wd, "..", "..", ".."))
 	packDir := filepath.Join(root, "packs", "_core", "ops")
 
 	defs, err := packs.LoadToolDefinitions(packDir, nil)

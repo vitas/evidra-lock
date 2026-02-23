@@ -3,7 +3,7 @@ package registry
 import (
 	"fmt"
 
-	"samebits.com/evidra-mcp/pkg/engine"
+	"samebits.com/evidra-mcp/internal/advanced/engine"
 )
 
 type EngineToolResolver struct {
