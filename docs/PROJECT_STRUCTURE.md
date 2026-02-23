@@ -5,7 +5,7 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 ## Repository Layout
 
 - `cmd/` – CLI binaries (`evidra` plus any policy simulation helpers). Each command lives under `cmd/<name>` and is wired to the core packages.
-- `bundles/` – packaged scenarios (Ops bundle, etc.) that invoke the runtime with pre-built scenarios or helpers such as validators and evaluators.
+- `bundles/` – packaged scenarios; the Ops bundle now only carries the scenario/schema helpers and no validator/evaluator stack.
 - `docs/` – end-user and contributor guidance. Key files:
   - `docs/QUICKSTART.md`: How to run `evidra validate` on Terraform/Kubernetes fixtures.
   - `docs/policy.md`: Policy input/output contract you just added.
@@ -31,7 +31,7 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 - `pkg/evidence`: append-only evidence store that records policy hits, hints, and decision metadata.
 - `pkg/evidence`: append-only evidence store and helper functions for generating resource links/manifests for MCP clients.
 - `pkg/mcpserver`: MCP adapter that receives `ToolInvocation`, runs the core decision/evidence flow, and exposes tools via MCP.
-- `internal/advanced/engine`: legacy execution engine that routes invocations through registry, validators, policy, and execution results (advanced flow).
+- `internal/advanced/engine`: legacy execution engine that routes invocations through registry, policy, and execution results (advanced flow).
 - `pkg/packs`: pack loading utilities used by bundles/ops and tests.
 
 ## Build/Test Notes
@@ -39,6 +39,10 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 - `go test ./...` covers every module; special builds (e.g., bundles/ops) include CLI integration tests.
 - Policy-specific tests live under `policy/profiles/ops-v0.1/policy/tests`; run via `opa test policy/profiles/ops-v0.1`.
 - QA commands (e.g., `make evidra-demo`) live in the root `Makefile`.
+
+## Advanced / Legacy namespaces
+
+- `internal/advanced` now hosts the legacy `engine` and `registry` modules. Treat those packages as reference material for future advanced flows; they are not used by `cmd/evidra` or `cmd/evidra-mcp` in v1.
 
 ## Single Source of Truth
 

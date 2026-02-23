@@ -1,5 +1,7 @@
 # Ops Scenario Validator Fields
 
+**Note:** The content below describes advanced external validator/plugin fields that powered previous releases. For the v0.1 decision path we now rely solely on `policy/profiles/ops-v0.1` and the `pkg/validate` core. These validator fields are retained only for reference in `internal/advanced`.
+
 External validators are optional and action-scoped.
 
 ## Global Configuration

@@ -31,6 +31,7 @@ audit-pack.tar.gz
 **/data/evidence/
 **/.evidra.lock
 **/*.DS_Store
+**/cmd/**/data/evidence/
 
 #AI stuff
 CLOUDE.*

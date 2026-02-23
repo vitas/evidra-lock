@@ -8,16 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v3"
-	opscfg "samebits.com/evidra-mcp/bundles/ops/config"
 	"samebits.com/evidra-mcp/bundles/ops/scenario"
 	"samebits.com/evidra-mcp/bundles/ops/schema"
-	"samebits.com/evidra-mcp/bundles/ops/validators"
 	"samebits.com/evidra-mcp/pkg/config"
 	"samebits.com/evidra-mcp/pkg/core"
 	"samebits.com/evidra-mcp/pkg/evidence"
@@ -30,7 +27,6 @@ type Options struct {
 	PolicyPath   string
 	DataPath     string
 	EvidenceDir  string
-	ConfigPath   string
 	SkipEvidence bool
 }
 
@@ -43,7 +39,6 @@ type Result struct {
 	RuleIDs     []string
 	Hints       []string
 	ActionFacts []ActionFact
-	Reports     []validators.Report
 }
 
 type scenarioEvaluation struct {
@@ -83,11 +78,6 @@ func EvaluateInvocation(ctx context.Context, inv invocation.ToolInvocation, opts
 }
 
 func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Result, error) {
-	cfg, err := opscfg.Load(opts.ConfigPath)
-	if err != nil {
-		return Result{}, err
-	}
-
 	policyPath, dataPath, err := config.ResolvePolicyData(opts.PolicyPath, opts.DataPath)
 	if err != nil {
 		return Result{}, err
@@ -101,25 +91,11 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 		return Result{}, err
 	}
 
-	wd, _ := os.Getwd()
-	validatorResult, validatorMeta, err := validators.RunForScenario(ctx, sc, wd, validators.RunOptions{
-		Config: cfg,
-	})
-	if err != nil {
-		return Result{}, err
-	}
-
-	finalPass := evalResult.Pass && validatorResult.Decision != "FAIL"
+	finalPass := evalResult.Pass
 	finalRisk := evalResult.RiskLevel
-	if validatorResult.RiskLevel == "high" || evalResult.RiskLevel == "high" {
-		finalRisk = "high"
-	}
-	finalReasons := append([]string{}, evalResult.Reasons...)
-	finalReasons = append(finalReasons, validatorResult.Reasons...)
-	finalHints := append([]string{}, evalResult.Hints...)
-	finalRuleIDs := append([]string{}, evalResult.RuleIDs...)
-	finalHints = dedupeStrings(finalHints)
-	finalRuleIDs = dedupeStrings(finalRuleIDs)
+	finalReasons := dedupeStrings(evalResult.Reasons)
+	finalRuleIDs := dedupeStrings(evalResult.RuleIDs)
+	finalHints := dedupeStrings(evalResult.Hints)
 
 	var store *evidence.Store
 	var evidenceID string
@@ -151,8 +127,6 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 			"risk_level":     finalRisk,
 			"decision":       passDecision(finalPass),
 			"reasons":        finalReasons,
-			"reports":        validatorResult.Reports,
-			"validator_meta": validatorMeta,
 			"action_count":   len(sc.Actions),
 			"bundle_profile": "ops",
 		},
@@ -187,7 +161,6 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 		RuleIDs:     finalRuleIDs,
 		Hints:       finalHints,
 		ActionFacts: collectActionFacts(sc.Actions),
-		Reports:     validatorResult.Reports,
 	}, nil
 }
 

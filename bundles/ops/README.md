@@ -131,7 +131,7 @@ For large policy changes, keep default guards and layer environment-specific rul
 
 ## Extending With Plugins
 
-Ops validators support built-in Go validators and external exec plugins.
+**(Advanced)** Ops validators support built-in Go validators and external exec plugins, but this feature is archived for the v0.1 decision path. The operational core now uses only `pkg/validate` + `policy/profiles/ops-v0.1`. Advanced validator/plugin tooling lives under `internal/advanced`.
 
 Configuration file (default `.evidra/ops.yaml`):
 
