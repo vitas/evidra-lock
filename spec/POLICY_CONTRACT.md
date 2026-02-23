@@ -149,7 +149,7 @@ deny["POL-PROD-01"] = msg if {
 
 - Run `opa test policy/profiles/ops-v0.1` for policy/unit tests.
 - `go test ./...` covers Go integration with the structured policy, runtime, and evidence layers.
-- `evidra validate bundles/ops/examples/*.json` exercises CLI output, hits, hints, and evidence creation.
+- `evidra validate examples/*.json` exercises CLI output, hits, hints, and evidence creation.
 
 ---
 

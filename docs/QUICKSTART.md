@@ -17,7 +17,7 @@
 
 ## 4) Try the bundled scenario
 
-- `./bin/evidra validate bundles/ops/examples/scenario_pass.json`
+- `./bin/evidra validate examples/terraform_plan_pass.json`
 
 ## 5) Tests
 

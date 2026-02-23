@@ -122,8 +122,8 @@ deny["POL-EXAMPLE-01"] = msg if {
 ## 5. Testing Policy
 
 - Run `opa test policy/profiles/ops-v0.1` from the repo root to exercise all policy rules/tests.
-- Run `go test ./pkg/policy ./pkg/validate ./bundles/ops` to verify Go integration with the policy decision contract.
-- Use `evidra validate <fixtures>` (or `bundles/ops/examples/*.json`) to see the CLI print hits/hints and confirm evidence contains the expected fields.
+- Run `go test ./pkg/policy ./pkg/validate ./pkg/scenario` to verify Go integration with the policy decision contract.
+- Use `evidra validate <fixtures>` (or `examples/*.json`) to see the CLI print hits/hints and confirm evidence contains the expected fields.
 
 ## Single Source of Truth
 

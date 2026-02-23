@@ -1,0 +1,19 @@
+{
+  "scenario_id": "kube-system-block-001",
+  "actor": {"type": "human", "id": "tester", "origin": "cli"},
+  "source": "cli",
+  "timestamp": "2026-02-21T00:00:00Z",
+  "actions": [
+    {
+      "kind": "kubectl.apply",
+      "target": {"namespace": "kube-system"},
+      "intent": "apply config to kube-system",
+      "payload": {
+        "manifests_ref": "inline",
+        "inline_yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: kube-system-config\n  namespace: kube-system\ndata:\n  key: value\n",
+        "namespace": "kube-system"
+      },
+      "risk_tags": []
+    }
+  ]
+}

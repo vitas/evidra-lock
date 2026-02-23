@@ -10,7 +10,7 @@ Evidra  deterministically enforces policy on Terraform plans and Kubernetes chan
 - Evidence defaults to `~/.evidra/evidence`; override with `--evidence-dir` or `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
 
 ### Shared evaluation core
-- Both `evidra` and `evidra-mcp` rely on the same Go evaluation core (`pkg/validate` + `pkg/opscore` wrapper) that calls into `bundles/ops` for scenario validation, policy evaluation, and evidence writing. The shared core ensures identical decision output, hits, hints, and evidence IDs regardless of entry point.
+- Both `evidra` and `evidra-mcp` rely on the same Go evaluation core (`pkg/validate` + `pkg/opscore` wrapper) that uses `pkg/scenario` for scenario loading, policy evaluation, and evidence writing. The shared core ensures identical decision output, hits, hints, and evidence IDs regardless of entry point.
 
 ### Offline CLI (evidra)
 - `evidra validate <file>` auto-detects Terraform plan JSON or Kubernetes manifests and prints PASS/FAIL along with rule IDs, hints, and evidence IDs.

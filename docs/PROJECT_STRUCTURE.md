@@ -25,18 +25,18 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 - `pkg/policysource`: local file loader for policy modules and data; used by runtime and tests to load `policy/profiles/ops-v0.1`.
 - `pkg/policy`: OPA engine wrapper that evaluates the `data.evidra.policy.decision` query and maps the result into Go `Decision` structs (allow/risk/reason/hints/hits).
 - `pkg/runtime`: legacy runtime evaluator that loads policy+data; kept for backward compatibility but the v1 core now lives in `pkg/validate`.
-- `pkg/validate`: single evaluation core wrapping `bundles/ops` that powers both CLI validation and MCP execution, including evidence recording.
+- `pkg/validate`: single evaluation core that uses `pkg/scenario` for scenario loading and drives policy evaluation plus evidence recording for both CLI validation and MCP execution.
 - `pkg/config`: shared resolver for `--policy`, `--data`, and `--evidence-dir` flags plus `EVIDRA_*` env vars so both binaries use the same paths.
 - `internal/advanced/registry`: legacy tool registry and validation helpers kept for advanced pack-based experimentation.
 - `pkg/evidence`: append-only evidence store that records policy hits, hints, and decision metadata.
 - `pkg/evidence`: append-only evidence store and helper functions for generating resource links/manifests for MCP clients.
 - `pkg/mcpserver`: MCP adapter that receives `ToolInvocation`, runs the core decision/evidence flow, and exposes tools via MCP.
 - `internal/advanced/engine`: legacy execution engine that routes invocations through registry, policy, and execution results (advanced flow).
-- `pkg/packs`: pack loading utilities used by bundles/ops and tests.
+- `pkg/packs`: pack loading utilities used by advanced scenarios and tests.
 
 ## Build/Test Notes
 
-- `go test ./...` covers every module; special builds (e.g., bundles/ops) include CLI integration tests.
+- `go test ./...` covers every module; special builds (e.g., advanced packages) include CLI integration tests.
 - Policy-specific tests live under `policy/profiles/ops-v0.1/policy/tests`; run via `opa test policy/profiles/ops-v0.1`.
 - QA commands (e.g., `make evidra-demo`) live in the root `Makefile`.
 
@@ -46,4 +46,4 @@ This repository is organized around the Evidra v1-slim CLI/evaluator surface plu
 
 ## Single Source of Truth
 
-Everyone edits policy under `policy/profiles/ops-v0.1`. The Go runtime, bundles, and CLI resolve policy/data from this profile by default (unless overridden via `--policy`/`--data` or `EVIDRA_POLICY_PATH`/`EVIDRA_DATA_PATH`). No other directories should be treated as authoritative.
+Everyone edits policy under `policy/profiles/ops-v0.1`. The Go runtime and CLI resolve policy/data from this profile by default (unless overridden via `--policy`/`--data` or `EVIDRA_POLICY_PATH`/`EVIDRA_DATA_PATH`). No other directories should be treated as authoritative.

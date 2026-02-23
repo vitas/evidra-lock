@@ -56,7 +56,7 @@ Policies use request context for risk and permission decisions:
 ## 5) Local Policy Testing
 
 1. `go build -o ./bin/evidra ./cmd/evidra`
-2. `./bin/evidra validate bundles/ops/examples/scenario_pass.json`
+2. `./bin/evidra validate examples/terraform_plan_pass.json`
 3. Look for `Decision: PASS` and `Reason` lines in the output.
 
 ## 6) Learn OPA

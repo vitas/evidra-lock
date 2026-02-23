@@ -9,4 +9,4 @@ This repository standardizes on the ops policy profile for v0.1.
 ## Guidance
 - Keep policy deterministic.
 - Keep policy data-driven where possible (`data.json`).
-- Use `./bin/evidra validate bundles/ops/examples/scenario_pass.json` to exercise the policy locally.
+- Use `./bin/evidra validate examples/terraform_plan_pass.json` to exercise the policy locally.

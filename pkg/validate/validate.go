@@ -13,14 +13,13 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v3"
-	"samebits.com/evidra-mcp/bundles/ops/scenario"
-	"samebits.com/evidra-mcp/bundles/ops/schema"
 	"samebits.com/evidra-mcp/pkg/config"
 	"samebits.com/evidra-mcp/pkg/core"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/runtime"
+	"samebits.com/evidra-mcp/pkg/scenario"
 )
 
 type Options struct {
@@ -77,7 +76,7 @@ func EvaluateInvocation(ctx context.Context, inv invocation.ToolInvocation, opts
 	return EvaluateScenario(ctx, sc, opts)
 }
 
-func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Result, error) {
+func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (Result, error) {
 	policyPath, dataPath, err := config.ResolvePolicyData(opts.PolicyPath, opts.DataPath)
 	if err != nil {
 		return Result{}, err
@@ -164,17 +163,17 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 	}, nil
 }
 
-func invocationToScenario(inv invocation.ToolInvocation) schema.Scenario {
-	return schema.Scenario{
+func invocationToScenario(inv invocation.ToolInvocation) scenario.Scenario {
+	return scenario.Scenario{
 		ScenarioID: scenarioIDFromInvocation(inv),
-		Actor: schema.Actor{
+		Actor: scenario.Actor{
 			Type:   inv.Actor.Type,
 			ID:     inv.Actor.ID,
 			Origin: inv.Actor.Origin,
 		},
 		Source:    contextString(inv.Context, "source", inv.Actor.Origin),
 		Timestamp: time.Now().UTC(),
-		Actions: []schema.Action{
+		Actions: []scenario.Action{
 			{
 				Kind:     fmt.Sprintf("%s.%s", inv.Tool, inv.Operation),
 				Target:   mapFromValue(inv.Params["target"]),
@@ -299,7 +298,7 @@ func dedupeStrings(in []string) []string {
 	return out
 }
 
-func collectActionFacts(actions []schema.Action) []ActionFact {
+func collectActionFacts(actions []scenario.Action) []ActionFact {
 	facts := make([]ActionFact, 0, len(actions))
 	for _, action := range actions {
 		fact := ActionFact{
@@ -316,7 +315,7 @@ func collectActionFacts(actions []schema.Action) []ActionFact {
 	return facts
 }
 
-func namespaceForAction(action schema.Action) string {
+func namespaceForAction(action scenario.Action) string {
 	if ns := stringFromMap(action.Payload, "namespace"); ns != "" {
 		return ns
 	}
@@ -426,7 +425,7 @@ func parseYAMLKinds(content string) []string {
 	return kinds
 }
 
-func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evaluator, sc schema.Scenario) (scenarioEvaluation, error) {
+func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evaluator, sc scenario.Scenario) (scenarioEvaluation, error) {
 	res := scenarioEvaluation{
 		Pass:      true,
 		RiskLevel: "normal",

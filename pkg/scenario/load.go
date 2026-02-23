@@ -13,15 +13,14 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v3"
-	"samebits.com/evidra-mcp/bundles/ops/schema"
 )
 
 var ErrUnsupportedInputFormat = errors.New("unsupported input format")
 
-func LoadFile(path string) (schema.Scenario, error) {
+func LoadFile(path string) (Scenario, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return schema.Scenario{}, fmt.Errorf("open scenario file: %w", err)
+		return Scenario{}, fmt.Errorf("open scenario file: %w", err)
 	}
 
 	if looksLikeScenarioJSON(raw) {
@@ -31,32 +30,32 @@ func LoadFile(path string) (schema.Scenario, error) {
 	if sc, err := scenarioFromTerraformPlan(raw, path); err == nil {
 		return sc, nil
 	} else if !errors.Is(err, ErrUnsupportedInputFormat) {
-		return schema.Scenario{}, err
+		return Scenario{}, err
 	}
 
 	if sc, err := scenarioFromKubernetesManifest(raw, path); err == nil {
 		return sc, nil
 	} else if !errors.Is(err, ErrUnsupportedInputFormat) {
-		return schema.Scenario{}, err
+		return Scenario{}, err
 	}
 
-	return schema.Scenario{}, ErrUnsupportedInputFormat
+	return Scenario{}, ErrUnsupportedInputFormat
 }
 
-func decodeScenario(raw []byte) (schema.Scenario, error) {
+func decodeScenario(raw []byte) (Scenario, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 
-	var sc schema.Scenario
+	var sc Scenario
 	if err := dec.Decode(&sc); err != nil {
-		return schema.Scenario{}, fmt.Errorf("decode scenario JSON: %w", err)
+		return Scenario{}, fmt.Errorf("decode scenario JSON: %w", err)
 	}
 	if dec.More() {
-		return schema.Scenario{}, fmt.Errorf("scenario JSON contains multiple values")
+		return Scenario{}, fmt.Errorf("scenario JSON contains multiple values")
 	}
 
 	if err := validate(sc); err != nil {
-		return schema.Scenario{}, err
+		return Scenario{}, err
 	}
 	return sc, nil
 }
@@ -70,22 +69,21 @@ func looksLikeScenarioJSON(raw []byte) bool {
 	return hasActions
 }
 
-
-func scenarioFromTerraformPlan(raw []byte, path string) (schema.Scenario, error) {
+func scenarioFromTerraformPlan(raw []byte, path string) (Scenario, error) {
 	var payload map[string]interface{}
 	if err := json.Unmarshal(raw, &payload); err != nil {
-		return schema.Scenario{}, ErrUnsupportedInputFormat
+		return Scenario{}, ErrUnsupportedInputFormat
 	}
 	if !looksLikeTerraformPlan(payload) {
-		return schema.Scenario{}, ErrUnsupportedInputFormat
+		return Scenario{}, ErrUnsupportedInputFormat
 	}
 	resourceCount, destroyCount, resourceAddresses := summarizeTerraformPlan(payload)
-	sc := schema.Scenario{
+	sc := Scenario{
 		ScenarioID: terraformScenarioID(path, raw),
-		Actor:      schema.Actor{Type: "human", ID: "cli"},
+		Actor:      Actor{Type: "human", ID: "cli"},
 		Source:     "cli",
 		Timestamp:  time.Now().UTC(),
-		Actions: []schema.Action{
+		Actions: []Action{
 			{
 				Kind: "terraform.plan",
 				Target: map[string]interface{}{
@@ -93,10 +91,10 @@ func scenarioFromTerraformPlan(raw []byte, path string) (schema.Scenario, error)
 				},
 				Intent: fmt.Sprintf("plan detected from %s", filepath.Base(path)),
 				Payload: map[string]interface{}{
-					"resource_count":   resourceCount,
-					"destroy_count":    destroyCount,
-					"publicly_exposed": false,
-					"plan_json":        filepath.Base(path),
+					"resource_count":     resourceCount,
+					"destroy_count":      destroyCount,
+					"publicly_exposed":   false,
+					"plan_json":          filepath.Base(path),
 					"resource_addresses": resourceAddresses,
 				},
 			},
@@ -105,28 +103,28 @@ func scenarioFromTerraformPlan(raw []byte, path string) (schema.Scenario, error)
 	return sc, nil
 }
 
-func scenarioFromKubernetesManifest(raw []byte, path string) (schema.Scenario, error) {
+func scenarioFromKubernetesManifest(raw []byte, path string) (Scenario, error) {
 	docs, err := parseYAMLDocs(raw)
 	if err != nil {
-		return schema.Scenario{}, err
+		return Scenario{}, err
 	}
 	if len(docs) == 0 {
-		return schema.Scenario{}, ErrUnsupportedInputFormat
+		return Scenario{}, ErrUnsupportedInputFormat
 	}
 	manifest := docs[0]
 	if _, ok := manifest["apiVersion"]; !ok {
-		return schema.Scenario{}, ErrUnsupportedInputFormat
+		return Scenario{}, ErrUnsupportedInputFormat
 	}
 	if _, ok := manifest["kind"]; !ok {
-		return schema.Scenario{}, ErrUnsupportedInputFormat
+		return Scenario{}, ErrUnsupportedInputFormat
 	}
 	namespace := manifestNamespace(manifest)
-	sc := schema.Scenario{
+	sc := Scenario{
 		ScenarioID: kubernetesScenarioID(path, raw),
-		Actor:      schema.Actor{Type: "human", ID: "cli"},
+		Actor:      Actor{Type: "human", ID: "cli"},
 		Source:     "cli",
 		Timestamp:  time.Now().UTC(),
-		Actions: []schema.Action{
+		Actions: []Action{
 			{
 				Kind: "kubectl.apply",
 				Target: map[string]interface{}{
@@ -208,60 +206,30 @@ func parseYAMLDocs(raw []byte) ([]map[string]interface{}, error) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return nil, fmt.Errorf("decode yaml manifest: %w", err)
-		}
-		if len(doc) == 0 {
-			continue
+			return nil, err
 		}
 		docs = append(docs, doc)
 	}
 	return docs, nil
 }
 
-func manifestNamespace(manifest map[string]interface{}) string {
-	if meta, ok := manifest["metadata"].(map[string]interface{}); ok {
-		if ns, ok := meta["namespace"].(string); ok && strings.TrimSpace(ns) != "" {
-			return strings.ToLower(ns)
-		}
-	}
-	return "default"
-}
-
-func validate(sc schema.Scenario) error {
+func validate(sc Scenario) error {
 	if strings.TrimSpace(sc.ScenarioID) == "" {
-		return fmt.Errorf("scenario_id is required")
-	}
-	switch strings.TrimSpace(sc.Actor.Type) {
-	case "human", "agent", "system":
-	default:
-		return fmt.Errorf("actor.type must be one of: human|agent|system")
-	}
-	switch strings.TrimSpace(sc.Source) {
-	case "mcp", "cli", "ci":
-	default:
-		return fmt.Errorf("source must be one of: mcp|cli|ci")
-	}
-	if sc.Timestamp.IsZero() {
-		return fmt.Errorf("timestamp is required")
+		return fmt.Errorf("scenario_id required")
 	}
 	if len(sc.Actions) == 0 {
-		return fmt.Errorf("actions must contain at least one action")
+		return fmt.Errorf("scenario must contain at least one action")
 	}
-	for i, a := range sc.Actions {
-		if strings.TrimSpace(a.Kind) == "" {
-			return fmt.Errorf("actions[%d].kind is required", i)
-		}
-		if strings.TrimSpace(a.Intent) == "" {
-			return fmt.Errorf("actions[%d].intent is required", i)
-		}
-		if a.Target == nil {
-			return fmt.Errorf("actions[%d].target is required", i)
-		}
-		if a.Payload == nil {
-			return fmt.Errorf("actions[%d].payload is required", i)
-		}
-	}
-
-	_ = time.RFC3339
 	return nil
+}
+
+func manifestNamespace(manifest map[string]interface{}) string {
+	metadata, _ := manifest["metadata"].(map[string]interface{})
+	if metadata == nil {
+		return ""
+	}
+	if ns, _ := metadata["namespace"].(string); ns != "" {
+		return ns
+	}
+	return ""
 }

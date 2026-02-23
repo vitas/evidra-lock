@@ -20,7 +20,7 @@ func TestValidateUsage(t *testing.T) {
 }
 
 func TestValidateScenarioPass(t *testing.T) {
-	scenario := filepath.Join("bundles", "ops", "examples", "scenario_pass.json")
+	scenario := filepath.Join("examples", "terraform_plan_pass.json")
 	code, out, errOut := runFromRepoRoot(t, []string{"validate", scenario})
 	if code != 0 {
 		t.Fatalf("expected exit code 0 for passing scenario, got %d stderr=%s", code, errOut)
@@ -31,7 +31,7 @@ func TestValidateScenarioPass(t *testing.T) {
 }
 
 func TestValidateExplainOutput(t *testing.T) {
-	scenario := filepath.Join("bundles", "ops", "examples", "scenario_kubesystem_block.json")
+	scenario := filepath.Join("examples", "kubernetes_kube_system_block.json")
 	code, out, errOut := runFromRepoRoot(t, []string{"validate", "--explain", scenario})
 	if code != 2 {
 		t.Fatalf("expected exit code 2 for deny, got %d stderr=%s", code, errOut)
@@ -51,7 +51,7 @@ func TestValidateExplainOutput(t *testing.T) {
 }
 
 func TestValidateFailStructuredOutput(t *testing.T) {
-	scenario := filepath.Join("bundles", "ops", "examples", "scenario_kubesystem_block.json")
+	scenario := filepath.Join("examples", "terraform_public_exposure_fail.json")
 	code, out, errOut := runFromRepoRoot(t, []string{"validate", scenario})
 	if code != 2 {
 		t.Fatalf("expected exit code 2 for deny, got %d stderr=%s", code, errOut)
@@ -65,7 +65,7 @@ func TestValidateFailStructuredOutput(t *testing.T) {
 }
 
 func TestValidateFailJSONOutput(t *testing.T) {
-	scenario := filepath.Join("bundles", "ops", "examples", "scenario_kubesystem_block.json")
+	scenario := filepath.Join("examples", "terraform_public_exposure_fail.json")
 	code, out, errOut := runFromRepoRoot(t, []string{"validate", "--json", scenario})
 	if code != 2 {
 		t.Fatalf("expected exit code 2 for deny, got %d stderr=%s", code, errOut)

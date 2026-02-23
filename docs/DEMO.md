@@ -17,8 +17,7 @@
 
 ## Validate the sample scenario
 
-- `./bin/evidra validate bundles/ops/examples/scenario_pass.json`
-  (bundled scenario files live under `bundles/ops/examples/`)
+- `./bin/evidra validate examples/terraform_plan_pass.json`
 
 ## Policy profile
 
