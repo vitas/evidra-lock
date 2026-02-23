@@ -19,9 +19,9 @@ import (
 	"samebits.com/evidra-mcp/pkg/mcpserver"
 	"samebits.com/evidra-mcp/pkg/outputlimit"
 	"samebits.com/evidra-mcp/pkg/packs"
-	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/policysource"
 	"samebits.com/evidra-mcp/pkg/registry"
+	"samebits.com/evidra-mcp/pkg/validate"
 )
 
 var defaultEvidenceDir = resolveDefaultEvidenceDir()
@@ -68,21 +68,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	ps := policysource.NewLocalFileSource(policyPath, dataPath)
-	policyModules, err := ps.LoadPolicy()
-	if err != nil {
-		fmt.Fprintf(stderr, "load policy: %v\n", err)
-		return 1
-	}
-	dataBytes, err := ps.LoadData()
-	if err != nil {
-		fmt.Fprintf(stderr, "load policy data: %v\n", err)
-		return 1
-	}
-	policyEngine, err := policy.NewOPAEngine(policyModules, dataBytes)
-	if err != nil {
-		fmt.Fprintf(stderr, "compile policy: %v\n", err)
-		return 1
-	}
+	policyEngine := validate.NewPolicyEngine(validate.Options{
+		PolicyPath: policyPath,
+		DataPath:   dataPath,
+	})
 
 	evidencePath := config.ResolveEvidenceDir(strings.TrimSpace(*evidenceFlag))
 	evidenceStore := evidence.NewStoreWithPath(evidencePath)

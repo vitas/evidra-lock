@@ -20,8 +20,10 @@ import (
 	"samebits.com/evidra-mcp/bundles/ops/schema"
 	"samebits.com/evidra-mcp/bundles/ops/validators"
 	"samebits.com/evidra-mcp/pkg/config"
+	"samebits.com/evidra-mcp/pkg/core"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra-mcp/pkg/policy"
 	"samebits.com/evidra-mcp/pkg/runtime"
 )
 
@@ -35,6 +37,7 @@ type Options struct {
 	ExecMode         string
 	ExecFilter       map[string]bool
 	BundleProfile    string
+	SkipEvidence     bool
 }
 
 type Result struct {
@@ -119,13 +122,16 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 	finalHints = dedupeStrings(finalHints)
 	finalRuleIDs = dedupeStrings(finalRuleIDs)
 
-	evidenceDir := config.ResolveEvidenceDir(opts.EvidenceDir)
-	store := evidence.NewStoreWithPath(evidenceDir)
-	if err := store.Init(); err != nil {
-		return Result{}, err
+	var store *evidence.Store
+	var evidenceID string
+	if !opts.SkipEvidence {
+		evidenceDir := config.ResolveEvidenceDir(opts.EvidenceDir)
+		store = evidence.NewStoreWithPath(evidenceDir)
+		if err := store.Init(); err != nil {
+			return Result{}, err
+		}
+		evidenceID = fmt.Sprintf("evt-%d", time.Now().UTC().UnixNano())
 	}
-
-	evidenceID := fmt.Sprintf("evt-%d", time.Now().UTC().UnixNano())
 	bundleProfile := opts.BundleProfile
 	if bundleProfile == "" {
 		bundleProfile = "ops"
@@ -169,8 +175,12 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 		},
 	}
 
-	if err := store.Append(rec); err != nil {
-		return Result{}, err
+	if store != nil {
+		if err := store.Append(rec); err != nil {
+			return Result{}, err
+		}
+	} else {
+		evidenceID = ""
 	}
 
 	return Result{
@@ -446,4 +456,46 @@ func parseYAMLKinds(content string) []string {
 	}
 	sort.Strings(kinds)
 	return kinds
+}
+
+type PolicyEngine struct {
+	options Options
+}
+
+func NewPolicyEngine(opts Options) core.PolicyEngine {
+	opts.SkipEvidence = true
+	return &PolicyEngine{options: opts}
+}
+
+func (p *PolicyEngine) Evaluate(inv invocation.ToolInvocation) (policy.Decision, error) {
+	ctx := context.Background()
+	res, err := EvaluateInvocation(ctx, inv, p.options)
+	if err != nil {
+		return decisionForPolicyError(), err
+	}
+	return decisionFromResult(res), nil
+}
+
+func decisionForPolicyError() policy.Decision {
+	return policy.Decision{
+		Allow:     false,
+		RiskLevel: "critical",
+		Reason:    "policy_evaluation_failed",
+	}
+}
+
+func decisionFromResult(res Result) policy.Decision {
+	decision := policy.Decision{
+		Allow:     res.Pass,
+		RiskLevel: res.RiskLevel,
+		Hints:     res.Hints,
+		Hits:      res.RuleIDs,
+		Reasons:   res.Reasons,
+	}
+	if len(res.Reasons) > 0 {
+		decision.Reason = res.Reasons[0]
+	} else if res.RiskLevel != "" {
+		decision.Reason = res.RiskLevel
+	}
+	return decision
 }
