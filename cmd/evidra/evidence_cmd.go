@@ -728,13 +728,13 @@ func sha256Hex(b []byte) string {
 func riskRank(level string) (int, bool) {
 	switch strings.ToLower(strings.TrimSpace(level)) {
 	case "low":
-		return 0, true
-	case "medium":
 		return 1, true
-	case "high":
+	case "medium":
 		return 2, true
+	case "high":
+		return 3, true
 	default:
-		return 2, false
+		return 3, false
 	}
 }
 
