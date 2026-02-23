@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"samebits.com/evidra-mcp/pkg/evlock"
@@ -119,7 +118,6 @@ const (
 	lockTimeoutEnv               = "EVIDRA_EVIDENCE_LOCK_TIMEOUT_MS"
 )
 
-var appendMu sync.Mutex
 var ErrChainInvalid = errors.New("evidence_chain_invalid")
 var ErrCursorSegmentNotFound = errors.New("cursor_segment_not_found")
 var ErrCursorLineOutOfRange = errors.New("cursor_line_out_of_range")
@@ -511,9 +509,6 @@ func appendAtPath(path string, record EvidenceRecord) (EvidenceRecord, error) {
 }
 
 func appendAtPathUnlocked(path string, record EvidenceRecord) (EvidenceRecord, error) {
-	appendMu.Lock()
-	defer appendMu.Unlock()
-
 	mode, resolved, err := detectStoreMode(path)
 	if err != nil {
 		return EvidenceRecord{}, err
@@ -536,9 +531,6 @@ func validateChainAtPath(path string) error {
 }
 
 func validateChainAtPathUnlocked(path string) error {
-	appendMu.Lock()
-	defer appendMu.Unlock()
-
 	mode, resolved, err := detectStoreMode(path)
 	if err != nil {
 		return err

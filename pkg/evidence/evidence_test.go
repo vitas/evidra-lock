@@ -2,9 +2,11 @@ package evidence
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -167,6 +169,82 @@ func TestEvidenceRecordContainsPolicyRef(t *testing.T) {
 	}
 	if persisted.PolicyRef != rec.PolicyRef {
 		t.Fatalf("expected policy_ref %q, got %q", rec.PolicyRef, persisted.PolicyRef)
+	}
+}
+
+// TestConcurrentAppendsSameStore verifies that concurrent appends to the same
+// Store produce a valid chain with no data races. The race detector enforces
+// the correctness of s.mu serialization.
+func TestConcurrentAppendsSameStore(t *testing.T) {
+	store := NewStoreWithPath(filepath.Join(t.TempDir(), "evidence"))
+	if err := store.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	const workers = 8
+	var wg sync.WaitGroup
+	errs := make([]error, workers)
+	for i := range workers {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			errs[i] = store.Append(testRecord(fmt.Sprintf("evt-%d", i), "echo", "run"))
+		}(i)
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Errorf("worker %d: Append() error = %v", i, err)
+		}
+	}
+	if err := store.ValidateChain(); err != nil {
+		t.Fatalf("ValidateChain() after concurrent appends: %v", err)
+	}
+}
+
+// TestConcurrentAppendsDifferentStores verifies that two stores at different
+// paths operate independently. Before TD-05 was fixed, both would serialize on
+// the global appendMu even though they write to unrelated directories.
+func TestConcurrentAppendsDifferentStores(t *testing.T) {
+	storeA := NewStoreWithPath(filepath.Join(t.TempDir(), "evidence-a"))
+	storeB := NewStoreWithPath(filepath.Join(t.TempDir(), "evidence-b"))
+	for _, s := range []*Store{storeA, storeB} {
+		if err := s.Init(); err != nil {
+			t.Fatalf("Init() error = %v", err)
+		}
+	}
+
+	var wg sync.WaitGroup
+	errA, errB := make([]error, 4), make([]error, 4)
+	for i := range 4 {
+		wg.Add(2)
+		go func(i int) {
+			defer wg.Done()
+			errA[i] = storeA.Append(testRecord(fmt.Sprintf("a-%d", i), "echo", "run"))
+		}(i)
+		go func(i int) {
+			defer wg.Done()
+			errB[i] = storeB.Append(testRecord(fmt.Sprintf("b-%d", i), "git", "status"))
+		}(i)
+	}
+	wg.Wait()
+
+	for i, err := range errA {
+		if err != nil {
+			t.Errorf("storeA worker %d: Append() error = %v", i, err)
+		}
+	}
+	for i, err := range errB {
+		if err != nil {
+			t.Errorf("storeB worker %d: Append() error = %v", i, err)
+		}
+	}
+	if err := storeA.ValidateChain(); err != nil {
+		t.Fatalf("storeA.ValidateChain() error = %v", err)
+	}
+	if err := storeB.ValidateChain(); err != nil {
+		t.Fatalf("storeB.ValidateChain() error = %v", err)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 func NewStore() *Store {
@@ -12,6 +13,7 @@ func NewStore() *Store {
 
 type Store struct {
 	path string
+	mu   sync.Mutex
 }
 
 func NewStoreWithPath(path string) *Store {
@@ -33,11 +35,15 @@ func (s *Store) Init() error {
 }
 
 func (s *Store) Append(record Record) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	_, err := appendAtPath(s.path, record)
 	return err
 }
 
 func (s *Store) ValidateChain() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return validateChainAtPath(s.path)
 }
 
