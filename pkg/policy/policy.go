@@ -25,9 +25,7 @@ type Decision struct {
 }
 
 type Engine struct {
-	query      rego.PreparedEvalQuery
-	ruleHints  map[string][]string
-	thresholds map[string]interface{}
+	query rego.PreparedEvalQuery
 }
 
 func NewOPAEngine(policyModules map[string][]byte, dataBytes []byte) (*Engine, error) {
@@ -55,30 +53,12 @@ func NewOPAEngine(policyModules map[string][]byte, dataBytes []byte) (*Engine, e
 	for _, name := range names {
 		regoOpts = append(regoOpts, rego.Module(name, string(policyModules[name])))
 	}
-	ruleHints := map[string][]string{}
-	thresholds := map[string]interface{}{}
 	if len(dataBytes) > 0 {
 		var dataObj map[string]interface{}
 		if err := json.Unmarshal(dataBytes, &dataObj); err != nil {
 			return nil, fmt.Errorf("parse policy data JSON: %w", err)
 		}
 		regoOpts = append(regoOpts, rego.Store(inmem.NewFromObject(dataObj)))
-		if raw, ok := dataObj["rule_hints"].(map[string]interface{}); ok {
-			for label, entries := range raw {
-				if arr, ok := entries.([]interface{}); ok {
-					for _, entry := range arr {
-						if hint, ok := entry.(string); ok && hint != "" {
-							ruleHints[label] = append(ruleHints[label], hint)
-						}
-					}
-				}
-			}
-		}
-		if raw, ok := dataObj["thresholds"].(map[string]interface{}); ok {
-			for k, v := range raw {
-				thresholds[k] = v
-			}
-		}
 	}
 
 	r := rego.New(regoOpts...)
@@ -86,7 +66,7 @@ func NewOPAEngine(policyModules map[string][]byte, dataBytes []byte) (*Engine, e
 	if err != nil {
 		return nil, fmt.Errorf("prepare policy query: %w", err)
 	}
-	return &Engine{query: query, ruleHints: ruleHints, thresholds: thresholds}, nil
+	return &Engine{query: query}, nil
 }
 
 func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
@@ -100,10 +80,6 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 		"operation": inv.Operation,
 		"params":    inv.Params,
 		"context":   inv.Context,
-		"policy_data": map[string]interface{}{
-			"rule_hints": e.ruleHints,
-			"thresholds": e.thresholds,
-		},
 	}
 	if actions := buildActionList(inv.Params); len(actions) > 0 {
 		input["actions"] = actions
