@@ -9,10 +9,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -21,12 +19,11 @@ import (
 	"samebits.com/evidra-mcp/bundles/ops/scenario"
 	"samebits.com/evidra-mcp/bundles/ops/schema"
 	"samebits.com/evidra-mcp/bundles/ops/validators"
+	"samebits.com/evidra-mcp/pkg/config"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
 	"samebits.com/evidra-mcp/pkg/runtime"
 )
-
-const DefaultEvidencePath = "./data/evidence"
 
 type Options struct {
 	PolicyPath       string
@@ -76,7 +73,7 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 		return Result{}, err
 	}
 
-	policyPath, dataPath, err := resolvePolicyData(opts)
+	policyPath, dataPath, err := config.ResolvePolicyData(opts.PolicyPath, opts.DataPath)
 	if err != nil {
 		return Result{}, err
 	}
@@ -114,7 +111,7 @@ func EvaluateScenario(ctx context.Context, sc schema.Scenario, opts Options) (Re
 	finalHints = dedupeStrings(finalHints)
 	finalRuleIDs = dedupeStrings(finalRuleIDs)
 
-	evidenceDir := resolveEvidenceDir(opts)
+	evidenceDir := config.ResolveEvidenceDir(opts.EvidenceDir)
 	store := evidence.NewStoreWithPath(evidenceDir)
 	if err := store.Init(); err != nil {
 		return Result{}, err
@@ -236,48 +233,6 @@ func dedupeStrings(in []string) []string {
 		out = append(out, s)
 	}
 	return out
-}
-
-var repoPolicyFallbackOnce sync.Once
-
-func resolvePolicyData(opts Options) (string, string, error) {
-	if opts.PolicyPath != "" && opts.DataPath != "" {
-		return opts.PolicyPath, opts.DataPath, nil
-	}
-	policyEnv := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_PATH"))
-	dataEnv := strings.TrimSpace(os.Getenv("EVIDRA_DATA_PATH"))
-	if policyEnv != "" && dataEnv != "" {
-		return policyEnv, dataEnv, nil
-	}
-	policyPath := filepath.Join("policy", "profiles", "ops-v0.1", "policy.rego")
-	dataPath := filepath.Join("policy", "profiles", "ops-v0.1", "data.json")
-	if fileExists(policyPath) && fileExists(dataPath) {
-		repoPolicyFallbackOnce.Do(func() {
-			fmt.Fprintln(os.Stderr, "warning: loading policy/data from repo fallback; set --policy/--data or env vars for production")
-		})
-		return policyPath, dataPath, nil
-	}
-	return "", "", fmt.Errorf("missing policy/data paths; provide --policy/--data or set EVIDRA_POLICY_PATH/EVIDRA_DATA_PATH")
-}
-
-func resolveEvidenceDir(opts Options) string {
-	if opts.EvidenceDir != "" {
-		return opts.EvidenceDir
-	}
-	if dir := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_DIR")); dir != "" {
-		return dir
-	}
-	if p := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_PATH")); p != "" {
-		return p
-	}
-	return DefaultEvidencePath
-}
-
-func fileExists(path string) bool {
-	if _, err := os.Stat(path); err == nil {
-		return true
-	}
-	return false
 }
 
 func collectActionFacts(actions []schema.Action) []ActionFact {

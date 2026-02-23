@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"samebits.com/evidra-mcp/internal/version"
+	"samebits.com/evidra-mcp/pkg/config"
 	"samebits.com/evidra-mcp/pkg/core"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/mcpserver"
@@ -60,7 +61,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	policyPath, dataPath, err := resolvePolicyPaths(strings.TrimSpace(*policyFlag), strings.TrimSpace(*dataFlag))
+	policyPath, dataPath, err := config.ResolvePolicyData(strings.TrimSpace(*policyFlag), strings.TrimSpace(*dataFlag))
 	if err != nil {
 		fmt.Fprintf(stderr, "resolve policy paths: %v\n", err)
 		return 1
@@ -83,7 +84,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	evidencePath := resolveEvidencePath(strings.TrimSpace(*evidenceFlag))
+	evidencePath := config.ResolveEvidenceDir(strings.TrimSpace(*evidenceFlag))
 	evidenceStore := evidence.NewStoreWithPath(evidencePath)
 	if err := evidenceStore.Init(); err != nil {
 		fmt.Fprintf(stderr, "init evidence store: %v\n", err)
@@ -130,31 +131,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
-}
-
-func resolvePolicyPaths(policyFlag, dataFlag string) (string, string, error) {
-	if policyFlag != "" && dataFlag != "" {
-		return policyFlag, dataFlag, nil
-	}
-	policyEnv := strings.TrimSpace(os.Getenv("EVIDRA_POLICY_PATH"))
-	dataEnv := strings.TrimSpace(os.Getenv("EVIDRA_DATA_PATH"))
-	if policyEnv != "" && dataEnv != "" {
-		return policyEnv, dataEnv, nil
-	}
-	return "", "", fmt.Errorf("missing --policy/--data (or set EVIDRA_POLICY_PATH/EVIDRA_DATA_PATH)")
-}
-
-func resolveEvidencePath(flagValue string) string {
-	if flagValue != "" {
-		return flagValue
-	}
-	if env := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_DIR")); env != "" {
-		return env
-	}
-	if env := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_PATH")); env != "" {
-		return env
-	}
-	return defaultEvidenceDir
 }
 
 func resolvePacksDir(flagValue string) string {

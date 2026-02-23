@@ -10,6 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"samebits.com/evidra-mcp/pkg/config"
 	"samebits.com/evidra-mcp/pkg/core"
 	"samebits.com/evidra-mcp/pkg/mcpserver"
 	"samebits.com/evidra-mcp/pkg/registry"
@@ -62,7 +63,7 @@ func TestRunRequiresPolicyAndData(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("expected exit code 1, got %d", code)
 	}
-	if !strings.Contains(errOut.String(), "missing --policy/--data") {
+	if !strings.Contains(errOut.String(), "missing policy/data") {
 		t.Fatalf("expected missing policy/data error, got: %s", errOut.String())
 	}
 }
@@ -103,17 +104,17 @@ func TestResolveEvidencePathPrecedence(t *testing.T) {
 	t.Setenv("EVIDRA_EVIDENCE_PATH", t.TempDir())
 	t.Setenv("EVIDRA_EVIDENCE_DIR", filepath.Join(t.TempDir(), "dir"))
 
-	if got := resolveEvidencePath(""); got != os.Getenv("EVIDRA_EVIDENCE_DIR") {
+	if got := config.ResolveEvidenceDir(""); got != os.Getenv("EVIDRA_EVIDENCE_DIR") {
 		t.Fatalf("expected EVIDRA_EVIDENCE_DIR to win, got %q", got)
 	}
 
 	const flagValue = "/tmp/flag-evidence"
-	if got := resolveEvidencePath(flagValue); got != flagValue {
+	if got := config.ResolveEvidenceDir(flagValue); got != flagValue {
 		t.Fatalf("expected flag to win, got %q", got)
 	}
 
 	t.Setenv("EVIDRA_EVIDENCE_DIR", "")
-	if got := resolveEvidencePath(""); got != os.Getenv("EVIDRA_EVIDENCE_PATH") {
+	if got := config.ResolveEvidenceDir(""); got != os.Getenv("EVIDRA_EVIDENCE_PATH") {
 		t.Fatalf("expected fallback to EVIDRA_EVIDENCE_PATH, got %q", got)
 	}
 }
