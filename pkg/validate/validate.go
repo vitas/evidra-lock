@@ -5,14 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"sort"
 	"strings"
 	"time"
 
-	"go.yaml.in/yaml/v3"
 	"samebits.com/evidra-mcp/pkg/config"
 	"samebits.com/evidra-mcp/pkg/evidence"
 	"samebits.com/evidra-mcp/pkg/invocation"
@@ -28,13 +24,12 @@ type Options struct {
 }
 
 type Result struct {
-	Pass        bool
-	RiskLevel   string
-	EvidenceID  string
-	Reasons     []string
-	RuleIDs     []string
-	Hints       []string
-	ActionFacts []ActionFact
+	Pass       bool
+	RiskLevel  string
+	EvidenceID string
+	Reasons    []string
+	RuleIDs    []string
+	Hints      []string
 }
 
 type scenarioEvaluation struct {
@@ -44,16 +39,6 @@ type scenarioEvaluation struct {
 	RuleIDs   []string
 	Hints     []string
 	PolicyRef string
-}
-
-type ActionFact struct {
-	Kind              string
-	Namespace         string
-	ResourceCount     int
-	DestroyCount      int
-	PublicExposure    bool
-	ResourceAddresses []string
-	ManifestKinds     []string
 }
 
 func EvaluateFile(ctx context.Context, path string, opts Options) (Result, error) {
@@ -147,7 +132,6 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		Reasons:     dedupeStrings(finalReasons),
 		RuleIDs:     finalRuleIDs,
 		Hints:       finalHints,
-		ActionFacts: collectActionFacts(sc.Actions),
 	}, nil
 }
 
@@ -277,133 +261,6 @@ func dedupeStrings(in []string) []string {
 		out = append(out, s)
 	}
 	return out
-}
-
-func collectActionFacts(actions []scenario.Action) []ActionFact {
-	facts := make([]ActionFact, 0, len(actions))
-	for _, action := range actions {
-		fact := ActionFact{
-			Kind:              action.Kind,
-			Namespace:         namespaceForAction(action),
-			ResourceCount:     intFromPayload(action.Payload, "resource_count"),
-			DestroyCount:      intFromPayload(action.Payload, "destroy_count"),
-			PublicExposure:    boolFromPayload(action.Payload, "publicly_exposed"),
-			ResourceAddresses: stringSliceFromPayload(action.Payload, "resource_addresses"),
-			ManifestKinds:     manifestKindsFromPayload(action.Payload),
-		}
-		facts = append(facts, fact)
-	}
-	return facts
-}
-
-func namespaceForAction(action scenario.Action) string {
-	if ns := stringFromMap(action.Payload, "namespace"); ns != "" {
-		return ns
-	}
-	if ns := stringFromMap(action.Target, "namespace"); ns != "" {
-		return ns
-	}
-	return ""
-}
-
-func stringFromMap(src map[string]interface{}, key string) string {
-	if src == nil {
-		return ""
-	}
-	if v, ok := src[key]; ok {
-		if s, ok := v.(string); ok {
-			return strings.ToLower(strings.TrimSpace(s))
-		}
-	}
-	return ""
-}
-
-func intFromPayload(payload map[string]interface{}, key string) int {
-	if payload == nil {
-		return 0
-	}
-	switch v := payload[key].(type) {
-	case float64:
-		return int(v)
-	case int:
-		return v
-	case uint64:
-		return int(v)
-	}
-	return 0
-}
-
-func boolFromPayload(payload map[string]interface{}, key string) bool {
-	if payload == nil {
-		return false
-	}
-	if v, ok := payload[key]; ok {
-		if b, ok := v.(bool); ok {
-			return b
-		}
-	}
-	return false
-}
-
-func stringSliceFromPayload(payload map[string]interface{}, key string) []string {
-	if payload == nil {
-		return nil
-	}
-	raw, ok := payload[key]
-	if !ok || raw == nil {
-		return nil
-	}
-	switch v := raw.(type) {
-	case []string:
-		return v
-	case []interface{}:
-		out := make([]string, 0, len(v))
-		for _, entry := range v {
-			if s, ok := entry.(string); ok && s != "" {
-				out = append(out, s)
-			}
-		}
-		return out
-	}
-	return nil
-}
-
-func manifestKindsFromPayload(payload map[string]interface{}) []string {
-	if payload == nil {
-		return nil
-	}
-	inline, ok := payload["inline_yaml"].(string)
-	if !ok || inline == "" {
-		return nil
-	}
-	return parseYAMLKinds(inline)
-}
-
-func parseYAMLKinds(content string) []string {
-	dec := yaml.NewDecoder(strings.NewReader(content))
-	seen := map[string]struct{}{}
-	for {
-		var doc map[string]interface{}
-		if err := dec.Decode(&doc); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return nil
-		}
-		if len(doc) == 0 {
-			continue
-		}
-		if kind, ok := doc["kind"].(string); ok && kind != "" {
-			key := strings.ToLower(strings.TrimSpace(kind))
-			seen[key] = struct{}{}
-		}
-	}
-	kinds := make([]string, 0, len(seen))
-	for k := range seen {
-		kinds = append(kinds, k)
-	}
-	sort.Strings(kinds)
-	return kinds
 }
 
 func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evaluator, sc scenario.Scenario) (scenarioEvaluation, error) {

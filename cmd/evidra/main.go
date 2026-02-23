@@ -148,36 +148,6 @@ func printExplanation(result validate.Result, stdout io.Writer) {
 			fmt.Fprintf(stdout, "  - %s\n", hint)
 		}
 	}
-	printActionFacts(result.ActionFacts, stdout)
-}
-
-func printActionFacts(facts []validate.ActionFact, stdout io.Writer) {
-	if len(facts) == 0 {
-		return
-	}
-	fmt.Fprintln(stdout, "- Action facts:")
-	for _, fact := range facts {
-		switch {
-		case strings.HasPrefix(fact.Kind, "terraform"):
-			fmt.Fprintf(stdout, "  - Terraform plan: destroy_count=%d, public_exposure=%t", fact.DestroyCount, fact.PublicExposure)
-			if len(fact.ResourceAddresses) > 0 {
-				fmt.Fprintf(stdout, ", resources=%s", shortList(fact.ResourceAddresses, 3))
-			}
-			fmt.Fprintln(stdout)
-		case strings.Contains(fact.Kind, "kubectl") || strings.Contains(fact.Kind, "kustomize") || strings.Contains(fact.Kind, "k8s"):
-			ns := fact.Namespace
-			if ns == "" {
-				ns = "default"
-			}
-			fmt.Fprintf(stdout, "  - Kubernetes manifest: namespace=%s", ns)
-			if len(fact.ManifestKinds) > 0 {
-				fmt.Fprintf(stdout, ", kinds=%s", strings.Join(fact.ManifestKinds, ", "))
-			}
-			fmt.Fprintln(stdout)
-		default:
-			fmt.Fprintf(stdout, "  - %s action namespace=%s\n", fact.Kind, fact.Namespace)
-		}
-	}
 }
 
 func shortList(items []string, limit int) string {

@@ -45,9 +45,7 @@ func TestValidateExplainOutput(t *testing.T) {
 	if !strings.Contains(out, "Hints:") {
 		t.Fatalf("expected hints section, got: %s", out)
 	}
-	if !strings.Contains(out, "namespace=kube-system") {
-		t.Fatalf("expected namespace fact, got: %s", out)
-	}
+
 }
 
 func TestValidateFailStructuredOutput(t *testing.T) {
