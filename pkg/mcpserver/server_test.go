@@ -148,3 +148,43 @@ func containsTool(list []string, name string) bool {
 	}
 	return false
 }
+
+func TestValidateServiceBadPolicyReturnsCode(t *testing.T) {
+	svc := newValidateService(Options{
+		PolicyPath:   "nonexistent.rego",
+		DataPath:     "nonexistent.json",
+		EvidencePath: t.TempDir(),
+		Mode:         ModeEnforce,
+	})
+	inv := invocation.ToolInvocation{
+		Actor:     invocation.Actor{Type: "human", ID: "u1", Origin: "test"},
+		Tool:      "kubectl",
+		Operation: "apply",
+		Params:    map[string]interface{}{},
+		Context:   map[string]interface{}{},
+	}
+	out := svc.Validate(context.Background(), inv)
+	if out.OK {
+		t.Fatal("expected OK=false when policy load fails")
+	}
+	if out.Error == nil {
+		t.Fatal("expected Error to be set")
+	}
+	if out.Error.Code != ErrCodePolicyFailure {
+		t.Errorf("expected error code %q, got %q", ErrCodePolicyFailure, out.Error.Code)
+	}
+}
+
+func TestValidateServiceInvalidInputReturnsCode(t *testing.T) {
+	svc := newValidateService(Options{Mode: ModeEnforce})
+	out := svc.Validate(context.Background(), invocation.ToolInvocation{})
+	if out.OK {
+		t.Fatal("expected OK=false for invalid input")
+	}
+	if out.Error == nil {
+		t.Fatal("expected Error to be set")
+	}
+	if out.Error.Code != ErrCodeInvalidInput {
+		t.Errorf("expected error code %q, got %q", ErrCodeInvalidInput, out.Error.Code)
+	}
+}

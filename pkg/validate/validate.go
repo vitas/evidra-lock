@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -15,6 +16,14 @@ import (
 	"samebits.com/evidra-mcp/pkg/policysource"
 	"samebits.com/evidra-mcp/pkg/runtime"
 	"samebits.com/evidra-mcp/pkg/scenario"
+)
+
+// Sentinel errors returned by the Evaluate* functions.
+// Use errors.Is() to distinguish error categories without string matching.
+var (
+	ErrInvalidInput  = errors.New("invalid_input")
+	ErrPolicyFailure = errors.New("policy_failure")
+	ErrEvidenceWrite = errors.New("evidence_write_failed")
 )
 
 type Options struct {
@@ -52,7 +61,7 @@ func EvaluateFile(ctx context.Context, path string, opts Options) (Result, error
 
 func EvaluateInvocation(ctx context.Context, inv invocation.ToolInvocation, opts Options) (Result, error) {
 	if err := inv.ValidateStructure(); err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("%w: %w", ErrInvalidInput, err)
 	}
 	sc := invocationToScenario(inv)
 	return EvaluateScenario(ctx, sc, opts)
@@ -61,15 +70,15 @@ func EvaluateInvocation(ctx context.Context, inv invocation.ToolInvocation, opts
 func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (Result, error) {
 	policyPath, dataPath, err := config.ResolvePolicyData(opts.PolicyPath, opts.DataPath)
 	if err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("%w: %w", ErrPolicyFailure, err)
 	}
 	runtimeEval, err := runtime.NewEvaluator(policysource.NewLocalFileSource(policyPath, dataPath))
 	if err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("%w: %w", ErrPolicyFailure, err)
 	}
 	evalResult, err := evaluateScenarioWithRuntime(ctx, runtimeEval, sc)
 	if err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("%w: %w", ErrPolicyFailure, err)
 	}
 
 	finalPass := evalResult.Pass
@@ -84,7 +93,7 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		evidenceDir := config.ResolveEvidenceDir(opts.EvidenceDir)
 		store = evidence.NewStoreWithPath(evidenceDir)
 		if err := store.Init(); err != nil {
-			return Result{}, err
+			return Result{}, fmt.Errorf("%w: %w", ErrEvidenceWrite, err)
 		}
 		evidenceID = fmt.Sprintf("evt-%d", time.Now().UTC().UnixNano())
 	}
@@ -120,7 +129,7 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 
 	if store != nil {
 		if err := store.Append(rec); err != nil {
-			return Result{}, err
+			return Result{}, fmt.Errorf("%w: %w", ErrEvidenceWrite, err)
 		}
 	} else {
 		evidenceID = ""

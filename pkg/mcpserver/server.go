@@ -21,6 +21,16 @@ const (
 	ModeObserve Mode = "observe"
 )
 
+// Error codes used in ErrorSummary.Code.
+const (
+	ErrCodeInvalidInput     = "invalid_input"
+	ErrCodePolicyFailure    = "policy_failure"
+	ErrCodeEvidenceWrite    = "evidence_write_failed"
+	ErrCodeChainInvalid     = "evidence_chain_invalid"
+	ErrCodeNotFound         = "not_found"
+	ErrCodeInternalError    = "internal_error"
+)
+
 type Options struct {
 	Name                     string
 	Version                  string
@@ -213,40 +223,22 @@ type GetEventOutput struct {
 }
 
 func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvocation) ValidateOutput {
-	if err := inv.ValidateStructure(); err != nil {
-		return ValidateOutput{
-			OK: false,
-			Policy: PolicySummary{
-				Allow:     false,
-				RiskLevel: "high",
-				Reason:    "invalid_input",
-				PolicyRef: s.policyRef,
-			},
-			Error: &ErrorSummary{
-				Code:    "invalid_input",
-				Message: err.Error(),
-			},
-		}
-	}
-
 	res, err := validate.EvaluateInvocation(ctx, inv, validate.Options{
 		PolicyPath:  s.policyPath,
 		DataPath:    s.dataPath,
 		EvidenceDir: s.evidencePath,
 	})
 	if err != nil {
+		code, msg := validateErrCode(err)
 		return ValidateOutput{
 			OK: false,
 			Policy: PolicySummary{
 				Allow:     false,
 				RiskLevel: "high",
-				Reason:    "internal_error",
+				Reason:    code,
 				PolicyRef: s.policyRef,
 			},
-			Error: &ErrorSummary{
-				Code:    "internal_error",
-				Message: "validation pipeline failed",
-			},
+			Error: &ErrorSummary{Code: code, Message: msg},
 		}
 	}
 
@@ -280,17 +272,17 @@ func firstReason(reasons []string) string {
 
 func (s *ValidateService) GetEvent(_ context.Context, eventID string) GetEventOutput {
 	if eventID == "" {
-		return GetEventOutput{OK: false, Error: &ErrorSummary{Code: "invalid_input", Message: "event_id is required"}}
+		return GetEventOutput{OK: false, Error: &ErrorSummary{Code: ErrCodeInvalidInput, Message: "event_id is required"}}
 	}
 	rec, found, err := evidence.FindByEventID(s.evidencePath, eventID)
 	if err != nil {
 		if errors.Is(err, evidence.ErrChainInvalid) {
-			return GetEventOutput{OK: false, Error: &ErrorSummary{Code: "evidence_chain_invalid", Message: "evidence chain validation failed"}}
+			return GetEventOutput{OK: false, Error: &ErrorSummary{Code: ErrCodeChainInvalid, Message: "evidence chain validation failed"}}
 		}
-		return GetEventOutput{OK: false, Error: &ErrorSummary{Code: "internal_error", Message: "failed to read evidence"}}
+		return GetEventOutput{OK: false, Error: &ErrorSummary{Code: ErrCodeInternalError, Message: "failed to read evidence"}}
 	}
 	if !found {
-		return GetEventOutput{OK: false, Error: &ErrorSummary{Code: "not_found", Message: "event_id not found"}}
+		return GetEventOutput{OK: false, Error: &ErrorSummary{Code: ErrCodeNotFound, Message: "event_id not found"}}
 	}
 	return GetEventOutput{OK: true, Record: &rec, Resources: s.resourceLinks(rec.EventID)}
 }
@@ -353,4 +345,19 @@ func (s *ValidateService) readResourceSegments(_ context.Context, req *mcp.ReadR
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+// validateErrCode maps a validate package error to an ErrorSummary code and
+// a safe-to-expose message. Internal details are never surfaced to callers.
+func validateErrCode(err error) (code, message string) {
+	switch {
+	case errors.Is(err, validate.ErrInvalidInput):
+		return ErrCodeInvalidInput, err.Error()
+	case errors.Is(err, validate.ErrPolicyFailure):
+		return ErrCodePolicyFailure, "policy evaluation failed"
+	case errors.Is(err, validate.ErrEvidenceWrite):
+		return ErrCodeEvidenceWrite, "evidence write failed"
+	default:
+		return ErrCodeInternalError, "internal error"
+	}
 }
