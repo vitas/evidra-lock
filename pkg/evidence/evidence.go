@@ -20,13 +20,13 @@ import (
 )
 
 type PolicyDecision struct {
-	Allow     bool   `json:"allow"`
-	RiskLevel string `json:"risk_level"`
-	Reason    string `json:"reason"`
+	Allow     bool     `json:"allow"`
+	RiskLevel string   `json:"risk_level"`
+	Reason    string   `json:"reason"`
 	Reasons   []string `json:"reasons,omitempty"`
 	Hints     []string `json:"hints,omitempty"`
 	RuleIDs   []string `json:"rule_ids,omitempty"`
-	Advisory  bool   `json:"advisory"`
+	Advisory  bool     `json:"advisory"`
 }
 
 type ExecutionResult struct {

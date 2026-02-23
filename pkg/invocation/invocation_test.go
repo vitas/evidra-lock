@@ -98,3 +98,54 @@ func TestValidateStructure_MissingOperationFails(t *testing.T) {
 		t.Fatal("expected validation error, got nil")
 	}
 }
+
+func TestValidateStructure_InvalidTargetFails(t *testing.T) {
+	ti := ToolInvocation{
+		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
+		Tool: "test", Operation: "run",
+		Params: map[string]interface{}{
+			"target": "not-a-map",
+		},
+	}
+	err := ti.ValidateStructure()
+	if err == nil {
+		t.Fatal("expected validation error for invalid target, got nil")
+	}
+	if err.Error() != "field 'target' must be a JSON object" {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestValidateStructure_InvalidPayloadFails(t *testing.T) {
+	ti := ToolInvocation{
+		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
+		Tool: "test", Operation: "run",
+		Params: map[string]interface{}{
+			"payload": 123,
+		},
+	}
+	err := ti.ValidateStructure()
+	if err == nil {
+		t.Fatal("expected validation error for invalid payload, got nil")
+	}
+	if err.Error() != "field 'payload' must be a JSON object" {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestValidateStructure_InvalidRiskTagsFails(t *testing.T) {
+	ti := ToolInvocation{
+		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
+		Tool: "test", Operation: "run",
+		Params: map[string]interface{}{
+			"risk_tags": []interface{}{"high", 123},
+		},
+	}
+	err := ti.ValidateStructure()
+	if err == nil {
+		t.Fatal("expected validation error for invalid risk_tags, got nil")
+	}
+	if err.Error() != "field 'risk_tags' must be a list of strings" {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}

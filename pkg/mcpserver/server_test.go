@@ -106,10 +106,10 @@ func newTestServer(t *testing.T) *mcp.Server {
 	t.Helper()
 	profileDir := filepath.Join("..", "..", "policy", "profiles", "ops-v0.1")
 	opts := Options{
-		PolicyPath:    filepath.Join(profileDir, "policy.rego"),
-		DataPath:      filepath.Join(profileDir, "data.json"),
-		EvidencePath:  t.TempDir(),
-		Mode:          ModeEnforce,
+		PolicyPath:   filepath.Join(profileDir, "policy.rego"),
+		DataPath:     filepath.Join(profileDir, "data.json"),
+		EvidencePath: t.TempDir(),
+		Mode:         ModeEnforce,
 	}
 	return NewServer(opts)
 }

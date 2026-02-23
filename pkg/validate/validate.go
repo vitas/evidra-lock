@@ -126,12 +126,12 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 	}
 
 	return Result{
-		Pass:        finalPass,
-		RiskLevel:   finalRisk,
-		EvidenceID:  evidenceID,
-		Reasons:     dedupeStrings(finalReasons),
-		RuleIDs:     finalRuleIDs,
-		Hints:       finalHints,
+		Pass:       finalPass,
+		RiskLevel:  finalRisk,
+		EvidenceID: evidenceID,
+		Reasons:    dedupeStrings(finalReasons),
+		RuleIDs:    finalRuleIDs,
+		Hints:      finalHints,
 	}, nil
 }
 
