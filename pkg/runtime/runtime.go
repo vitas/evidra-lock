@@ -44,9 +44,6 @@ func NewEvaluator(src PolicySource) (*Evaluator, error) {
 }
 
 func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (policy.Decision, error) {
-	if err := inv.ValidateStructure(); err != nil {
-		return policy.Decision{}, err
-	}
 	d, err := e.engine.Evaluate(inv)
 	if err != nil {
 		return policy.Decision{}, err

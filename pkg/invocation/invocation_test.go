@@ -133,6 +133,62 @@ func TestValidateStructure_InvalidPayloadFails(t *testing.T) {
 	}
 }
 
+func TestValidateStructure_UnknownParamsKeyFails(t *testing.T) {
+	ti := ToolInvocation{
+		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
+		Tool: "test", Operation: "run",
+		Params: map[string]interface{}{
+			"environment": "staging",
+		},
+	}
+	err := ti.ValidateStructure()
+	if err == nil {
+		t.Fatal("expected validation error for unknown params key, got nil")
+	}
+	if err.Error() != `unknown params key: "environment"` {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestValidateStructure_UnknownContextKeyFails(t *testing.T) {
+	ti := ToolInvocation{
+		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
+		Tool: "test", Operation: "run",
+		Params:  map[string]interface{}{},
+		Context: map[string]interface{}{
+			"team": "platform",
+		},
+	}
+	err := ti.ValidateStructure()
+	if err == nil {
+		t.Fatal("expected validation error for unknown context key, got nil")
+	}
+	if err.Error() != `unknown context key: "team"` {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestValidateStructure_AllKnownKeysPass(t *testing.T) {
+	ti := ToolInvocation{
+		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
+		Tool: "test", Operation: "run",
+		Params: map[string]interface{}{
+			KeyTarget:     map[string]interface{}{"namespace": "default"},
+			KeyPayload:    map[string]interface{}{"data": "value"},
+			KeyRiskTags:   []string{"low"},
+			KeyScenarioID: "test-scenario",
+		},
+		Context: map[string]interface{}{
+			KeySource:     "cli",
+			KeyIntent:     "deploy",
+			KeyScenarioID: "test-scenario",
+		},
+	}
+	if err := ti.ValidateStructure(); err != nil {
+		t.Fatalf("expected no validation error with all known keys, got: %v", err)
+	}
+}
+
 func TestValidateStructure_InvalidRiskTagsFails(t *testing.T) {
 	ti := ToolInvocation{
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
