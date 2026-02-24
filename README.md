@@ -53,6 +53,7 @@ Use `EVIDRA_EVIDENCE_DIR` (or legacy `EVIDRA_EVIDENCE_PATH`) to override the evi
 - Evidence records live under `~/.evidra/evidence` (or your configured path); see `docs/evidence.md` for the JSONL schema and inspection commands.
 - `docs/policy.md` explains the policy contract and how to run `opa test` against the profile.
 - `docs/advanced.md` covers MCP server configuration and advanced workflows.
+- `docs/mcp-clients-setup.md` contains client integration setup (Codex, Gemini, Claude Desktop).
 - `docs/architecture.md` summarizes the v0.1 runtime graph from Codex through MCP to policy/evidence.
 
 ## Features (v0.1)

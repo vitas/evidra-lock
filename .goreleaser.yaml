@@ -21,9 +21,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X samebits.com/evidra-mcp/pkg/version.Version={{.Version}}
-      - -X samebits.com/evidra-mcp/pkg/version.Commit={{.Commit}}
-      - -X samebits.com/evidra-mcp/pkg/version.Date={{.Date}}
+      - -X samebits.com/evidra/pkg/version.Version={{.Version}}
+      - -X samebits.com/evidra/pkg/version.Commit={{.Commit}}
+      - -X samebits.com/evidra/pkg/version.Date={{.Date}}
 
 archives:
   - id: evidra

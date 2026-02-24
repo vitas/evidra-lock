@@ -10,3 +10,5 @@
 8. Evidence reference: `docs/evidence.md`
 9. Release Checklist: `docs/RELEASE_CHECKLIST.md`
 10. FAQ: `docs/FAQ.md`
+11. MCP clients setup: `docs/mcp-clients-setup.md`
+12. Backlog item - Skill backend: `docs/backlog/skill-agent-backend.md`
