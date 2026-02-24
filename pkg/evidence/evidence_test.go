@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/config"
-	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra/pkg/config"
+	"samebits.com/evidra/pkg/invocation"
 )
 
 func TestComputeHashExcludesHashField(t *testing.T) {

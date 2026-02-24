@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/config"
-	"samebits.com/evidra-mcp/pkg/evidence"
-	"samebits.com/evidra-mcp/pkg/invocation"
-	"samebits.com/evidra-mcp/pkg/policysource"
-	"samebits.com/evidra-mcp/pkg/runtime"
-	"samebits.com/evidra-mcp/pkg/scenario"
+	"samebits.com/evidra/pkg/config"
+	"samebits.com/evidra/pkg/evidence"
+	"samebits.com/evidra/pkg/invocation"
+	"samebits.com/evidra/pkg/policysource"
+	"samebits.com/evidra/pkg/runtime"
+	"samebits.com/evidra/pkg/scenario"
 )
 
 // Sentinel errors returned by the Evaluate* functions.

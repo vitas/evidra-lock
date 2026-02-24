@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"samebits.com/evidra-mcp/pkg/config"
+	"samebits.com/evidra/pkg/config"
 )
 
 func Append(record EvidenceRecord) (EvidenceRecord, error) {

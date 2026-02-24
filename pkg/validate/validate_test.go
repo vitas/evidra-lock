@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/invocation"
-	"samebits.com/evidra-mcp/pkg/scenario"
-	"samebits.com/evidra-mcp/pkg/validate"
+	"samebits.com/evidra/pkg/invocation"
+	"samebits.com/evidra/pkg/scenario"
+	"samebits.com/evidra/pkg/validate"
 )
 
 var profileDir = filepath.Join("..", "..", "policy", "profiles", "ops-v0.1")

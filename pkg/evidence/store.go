@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"samebits.com/evidra-mcp/pkg/config"
+	"samebits.com/evidra/pkg/config"
 )
 
 func NewStore() *Store {

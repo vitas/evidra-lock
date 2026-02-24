@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/evidence"
-	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra/pkg/evidence"
+	"samebits.com/evidra/pkg/invocation"
 )
 
 func TestVerifySuccess(t *testing.T) {

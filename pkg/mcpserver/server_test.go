@@ -7,7 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra/pkg/invocation"
 )
 
 func TestValidateServiceReturnsDeny(t *testing.T) {

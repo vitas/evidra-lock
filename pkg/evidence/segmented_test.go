@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra/pkg/invocation"
 )
 
 func TestSegmentedStoreRotationAndValidateAcrossSegments(t *testing.T) {

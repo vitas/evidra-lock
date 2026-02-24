@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/evidence"
-	"samebits.com/evidra-mcp/pkg/version"
+	"samebits.com/evidra/pkg/evidence"
+	"samebits.com/evidra/pkg/version"
 )
 
 const (

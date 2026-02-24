@@ -3,7 +3,7 @@ package validate
 import (
 	"testing"
 
-	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra/pkg/invocation"
 )
 
 // ---------------------------------------------------------------------------

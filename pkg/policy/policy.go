@@ -11,7 +11,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 
-	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra/pkg/invocation"
 )
 
 type Decision struct {

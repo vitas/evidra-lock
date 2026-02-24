@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/evlock"
-	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra/pkg/evlock"
+	"samebits.com/evidra/pkg/invocation"
 )
 
 func TestAppendFailsWhenStoreBusy(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/evlock"
+	"samebits.com/evidra/pkg/evlock"
 )
 
 func lockTimeoutFromEnv() time.Duration {

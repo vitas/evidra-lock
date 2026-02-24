@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/evidence"
-	"samebits.com/evidra-mcp/pkg/evlock"
+	"samebits.com/evidra/pkg/evidence"
+	"samebits.com/evidra/pkg/evlock"
 )
 
 func TestVerifyReturnsBusyCodeWhenLocked(t *testing.T) {

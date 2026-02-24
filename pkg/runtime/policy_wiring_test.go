@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"samebits.com/evidra-mcp/pkg/invocation"
-	"samebits.com/evidra-mcp/pkg/policy"
-	"samebits.com/evidra-mcp/pkg/policysource"
-	"samebits.com/evidra-mcp/pkg/runtime"
+	"samebits.com/evidra/pkg/invocation"
+	"samebits.com/evidra/pkg/policy"
+	"samebits.com/evidra/pkg/policysource"
+	"samebits.com/evidra/pkg/runtime"
 )
 
 // fakeSource is a test double for runtime.PolicySource.

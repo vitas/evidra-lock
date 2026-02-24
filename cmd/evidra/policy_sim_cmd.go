@@ -7,10 +7,10 @@ import (
 	"io"
 	"os"
 
-	"samebits.com/evidra-mcp/pkg/invocation"
-	"samebits.com/evidra-mcp/pkg/policy"
-	"samebits.com/evidra-mcp/pkg/policysource"
-	"samebits.com/evidra-mcp/pkg/version"
+	"samebits.com/evidra/pkg/invocation"
+	"samebits.com/evidra/pkg/policy"
+	"samebits.com/evidra/pkg/policysource"
+	"samebits.com/evidra/pkg/version"
 )
 
 const (

@@ -1,8 +1,8 @@
 package runtime
 
 import (
-	"samebits.com/evidra-mcp/pkg/invocation"
-	"samebits.com/evidra-mcp/pkg/policy"
+	"samebits.com/evidra/pkg/invocation"
+	"samebits.com/evidra/pkg/policy"
 )
 
 // PolicySource is the interface for loading policy modules, data, and a stable

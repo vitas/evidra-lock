@@ -8,10 +8,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"samebits.com/evidra-mcp/pkg/config"
-	"samebits.com/evidra-mcp/pkg/evidence"
-	"samebits.com/evidra-mcp/pkg/invocation"
-	"samebits.com/evidra-mcp/pkg/validate"
+	"samebits.com/evidra/pkg/config"
+	"samebits.com/evidra/pkg/evidence"
+	"samebits.com/evidra/pkg/invocation"
+	"samebits.com/evidra/pkg/validate"
 )
 
 type Mode string

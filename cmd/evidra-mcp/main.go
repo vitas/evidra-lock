@@ -11,10 +11,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"samebits.com/evidra-mcp/pkg/config"
-	"samebits.com/evidra-mcp/pkg/mcpserver"
-	"samebits.com/evidra-mcp/pkg/policysource"
-	"samebits.com/evidra-mcp/pkg/version"
+	"samebits.com/evidra/pkg/config"
+	"samebits.com/evidra/pkg/mcpserver"
+	"samebits.com/evidra/pkg/policysource"
+	"samebits.com/evidra/pkg/version"
 )
 
 type serverRunner interface {

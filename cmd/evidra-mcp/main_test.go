@@ -10,8 +10,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"samebits.com/evidra-mcp/pkg/config"
-	"samebits.com/evidra-mcp/pkg/mcpserver"
+	"samebits.com/evidra/pkg/config"
+	"samebits.com/evidra/pkg/mcpserver"
 )
 
 func TestRunLoadsPolicyAndStartsServer(t *testing.T) {

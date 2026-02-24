@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"samebits.com/evidra-mcp/pkg/invocation"
+	"samebits.com/evidra/pkg/invocation"
 )
 
 type PolicyDecision struct {
