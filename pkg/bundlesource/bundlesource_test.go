@@ -85,34 +85,34 @@ func TestNewBundleSourceValidation(t *testing.T) {
 		wantErr  string
 	}{
 		{
-			name:    "missing revision",
+			name:     "missing revision",
 			manifest: `{"roots":["evidra"],"metadata":{"profile_name":"ops-v0.1"}}`,
-			wantErr: "missing revision",
+			wantErr:  "missing revision",
 		},
 		{
-			name:    "missing roots",
+			name:     "missing roots",
 			manifest: `{"revision":"r1","roots":[],"metadata":{"profile_name":"ops-v0.1"}}`,
-			wantErr: "missing roots",
+			wantErr:  "missing roots",
 		},
 		{
-			name:    "invalid root uppercase",
+			name:     "invalid root uppercase",
 			manifest: `{"revision":"r1","roots":["Evidra"],"metadata":{"profile_name":"ops-v0.1"}}`,
-			wantErr: "invalid root",
+			wantErr:  "invalid root",
 		},
 		{
-			name:    "invalid root with dot",
+			name:     "invalid root with dot",
 			manifest: `{"revision":"r1","roots":["ev.idra"],"metadata":{"profile_name":"ops-v0.1"}}`,
-			wantErr: "invalid root",
+			wantErr:  "invalid root",
 		},
 		{
-			name:    "missing profile_name",
+			name:     "missing profile_name",
 			manifest: `{"revision":"r1","roots":["evidra"],"metadata":{}}`,
-			wantErr: "missing metadata.profile_name",
+			wantErr:  "missing metadata.profile_name",
 		},
 		{
-			name:    "no metadata",
+			name:     "no metadata",
 			manifest: `{"revision":"r1","roots":["evidra"]}`,
-			wantErr: "missing metadata.profile_name",
+			wantErr:  "missing metadata.profile_name",
 		},
 	}
 	for _, tc := range cases {

@@ -102,7 +102,7 @@ func TestValidateStructure_MissingOperationFails(t *testing.T) {
 func TestValidateStructure_InvalidTargetFails(t *testing.T) {
 	ti := ToolInvocation{
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
-		Tool: "test", Operation: "run",
+		Tool:  "test", Operation: "run",
 		Params: map[string]interface{}{
 			KeyTarget: "not-a-map",
 		},
@@ -119,7 +119,7 @@ func TestValidateStructure_InvalidTargetFails(t *testing.T) {
 func TestValidateStructure_InvalidPayloadFails(t *testing.T) {
 	ti := ToolInvocation{
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
-		Tool: "test", Operation: "run",
+		Tool:  "test", Operation: "run",
 		Params: map[string]interface{}{
 			KeyPayload: 123,
 		},
@@ -136,7 +136,7 @@ func TestValidateStructure_InvalidPayloadFails(t *testing.T) {
 func TestValidateStructure_UnknownParamsKeyFails(t *testing.T) {
 	ti := ToolInvocation{
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
-		Tool: "test", Operation: "run",
+		Tool:  "test", Operation: "run",
 		Params: map[string]interface{}{
 			"environment": "staging",
 		},
@@ -153,8 +153,8 @@ func TestValidateStructure_UnknownParamsKeyFails(t *testing.T) {
 func TestValidateStructure_UnknownContextKeyFails(t *testing.T) {
 	ti := ToolInvocation{
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
-		Tool: "test", Operation: "run",
-		Params:  map[string]interface{}{},
+		Tool:  "test", Operation: "run",
+		Params: map[string]interface{}{},
 		Context: map[string]interface{}{
 			"team": "platform",
 		},
@@ -171,7 +171,7 @@ func TestValidateStructure_UnknownContextKeyFails(t *testing.T) {
 func TestValidateStructure_AllKnownKeysPass(t *testing.T) {
 	ti := ToolInvocation{
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
-		Tool: "test", Operation: "run",
+		Tool:  "test", Operation: "run",
 		Params: map[string]interface{}{
 			KeyTarget:     map[string]interface{}{"namespace": "default"},
 			KeyPayload:    map[string]interface{}{"data": "value"},
@@ -192,7 +192,7 @@ func TestValidateStructure_AllKnownKeysPass(t *testing.T) {
 func TestValidateStructure_InvalidRiskTagsFails(t *testing.T) {
 	ti := ToolInvocation{
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
-		Tool: "test", Operation: "run",
+		Tool:  "test", Operation: "run",
 		Params: map[string]interface{}{
 			KeyRiskTags: []interface{}{"high", 123},
 		},

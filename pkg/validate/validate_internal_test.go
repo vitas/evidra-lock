@@ -12,10 +12,10 @@ import (
 
 func TestSplitKind(t *testing.T) {
 	cases := []struct {
-		kind      string
-		wantTool  string
-		wantOp    string
-		wantOK    bool
+		kind     string
+		wantTool string
+		wantOp   string
+		wantOK   bool
 	}{
 		{"kubectl.apply", "kubectl", "apply", true},
 		{"terraform.plan", "terraform", "plan", true},
