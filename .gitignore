@@ -40,5 +40,5 @@ AGENTS.md
 .claude/
 .gemini/
 .codex/
-.ai/
+#.ai/
 ai/
