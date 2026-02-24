@@ -11,7 +11,7 @@ Default path: `~/.evidra/evidence`
 
 Override path:
 - MCP server: `--evidence-store` (or `--evidence-dir`)
-- All binaries: `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`)
+- All binaries: `EVIDRA_EVIDENCE_DIR`
 
 - `manifest.json`
 - `segments/evidence-000001.jsonl`, `evidence-000002.jsonl`, ...

@@ -22,9 +22,10 @@
 ## 5) Tests
 
 - `go test ./...`
+- `opa test policy/bundles/ops-v0.1/ -v` (policy-level OPA tests)
 
 ## Evidence store default
 
 - Default evidence path is always `~/.evidra/evidence`.
 - Override for MCP server with `--evidence-store` (or `--evidence-dir`).
-- Override for CLI and server with `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
+- Override for CLI and server with `EVIDRA_EVIDENCE_DIR`.

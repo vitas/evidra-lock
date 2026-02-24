@@ -19,7 +19,8 @@
 
 - `./bin/evidra validate examples/terraform_plan_pass.json`
 
-## Policy profile
+## Policy bundle
 
-- Policy logic: `policy/profiles/ops-v0.1/policy.rego`
-- Policy data: `policy/profiles/ops-v0.1/data.json`
+- OPA bundle: `policy/bundles/ops-v0.1/`
+- Policy logic: `policy/bundles/ops-v0.1/evidra/policy/`
+- Policy data: `policy/bundles/ops-v0.1/evidra/data/`

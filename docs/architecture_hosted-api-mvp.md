@@ -674,7 +674,7 @@ within a transaction.
 ### Artifacts
 
 - **Single binary:** `go build -o bin/evidra-api ./cmd/evidra-api`
-- **Policy bundle:** The `policy/profiles/ops-v0.1/` directory is either
+- **Policy bundle:** The `policy/bundles/ops-v0.1/` directory is either
   embedded via `//go:embed` or mounted as a volume. Embedding is preferred for
   simplicity.
 - **Migrations:** SQL files in `internal/migrate/migrations/`, applied at

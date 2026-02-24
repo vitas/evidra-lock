@@ -66,9 +66,9 @@ The Skill is intended to be framework-agnostic so it can be used by Codex, Gemin
 
 **Minimal required configuration**
 - MCP server command: `evidra-mcp`
-- Required args: `--policy`, `--data`
-- Optional args: `--evidence-store` (or alias `--evidence-dir`), `--observe`
-- Optional env: `EVIDRA_POLICY_PATH`, `EVIDRA_DATA_PATH`, `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`)
+- Required args: `--bundle`
+- Optional args: `--evidence-store` (or alias `--evidence-dir`), `--environment`, `--observe`
+- Optional env: `EVIDRA_BUNDLE_PATH`, `EVIDRA_EVIDENCE_DIR`, `EVIDRA_ENVIRONMENT`
 
 **Runtime data flow**
 - Client sends `validate` tool call with action context.
@@ -98,7 +98,7 @@ The Skill is intended to be framework-agnostic so it can be used by Codex, Gemin
 - Policy maintainers and platform security owners.
 
 **Minimal required configuration**
-- Policy profile under `policy/profiles/ops-v0.1` (or selected profile reference).
+- Policy profile under `policy/bundles/ops-v0.1` (or selected profile reference).
 - Deterministic decision contract fields: allow/risk/reason + optional reasons/hits/hints.
 
 **Runtime data flow**

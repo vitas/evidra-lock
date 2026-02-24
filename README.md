@@ -4,10 +4,10 @@ Evidra deterministically enforces policy on infrastructure changes through a loc
 
 ## Features
 ### MCP server (evidra-mcp)
-- Enforces the structured policy under `policy/profiles/ops-v0.1` via OPA and records every decision as an immutable evidence record.
+- Enforces the OPA bundle policy under `policy/bundles/ops-v0.1` and records every decision as an immutable evidence record.
 - Exposes the `validate` tool (and `get_event` for fetching evidence) so MCP clients can submit ToolInvocations, review hits/hints, and link decisions to evidence.
 - Supports `--observe` for advisory runs while still logging policy hits, hints, and evidence identifiers.
-- Evidence defaults to `~/.evidra/evidence`; override with `--evidence-store` (or `--evidence-dir`) or `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
+- Evidence defaults to `~/.evidra/evidence`; override with `--evidence-store` (or `--evidence-dir`) or `EVIDRA_EVIDENCE_DIR`.
 
 ### Shared evaluation core
 - Both `evidra` and `evidra-mcp` rely on the same Go evaluation core (`pkg/validate`) that uses `pkg/scenario` for input loading, runs policy via `pkg/runtime`/`pkg/policy`, and records every decision through `pkg/evidence`. This pipeline preserves identical decision output, hits, hints, and evidence IDs regardless of entry point.
@@ -22,14 +22,14 @@ Evidra deterministically enforces policy on infrastructure changes through a loc
 
 ```bash
 evidra-mcp \
-  --policy policy/profiles/ops-v0.1/policy.rego \
-  --data   policy/profiles/ops-v0.1/data.json \
+  --bundle policy/bundles/ops-v0.1 \
   --evidence-store ~/.evidra/evidence \
   [--observe]
 ```
 
-- Both `--policy` and `--data` are required (or set `EVIDRA_POLICY_PATH` / `EVIDRA_DATA_PATH`).
-- Evidence defaults to `~/.evidra/evidence`, or override with `--evidence-store` (or `--evidence-dir`) / `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`).
+- Pass `--bundle` to point at an OPA bundle directory (or set `EVIDRA_BUNDLE_PATH`).
+- Pass `--environment` to set the environment label for policy evaluation (or set `EVIDRA_ENVIRONMENT`).
+- Evidence defaults to `~/.evidra/evidence`, or override with `--evidence-store` (or `--evidence-dir`) / `EVIDRA_EVIDENCE_DIR`.
 - Pass `--observe` to collect advisory output while still evaluating policy decisions and evidence.
 - Connect your MCP client (Codex, scripts, etc.) to submit ToolInvocations through the validate → policy → evidence pipeline.
 
@@ -42,16 +42,17 @@ evidra validate examples/terraform_plan_pass.json
 Add `--explain` to see hits, hints, and action facts, or `--json` to produce a structured response for downstream tooling.
 
 ```bash
-evidra policy sim --policy policy/profiles/ops-v0.1/policy.rego --input examples/terraform_mass_delete_fail.json
+evidra policy sim --policy policy/bundles/ops-v0.1/evidra/policy/policy.rego --input examples/terraform_mass_delete_fail.json
 ```
 
-Use `EVIDRA_EVIDENCE_DIR` (or legacy `EVIDRA_EVIDENCE_PATH`) to override the evidence store path for offline commands.
+Use `EVIDRA_EVIDENCE_DIR` to override the evidence store path for offline commands.
 
 ## Policy & evidence
 
-- Policy rules live under `policy/profiles/ops-v0.1/policy/`; rewrite decisions in small deny/warn files and keep hints in `data.json`.
+- Policy lives in OPA bundle format under `policy/bundles/ops-v0.1/`; rules are in `evidra/policy/rules/`, data-driven params in `evidra/data/params/data.json`, and hints in `evidra/data/rule_hints/data.json`.
+- Rule IDs use canonical `domain.invariant_name` format (e.g., `k8s.protected_namespace`, `ops.mass_delete`). See `ai/AI_RULE_ID_NAMING_STANDARD.md` for the naming convention.
 - Evidence records live under `~/.evidra/evidence` (or your configured path); see `docs/evidence.md` for the JSONL schema and inspection commands.
-- `docs/policy.md` explains the policy contract and how to run `opa test` against the profile.
+- `docs/policy.md` explains the policy contract and how to run `opa test` against the bundle.
 - `docs/advanced.md` covers MCP server configuration and advanced workflows.
 - `docs/mcp-clients-setup.md` contains client integration setup (Codex, Gemini, Claude Desktop).
 - `docs/architecture.md` summarizes the v0.1 runtime graph from Codex through MCP to policy/evidence.
@@ -71,5 +72,5 @@ Use `EVIDRA_EVIDENCE_DIR` (or legacy `EVIDRA_EVIDENCE_PATH`) to override the evi
 ## Not in v0.1
 
 - `execute` tool, registry packs, and plugin-based executors are not part of v0.1.
-- No external pack/registry onboarding; policy/profile edits stay under `policy/profiles/ops-v0.1`.
+- No external pack/registry onboarding; policy edits stay under `policy/bundles/ops-v0.1`.
 - No hosted MCP service or runtime downloads; everything runs locally via `evidra-mcp` or `evidra`.

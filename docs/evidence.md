@@ -3,7 +3,7 @@
 ## Location & layout
 
 - Evidence records live under `~/.evidra/evidence` by default.
-- Override via `--evidence-store` (or `--evidence-dir`) on `evidra-mcp`, or via `EVIDRA_EVIDENCE_DIR` (legacy `EVIDRA_EVIDENCE_PATH`) for both binaries.
+- Override via `--evidence-store` (or `--evidence-dir`) on `evidra-mcp`, or via `EVIDRA_EVIDENCE_DIR` for both binaries.
 - The store contains a manifest (`manifest.json`) plus segmented JSONL files under `segments/`.
 
 ## What each record holds
@@ -15,6 +15,7 @@
   - `high` → policy denied or evaluation failed.
 - `execution_result`: status/exit codes when a tool was run.
 - `params`: contains scenario metadata (`scenario_id`, `scenario_hash`, `action_count`); decision data resides in `policy_decision`.
+- Bundle metadata: `bundle_revision`, `profile_name`, `environment_label`, `input_hash`.
 - Hash chain fields: `previous_hash` links records, and `hash` protects the record contents.
 
 ## Inspecting the store

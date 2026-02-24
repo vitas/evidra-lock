@@ -2,7 +2,7 @@
 
 ## 1) Overview
 
-**Evidra MCP server** receives requests from an AI client, evaluates them against deterministic policy (OPA), and writes an audit trail to the evidence store.  
+**Evidra MCP server** receives requests from an AI client, evaluates them against deterministic policy (OPA), and writes an audit trail to the evidence store.
 The client (Codex / Gemini / Claude Desktop) acts as an MCP consumer: it calls `validate`, receives the decision, and then continues or stops.
 
 Flow:
@@ -45,7 +45,7 @@ make build
 - Canonical default: `~/.evidra/evidence`
 - Override:
   - server flag: `--evidence-store` (alias: `--evidence-dir`)
-  - env: `EVIDRA_EVIDENCE_DIR` (legacy: `EVIDRA_EVIDENCE_PATH`)
+  - env: `EVIDRA_EVIDENCE_DIR`
 
 ## 3) Running the server (common)
 
@@ -53,16 +53,14 @@ make build
 
 ```bash
 ./bin/evidra-mcp \
-  --policy ./policy/profiles/ops-v0.1/policy.rego \
-  --data   ./policy/profiles/ops-v0.1/data.json
+  --bundle ./policy/bundles/ops-v0.1
 ```
 
 ### Run with explicit evidence store
 
 ```bash
 ./bin/evidra-mcp \
-  --policy ./policy/profiles/ops-v0.1/policy.rego \
-  --data   ./policy/profiles/ops-v0.1/data.json \
+  --bundle ./policy/bundles/ops-v0.1 \
   --evidence-store /var/lib/evidra/evidence
 ```
 
@@ -70,15 +68,22 @@ Or with env:
 
 ```bash
 export EVIDRA_EVIDENCE_DIR=/var/lib/evidra/evidence
-./bin/evidra-mcp --policy ./policy/profiles/ops-v0.1/policy.rego --data ./policy/profiles/ops-v0.1/data.json
+./bin/evidra-mcp --bundle ./policy/bundles/ops-v0.1
+```
+
+### Run with environment label
+
+```bash
+./bin/evidra-mcp \
+  --bundle ./policy/bundles/ops-v0.1 \
+  --environment production
 ```
 
 ### Observe mode
 
 ```bash
 ./bin/evidra-mcp \
-  --policy ./policy/profiles/ops-v0.1/policy.rego \
-  --data   ./policy/profiles/ops-v0.1/data.json \
+  --bundle ./policy/bundles/ops-v0.1 \
   --observe
 ```
 
@@ -118,8 +123,7 @@ Samples exist under `examples/` (including `examples/invocations/`).
   "name": "evidra",
   "command": "/absolute/path/to/evidra-mcp",
   "args": [
-    "--policy", "/absolute/path/to/policy/profiles/ops-v0.1/policy.rego",
-    "--data", "/absolute/path/to/policy/profiles/ops-v0.1/data.json",
+    "--bundle", "/absolute/path/to/policy/bundles/ops-v0.1",
     "--evidence-store", "/absolute/path/to/evidence-store"
   ],
   "env": {
@@ -155,10 +159,10 @@ Expected response shape:
   "policy": {
     "allow": false,
     "risk_level": "high",
-    "reason": "Production changes require change-approved"
+    "reason": "Changes in protected namespace require change-approved tag"
   },
-  "rule_ids": ["POL-PROD-01"],
-  "reasons": ["Production changes require change-approved"],
+  "rule_ids": ["ops.unapproved_change"],
+  "reasons": ["Changes in protected namespace require change-approved tag"],
   "hints": ["Add risk_tag: change-approved", "..."]
 }
 ```
@@ -176,8 +180,7 @@ If your Gemini runtime does not provide direct MCP transport, use an **MCP bridg
   "mcpServer": {
     "command": "/absolute/path/to/evidra-mcp",
     "args": [
-      "--policy", "/absolute/path/to/policy/profiles/ops-v0.1/policy.rego",
-      "--data", "/absolute/path/to/policy/profiles/ops-v0.1/data.json",
+      "--bundle", "/absolute/path/to/policy/bundles/ops-v0.1",
       "--evidence-store", "/absolute/path/to/evidence-store"
     ],
     "env": {
@@ -213,8 +216,7 @@ Expected response fields:
     "evidra": {
       "command": "/absolute/path/to/evidra-mcp",
       "args": [
-        "--policy", "/absolute/path/to/policy/profiles/ops-v0.1/policy.rego",
-        "--data", "/absolute/path/to/policy/profiles/ops-v0.1/data.json",
+        "--bundle", "/absolute/path/to/policy/bundles/ops-v0.1",
         "--evidence-store", "/absolute/path/to/evidence-store"
       ],
       "env": {
@@ -268,7 +270,7 @@ export EVIDRA_EVIDENCE_DIR=/tmp/evidra-evidence
 
 - Verify MCP config `command` and `args`.
 - Check `evidra-mcp` stderr logs for startup errors.
-- Ensure `--policy` and `--data` point to existing files.
+- Ensure `--bundle` points to an existing directory with a valid `.manifest`.
 
 ### Unexpected policy deny
 
@@ -294,8 +296,7 @@ rg 'evt-' ~/.evidra/evidence/segments/*.jsonl
 {
   "command": "/absolute/path/to/evidra-mcp",
   "args": [
-    "--policy", "/absolute/path/to/policy/profiles/ops-v0.1/policy.rego",
-    "--data", "/absolute/path/to/policy/profiles/ops-v0.1/data.json",
+    "--bundle", "/absolute/path/to/policy/bundles/ops-v0.1",
     "--evidence-store", "/absolute/path/to/evidence-store",
     "--observe"
   ],
@@ -311,8 +312,7 @@ rg 'evt-' ~/.evidra/evidence/segments/*.jsonl
 
 ```bash
 ./bin/evidra-mcp \
-  --policy ./policy/profiles/ops-v0.1/policy.rego \
-  --data   ./policy/profiles/ops-v0.1/data.json \
+  --bundle ./policy/bundles/ops-v0.1 \
   --evidence-store ~/.evidra/evidence
 ```
 

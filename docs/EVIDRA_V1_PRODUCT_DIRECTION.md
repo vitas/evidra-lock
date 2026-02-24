@@ -69,7 +69,7 @@ Instead of generic errors, return structured output like:
 
 ``` json
 {
-  "blocked_by": "POL-PROD-01",
+  "blocked_by": "ops.unapproved_change",
   "reason": "Production changes require approval",
   "required_changes": [
     "Add tag change-approved=true"

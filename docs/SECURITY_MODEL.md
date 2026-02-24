@@ -2,7 +2,7 @@
 
 ## Enforcement Assumptions
 
-- All validation flows (CLI or MCP) share a single core (`pkg/validate`) that loads `policy/profiles/ops-v0.1`, evaluates the request, and writes an evidence record. Keeping requests inside this control path ensures decisions, hits, and hints stay deterministic.
+- All validation flows (CLI or MCP) share a single core (`pkg/validate`) that loads the OPA bundle (default `policy/bundles/ops-v0.1`), evaluates the request, and writes an evidence record. Keeping requests inside this control path ensures decisions, hits, and hints stay deterministic.
 - The MCP server exposes only the `validate` tool and `get_event` evidence lookup, so registries/execute paths are not part of the v0.1 scope.
 - Policy decisions are always recorded, even in `--observe` mode; advisory runs still append evidence with advisory metadata.
 

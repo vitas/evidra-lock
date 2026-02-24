@@ -15,5 +15,5 @@
 
 ## Policy snapshot
 
-- [ ] Policy logic: `policy/profiles/ops-v0.1/policy.rego`
-- [ ] Policy data: `policy/profiles/ops-v0.1/data.json`
+- [ ] OPA bundle: `policy/bundles/ops-v0.1/`
+- [ ] OPA tests: `opa test policy/bundles/ops-v0.1/ -v`
