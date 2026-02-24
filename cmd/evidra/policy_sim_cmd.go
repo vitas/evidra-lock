@@ -35,7 +35,7 @@ func runPolicySimCommand(args []string, stdout io.Writer, stderr io.Writer) int 
 	}
 
 	if *policyPath == "" || *inputPath == "" {
-		fmt.Fprintln(stderr, "usage: evidra policy sim --policy ./policy/profiles/ops-v0.1/policy.rego --input ./examples/invocation.json [--data ./policy/profiles/ops-v0.1/data.json]")
+		fmt.Fprintln(stderr, "usage: evidra policy sim --policy ./policy/bundles/ops-v0.1/policy.rego --input ./examples/invocation.json [--data ./policy/bundles/ops-v0.1/data.json]")
 		return policySimExitInputInvalid
 	}
 

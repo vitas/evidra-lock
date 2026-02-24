@@ -28,30 +28,38 @@ type ExecutionResult struct {
 }
 
 type EvidenceRecord struct {
-	EventID         string                 `json:"event_id"`
-	Timestamp       time.Time              `json:"timestamp"`
-	PolicyRef       string                 `json:"policy_ref"`
-	Actor           invocation.Actor       `json:"actor"`
-	Tool            string                 `json:"tool"`
-	Operation       string                 `json:"operation"`
-	Params          map[string]interface{} `json:"params"`
-	PolicyDecision  PolicyDecision         `json:"policy_decision"`
-	ExecutionResult ExecutionResult        `json:"execution_result"`
-	PreviousHash    string                 `json:"previous_hash"`
-	Hash            string                 `json:"hash"`
+	EventID          string                 `json:"event_id"`
+	Timestamp        time.Time              `json:"timestamp"`
+	PolicyRef        string                 `json:"policy_ref"`
+	BundleRevision   string                 `json:"bundle_revision,omitempty"`
+	ProfileName      string                 `json:"profile_name,omitempty"`
+	EnvironmentLabel string                 `json:"environment_label,omitempty"`
+	InputHash        string                 `json:"input_hash,omitempty"`
+	Actor            invocation.Actor       `json:"actor"`
+	Tool             string                 `json:"tool"`
+	Operation        string                 `json:"operation"`
+	Params           map[string]interface{} `json:"params"`
+	PolicyDecision   PolicyDecision         `json:"policy_decision"`
+	ExecutionResult  ExecutionResult        `json:"execution_result"`
+	PreviousHash     string                 `json:"previous_hash"`
+	Hash             string                 `json:"hash"`
 }
 
 type canonicalEvidenceRecord struct {
-	EventID         string                 `json:"event_id"`
-	Timestamp       time.Time              `json:"timestamp"`
-	PolicyRef       string                 `json:"policy_ref"`
-	Actor           invocation.Actor       `json:"actor"`
-	Tool            string                 `json:"tool"`
-	Operation       string                 `json:"operation"`
-	Params          map[string]interface{} `json:"params"`
-	PolicyDecision  PolicyDecision         `json:"policy_decision"`
-	ExecutionResult ExecutionResult        `json:"execution_result"`
-	PreviousHash    string                 `json:"previous_hash"`
+	EventID          string                 `json:"event_id"`
+	Timestamp        time.Time              `json:"timestamp"`
+	PolicyRef        string                 `json:"policy_ref"`
+	BundleRevision   string                 `json:"bundle_revision,omitempty"`
+	ProfileName      string                 `json:"profile_name,omitempty"`
+	EnvironmentLabel string                 `json:"environment_label,omitempty"`
+	InputHash        string                 `json:"input_hash,omitempty"`
+	Actor            invocation.Actor       `json:"actor"`
+	Tool             string                 `json:"tool"`
+	Operation        string                 `json:"operation"`
+	Params           map[string]interface{} `json:"params"`
+	PolicyDecision   PolicyDecision         `json:"policy_decision"`
+	ExecutionResult  ExecutionResult        `json:"execution_result"`
+	PreviousHash     string                 `json:"previous_hash"`
 }
 
 type StoreManifest struct {

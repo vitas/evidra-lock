@@ -16,7 +16,7 @@ func TestValidateUsage(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("expected exit code 2 for missing file, got %d", code)
 	}
-	if !strings.Contains(stderr, "usage: evidra validate [--policy <path> --data <path>] <file>") {
+	if !strings.Contains(stderr, "usage: evidra validate") {
 		t.Fatalf("expected usage message, got: %s", stderr)
 	}
 }

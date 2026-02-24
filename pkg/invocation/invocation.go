@@ -20,7 +20,7 @@ var allowedParamKeys = map[string]bool{
 	KeyTarget: true, KeyPayload: true, KeyRiskTags: true, KeyScenarioID: true,
 }
 var allowedContextKeys = map[string]bool{
-	KeySource: true, KeyIntent: true, KeyScenarioID: true,
+	KeySource: true, KeyIntent: true, KeyScenarioID: true, "environment": true,
 }
 
 type Actor struct {
@@ -30,11 +30,12 @@ type Actor struct {
 }
 
 type ToolInvocation struct {
-	Actor     Actor                  `json:"actor"`
-	Tool      string                 `json:"tool"`
-	Operation string                 `json:"operation"`
-	Params    map[string]interface{} `json:"params"`
-	Context   map[string]interface{} `json:"context"`
+	Actor       Actor                  `json:"actor"`
+	Tool        string                 `json:"tool"`
+	Operation   string                 `json:"operation"`
+	Params      map[string]interface{} `json:"params"`
+	Context     map[string]interface{} `json:"context"`
+	Environment string                 `json:"environment,omitempty"`
 }
 
 func (ti *ToolInvocation) ValidateStructure() error {

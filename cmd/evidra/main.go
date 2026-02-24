@@ -63,6 +63,8 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 	explain := fs.Bool("explain", false, "print a human-readable explanation for the decision")
 	policyFlag := fs.String("policy", "", "Path to policy rego file")
 	dataFlag := fs.String("data", "", "Path to policy data JSON file")
+	bundleFlag := fs.String("bundle", "", "Path to OPA bundle directory")
+	envFlag := fs.String("environment", "", "Environment label for policy evaluation")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 1 {
 		printValidateUsage(stderr)
 		return 2
@@ -70,8 +72,10 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 
 	path := fs.Arg(0)
 	result, err := validate.EvaluateFile(context.Background(), path, validate.Options{
-		PolicyPath: strings.TrimSpace(*policyFlag),
-		DataPath:   strings.TrimSpace(*dataFlag),
+		PolicyPath:  strings.TrimSpace(*policyFlag),
+		DataPath:    strings.TrimSpace(*dataFlag),
+		BundlePath:  strings.TrimSpace(*bundleFlag),
+		Environment: strings.TrimSpace(*envFlag),
 	})
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
@@ -194,7 +198,7 @@ func printReasons(reasons []string, fallback string, stdout io.Writer) {
 func printHints(hints []string, stdout io.Writer) {
 	fmt.Fprintln(stdout, "How to fix:")
 	if len(hints) == 0 {
-		fmt.Fprintln(stdout, "- Adjust the input (e.g., add approval tags) or update policy under policy/profiles/ops-v0.1.")
+		fmt.Fprintln(stdout, "- Adjust the input (e.g., add approval tags) or update policy under policy/bundles/ops-v0.1.")
 		return
 	}
 	for _, hint := range firstN(hints, 10) {
@@ -213,7 +217,7 @@ func printUsage(w io.Writer) {
 	defaultEvidence := config.DefaultEvidencePathDescription()
 
 	fmt.Fprintln(w, "usage: evidra <validate|version>")
-	fmt.Fprintln(w, "  evidra validate [--policy <path> --data <path>] <file>")
+	fmt.Fprintln(w, "  evidra validate [--bundle <path>] [--policy <path> --data <path>] [--environment <env>] <file>")
 	fmt.Fprintln(w, "  evidra version")
 	fmt.Fprintln(w, "")
 	fmt.Fprintf(w, "Default evidence store: %s\n", defaultEvidence)
@@ -227,7 +231,7 @@ func printUsage(w io.Writer) {
 func printValidateUsage(w io.Writer) {
 	defaultEvidence := config.DefaultEvidencePathDescription()
 
-	fmt.Fprintln(w, "usage: evidra validate [--policy <path> --data <path>] <file>")
+	fmt.Fprintln(w, "usage: evidra validate [--bundle <path>] [--policy <path> --data <path>] [--environment <env>] <file>")
 	fmt.Fprintf(w, "Evidence is written to: %s\n", defaultEvidence)
 	fmt.Fprintln(w, "Override via EVIDRA_EVIDENCE_DIR or legacy EVIDRA_EVIDENCE_PATH.")
 }

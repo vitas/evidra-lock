@@ -10,11 +10,11 @@ import (
 	"samebits.com/evidra/pkg/invocation"
 )
 
+var bundleDir = filepath.Join("..", "..", "policy", "bundles", "ops-v0.1")
+
 func TestValidateServiceReturnsDeny(t *testing.T) {
-	profileDir := filepath.Join("..", "..", "policy", "profiles", "ops-v0.1")
 	opts := Options{
-		PolicyPath:   filepath.Join(profileDir, "policy.rego"),
-		DataPath:     filepath.Join(profileDir, "data.json"),
+		BundlePath:   bundleDir,
 		EvidencePath: t.TempDir(),
 		Mode:         ModeEnforce,
 	}
@@ -44,13 +44,13 @@ func TestValidateServiceReturnsDeny(t *testing.T) {
 	}
 	found := false
 	for _, id := range out.RuleIDs {
-		if id == "POL-PROD-01" {
+		if id == "ops.unapproved_change" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("missing POL-PROD-01 in %v", out.RuleIDs)
+		t.Fatalf("missing ops.unapproved_change in %v", out.RuleIDs)
 	}
 	if len(out.Hints) == 0 {
 		t.Fatalf("expected hints")
@@ -58,10 +58,8 @@ func TestValidateServiceReturnsDeny(t *testing.T) {
 }
 
 func TestValidateServiceRecordsEvidence(t *testing.T) {
-	profileDir := filepath.Join("..", "..", "policy", "profiles", "ops-v0.1")
 	opts := Options{
-		PolicyPath:   filepath.Join(profileDir, "policy.rego"),
-		DataPath:     filepath.Join(profileDir, "data.json"),
+		BundlePath:   bundleDir,
 		EvidencePath: t.TempDir(),
 		Mode:         ModeEnforce,
 	}
@@ -104,10 +102,8 @@ func TestServerRegistersValidateTool(t *testing.T) {
 
 func newTestServer(t *testing.T) *mcp.Server {
 	t.Helper()
-	profileDir := filepath.Join("..", "..", "policy", "profiles", "ops-v0.1")
 	opts := Options{
-		PolicyPath:   filepath.Join(profileDir, "policy.rego"),
-		DataPath:     filepath.Join(profileDir, "data.json"),
+		BundlePath:   bundleDir,
 		EvidencePath: t.TempDir(),
 		Mode:         ModeEnforce,
 	}

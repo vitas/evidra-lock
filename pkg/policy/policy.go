@@ -15,13 +15,15 @@ import (
 )
 
 type Decision struct {
-	Allow     bool     `json:"allow"`
-	RiskLevel string   `json:"risk_level"`
-	Reason    string   `json:"reason"`
-	PolicyRef string   `json:"policy_ref,omitempty"`
-	Reasons   []string `json:"reasons,omitempty"`
-	Hints     []string `json:"hints,omitempty"`
-	Hits      []string `json:"hits,omitempty"`
+	Allow          bool     `json:"allow"`
+	RiskLevel      string   `json:"risk_level"`
+	Reason         string   `json:"reason"`
+	PolicyRef      string   `json:"policy_ref,omitempty"`
+	BundleRevision string   `json:"bundle_revision,omitempty"`
+	ProfileName    string   `json:"profile_name,omitempty"`
+	Reasons        []string `json:"reasons,omitempty"`
+	Hints          []string `json:"hints,omitempty"`
+	Hits           []string `json:"hits,omitempty"`
 }
 
 type Engine struct {
@@ -83,6 +85,11 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 	}
 	if actions := buildActionList(inv.Params); len(actions) > 0 {
 		input["actions"] = actions
+	}
+	if env := inv.Environment; env != "" {
+		input["environment"] = env
+	} else if ctx, ok := inv.Context["environment"]; ok {
+		input["environment"] = ctx
 	}
 
 	results, err := e.query.Eval(context.Background(), rego.EvalInput(input))

@@ -91,6 +91,12 @@ func (s *LocalFileSource) LoadData() ([]byte, error) {
 	return os.ReadFile(s.DataPath)
 }
 
+// BundleRevision returns an empty string for loose-file sources.
+func (s *LocalFileSource) BundleRevision() string { return "" }
+
+// ProfileName returns an empty string for loose-file sources.
+func (s *LocalFileSource) ProfileName() string { return "" }
+
 func (s *LocalFileSource) PolicyRef() (string, error) {
 	modules, err := s.LoadPolicy()
 	if err != nil {

@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"samebits.com/evidra/pkg/bundlesource"
 	"samebits.com/evidra/pkg/invocation"
 	"samebits.com/evidra/pkg/policy"
-	"samebits.com/evidra/pkg/policysource"
 	"samebits.com/evidra/pkg/runtime"
 )
 
@@ -25,8 +25,10 @@ type fakeSource struct {
 func (f *fakeSource) LoadPolicy() (map[string][]byte, error) { return f.modules, f.loadPolicyErr }
 func (f *fakeSource) LoadData() ([]byte, error)              { return f.data, f.loadDataErr }
 func (f *fakeSource) PolicyRef() (string, error)             { return f.ref, f.policyRefErr }
+func (f *fakeSource) BundleRevision() string                 { return "" }
+func (f *fakeSource) ProfileName() string                    { return "" }
 
-var policyProfileDir = filepath.Join("..", "..", "policy", "profiles", "ops-v0.1")
+var policyProfileDir = filepath.Join("..", "..", "policy", "bundles", "ops-v0.1")
 
 func TestRuntimeEvaluatorPolicyWiring(t *testing.T) {
 	eval := newPolicyEvaluator(t)
@@ -50,7 +52,7 @@ func TestRuntimeEvaluatorPolicyWiring(t *testing.T) {
 	if decision.Reason == "" {
 		t.Fatal("expected reason to be non-empty")
 	}
-	assertStringsContain(t, decision.Hits, "POL-PROD-01")
+	assertStringsContain(t, decision.Hits, "ops.unapproved_change")
 	assertNotEmpty(t, decision.Hints, "hints")
 	assertNotEmpty(t, decision.Reasons, "reasons")
 
@@ -73,9 +75,11 @@ func TestRuntimeEvaluatorPolicyWiring(t *testing.T) {
 
 func newPolicyEvaluator(t *testing.T) *runtime.Evaluator {
 	t.Helper()
-	policyPath := filepath.Join(policyProfileDir, "policy.rego")
-	dataPath := filepath.Join(policyProfileDir, "data.json")
-	eval, err := runtime.NewEvaluator(policysource.NewLocalFileSource(policyPath, dataPath))
+	bs, err := bundlesource.NewBundleSource(policyProfileDir)
+	if err != nil {
+		t.Fatalf("NewBundleSource() error = %v", err)
+	}
+	eval, err := runtime.NewEvaluator(bs)
 	if err != nil {
 		t.Fatalf("NewEvaluator() error = %v", err)
 	}
@@ -161,14 +165,15 @@ func TestNewEvaluatorLoadDataError(t *testing.T) {
 
 func TestNewEvaluatorPolicyRefError(t *testing.T) {
 	// Use a real policy dir so OPA compilation succeeds; only PolicyRef fails.
-	policyPath := filepath.Join(policyProfileDir, "policy.rego")
-	dataPath := filepath.Join(policyProfileDir, "data.json")
-	real := policysource.NewLocalFileSource(policyPath, dataPath)
-	modules, err := real.LoadPolicy()
+	bs, err := bundlesource.NewBundleSource(policyProfileDir)
+	if err != nil {
+		t.Fatalf("setup: NewBundleSource: %v", err)
+	}
+	modules, err := bs.LoadPolicy()
 	if err != nil {
 		t.Fatalf("setup: LoadPolicy: %v", err)
 	}
-	data, err := real.LoadData()
+	data, err := bs.LoadData()
 	if err != nil {
 		t.Fatalf("setup: LoadData: %v", err)
 	}
@@ -191,7 +196,7 @@ func TestDecisionJSONShape(t *testing.T) {
 		PolicyRef: "sha256:abc123",
 		Reasons:   []string{"breakglass"},
 		Hints:     []string{"hint-1"},
-		Hits:      []string{"WARN-BREAKGLASS-01"},
+		Hits:      []string{"ops.breakglass_used"},
 	}
 	data, err := json.Marshal(sd)
 	if err != nil {

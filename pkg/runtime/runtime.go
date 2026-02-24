@@ -12,6 +12,8 @@ type PolicySource interface {
 	LoadPolicy() (map[string][]byte, error)
 	LoadData() ([]byte, error)
 	PolicyRef() (string, error)
+	BundleRevision() string
+	ProfileName() string
 }
 
 type ScenarioEvaluator interface {
@@ -19,8 +21,10 @@ type ScenarioEvaluator interface {
 }
 
 type Evaluator struct {
-	engine    *policy.Engine
-	policyRef string
+	engine         *policy.Engine
+	policyRef      string
+	bundleRevision string
+	profileName    string
 }
 
 func NewEvaluator(src PolicySource) (*Evaluator, error) {
@@ -40,7 +44,12 @@ func NewEvaluator(src PolicySource) (*Evaluator, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Evaluator{engine: eng, policyRef: ref}, nil
+	return &Evaluator{
+		engine:         eng,
+		policyRef:      ref,
+		bundleRevision: src.BundleRevision(),
+		profileName:    src.ProfileName(),
+	}, nil
 }
 
 func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (policy.Decision, error) {
@@ -49,5 +58,13 @@ func (e *Evaluator) EvaluateInvocation(inv invocation.ToolInvocation) (policy.De
 		return policy.Decision{}, err
 	}
 	d.PolicyRef = e.policyRef
+	d.BundleRevision = e.bundleRevision
+	d.ProfileName = e.profileName
 	return d, nil
 }
+
+// BundleRevision returns the bundle revision from the policy source.
+func (e *Evaluator) BundleRevision() string { return e.bundleRevision }
+
+// ProfileName returns the profile name from the policy source.
+func (e *Evaluator) ProfileName() string { return e.profileName }

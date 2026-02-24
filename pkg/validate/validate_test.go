@@ -13,15 +13,14 @@ import (
 	"samebits.com/evidra/pkg/validate"
 )
 
-var profileDir = filepath.Join("..", "..", "policy", "profiles", "ops-v0.1")
+var profileDir = filepath.Join("..", "..", "policy", "bundles", "ops-v0.1")
 
 // safeOpts returns Options backed by the real ops-v0.1 profile and a
 // temporary evidence dir. Use as the baseline for happy-path tests.
 func safeOpts(t *testing.T) validate.Options {
 	t.Helper()
 	return validate.Options{
-		PolicyPath:  filepath.Join(profileDir, "policy.rego"),
-		DataPath:    filepath.Join(profileDir, "data.json"),
+		BundlePath:  profileDir,
 		EvidenceDir: t.TempDir(),
 	}
 }
@@ -63,7 +62,7 @@ func TestEvaluateScenario_Allow(t *testing.T) {
 }
 
 func TestEvaluateScenario_Deny(t *testing.T) {
-	// POL-PROD-01: prod namespace without change-approved tag.
+	// ops.unapproved_change: prod namespace without change-approved tag.
 	sc := scenario.Scenario{
 		ScenarioID: "deny-test",
 		Actor:      scenario.Actor{Type: "human", ID: "u1", Origin: "test"},
@@ -93,8 +92,8 @@ func TestEvaluateScenario_Deny(t *testing.T) {
 	if len(result.Reasons) == 0 {
 		t.Error("Reasons empty, want at least one")
 	}
-	if !containsString(result.RuleIDs, "POL-PROD-01") {
-		t.Errorf("RuleIDs=%v, want POL-PROD-01", result.RuleIDs)
+	if !containsString(result.RuleIDs, "ops.unapproved_change") {
+		t.Errorf("RuleIDs=%v, want ops.unapproved_change", result.RuleIDs)
 	}
 	if len(result.Hints) == 0 {
 		t.Error("Hints empty, want at least one")
@@ -102,7 +101,7 @@ func TestEvaluateScenario_Deny(t *testing.T) {
 }
 
 func TestEvaluateScenario_WarnBreakglass(t *testing.T) {
-	// WARN-BREAKGLASS-01: breakglass tag present → allowed, WARN rule fires.
+	// ops.breakglass_used: breakglass tag present → allowed, WARN rule fires.
 	sc := scenario.Scenario{
 		ScenarioID: "breakglass-test",
 		Actor:      scenario.Actor{Type: "human", ID: "u1", Origin: "test"},
@@ -124,11 +123,11 @@ func TestEvaluateScenario_WarnBreakglass(t *testing.T) {
 	if !result.Pass {
 		t.Errorf("Pass=false, want true; reasons=%v", result.Reasons)
 	}
-	if !containsString(result.RuleIDs, "WARN-BREAKGLASS-01") {
-		t.Errorf("RuleIDs=%v, want WARN-BREAKGLASS-01", result.RuleIDs)
+	if !containsString(result.RuleIDs, "ops.breakglass_used") {
+		t.Errorf("RuleIDs=%v, want ops.breakglass_used", result.RuleIDs)
 	}
 	if len(result.Hints) == 0 {
-		t.Error("Hints empty, want hint for WARN-BREAKGLASS-01")
+		t.Error("Hints empty, want hint for ops.breakglass_used")
 	}
 }
 
@@ -200,8 +199,8 @@ func TestEvaluateScenario_MultiAction_OneDeny(t *testing.T) {
 	if result.Pass {
 		t.Error("Pass=true, want false when any action is denied")
 	}
-	if !containsString(result.RuleIDs, "POL-PROD-01") {
-		t.Errorf("RuleIDs=%v, want POL-PROD-01 from denied action", result.RuleIDs)
+	if !containsString(result.RuleIDs, "ops.unapproved_change") {
+		t.Errorf("RuleIDs=%v, want ops.unapproved_change from denied action", result.RuleIDs)
 	}
 }
 
@@ -211,7 +210,7 @@ func TestEvaluateScenario_MultiAction_OneDeny(t *testing.T) {
 
 func TestEvaluateInvocation_PayloadReachesPolicy(t *testing.T) {
 	// A prod-namespace payload in params["payload"] must reach OPA so that
-	// POL-PROD-01 fires. This verifies invocationToScenario maps the payload
+	// ops.unapproved_change fires. This verifies invocationToScenario maps the payload
 	// field correctly through the evaluation pipeline.
 	inv := invocation.ToolInvocation{
 		Actor:     invocation.Actor{Type: "human", ID: "u1", Origin: "test"},
@@ -230,10 +229,10 @@ func TestEvaluateInvocation_PayloadReachesPolicy(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if result.Pass {
-		t.Error("Pass=true, want false — prod payload should trigger POL-PROD-01")
+		t.Error("Pass=true, want false — prod payload should trigger ops.unapproved_change")
 	}
-	if !containsString(result.RuleIDs, "POL-PROD-01") {
-		t.Errorf("RuleIDs=%v, want POL-PROD-01", result.RuleIDs)
+	if !containsString(result.RuleIDs, "ops.unapproved_change") {
+		t.Errorf("RuleIDs=%v, want ops.unapproved_change", result.RuleIDs)
 	}
 }
 

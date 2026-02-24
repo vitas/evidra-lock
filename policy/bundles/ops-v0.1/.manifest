@@ -1,0 +1,7 @@
+{
+  "revision": "ops-v0.1.0-dev",
+  "roots": ["evidra"],
+  "metadata": {
+    "profile_name": "ops-v0.1"
+  }
+}

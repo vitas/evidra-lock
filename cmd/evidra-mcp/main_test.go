@@ -26,8 +26,8 @@ func TestRunLoadsPolicyAndStartsServer(t *testing.T) {
 	}
 
 	root := filepath.Join("..", "..")
-	policyPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "policy.rego")
-	dataPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "data.json")
+	policyPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "policy", "policy.rego")
+	dataPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "data", "params", "data.json")
 	t.Setenv("EVIDRA_EVIDENCE_PATH", t.TempDir())
 
 	var out bytes.Buffer
@@ -75,8 +75,8 @@ func TestRunHonorsEnvFallback(t *testing.T) {
 	}
 
 	root := filepath.Join("..", "..")
-	policyPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "policy.rego")
-	dataPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "data.json")
+	policyPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "policy", "policy.rego")
+	dataPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "data", "params", "data.json")
 	t.Setenv("EVIDRA_POLICY_PATH", policyPath)
 	t.Setenv("EVIDRA_DATA_PATH", dataPath)
 	t.Setenv("EVIDRA_EVIDENCE_PATH", t.TempDir())
@@ -104,8 +104,8 @@ func TestRunUsesResolvedDefaultEvidencePath(t *testing.T) {
 	}
 
 	root := filepath.Join("..", "..")
-	policyPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "policy.rego")
-	dataPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "data.json")
+	policyPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "policy", "policy.rego")
+	dataPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "data", "params", "data.json")
 	home := t.TempDir()
 	t.Setenv("EVIDRA_HOME", home)
 	t.Setenv("EVIDRA_EVIDENCE_DIR", "")
@@ -138,8 +138,8 @@ func TestRunSupportsEvidenceStoreAlias(t *testing.T) {
 	}
 
 	root := filepath.Join("..", "..")
-	policyPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "policy.rego")
-	dataPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "data.json")
+	policyPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "policy", "policy.rego")
+	dataPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "data", "params", "data.json")
 	wantEvidence := t.TempDir()
 
 	var out bytes.Buffer
@@ -169,8 +169,8 @@ func TestRunRejectsConflictingEvidenceFlags(t *testing.T) {
 	}
 
 	root := filepath.Join("..", "..")
-	policyPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "policy.rego")
-	dataPath := filepath.Join(root, "policy", "profiles", "ops-v0.1", "data.json")
+	policyPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "policy", "policy.rego")
+	dataPath := filepath.Join(root, "policy", "bundles", "ops-v0.1", "evidra", "data", "params", "data.json")
 
 	var out bytes.Buffer
 	var errOut bytes.Buffer

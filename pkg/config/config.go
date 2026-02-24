@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	DefaultPolicyDir  = "policy/profiles/ops-v0.1"
-	DefaultPolicyPath = DefaultPolicyDir + "/policy.rego"
-	DefaultDataPath   = DefaultPolicyDir + "/data.json"
+	DefaultBundlePath = "policy/bundles/ops-v0.1"
+	DefaultPolicyDir  = DefaultBundlePath
+	DefaultPolicyPath = DefaultBundlePath + "/evidra/policy/policy.rego"
+	DefaultDataPath   = DefaultBundlePath + "/evidra/data/params/data.json"
 )
 
 var (

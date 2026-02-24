@@ -11,6 +11,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"samebits.com/evidra/pkg/bundlesource"
 	"samebits.com/evidra/pkg/config"
 	"samebits.com/evidra/pkg/mcpserver"
 	"samebits.com/evidra/pkg/policysource"
@@ -34,8 +35,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	fs.Usage = func() { printHelp(stderr) }
 	showVersion := fs.Bool("version", false, "Print version information and exit")
-	policyFlag := fs.String("policy", "", "Path to policy rego file (required)")
-	dataFlag := fs.String("data", "", "Path to policy data JSON file (required)")
+	policyFlag := fs.String("policy", "", "Path to policy rego file")
+	dataFlag := fs.String("data", "", "Path to policy data JSON file")
+	bundleFlag := fs.String("bundle", "", "Path to OPA bundle directory")
+	envFlag := fs.String("environment", "", "Environment label for policy evaluation")
 	evidenceFlag := fs.String("evidence-dir", "", "Path to store evidence records")
 	evidenceStoreFlag := fs.String("evidence-store", "", "Alias for --evidence-dir")
 	observeFlag := fs.Bool("observe", false, "Enable observe mode (policy advises but execution proceeds)")
@@ -52,13 +55,32 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	policyPath, dataPath, err := config.ResolvePolicyData(strings.TrimSpace(*policyFlag), strings.TrimSpace(*dataFlag))
-	if err != nil {
-		fmt.Fprintf(stderr, "resolve policy paths: %v\n", err)
-		return 1
-	}
+	bundlePath := strings.TrimSpace(*bundleFlag)
+	environment := strings.TrimSpace(*envFlag)
+	policyPath := strings.TrimSpace(*policyFlag)
+	dataPath := strings.TrimSpace(*dataFlag)
 
-	ps := policysource.NewLocalFileSource(policyPath, dataPath)
+	// Resolve policy source: bundle takes precedence over loose files.
+	var policyRef string
+	if bundlePath == "" {
+		resolvedPolicy, resolvedData, err := config.ResolvePolicyData(policyPath, dataPath)
+		if err != nil {
+			fmt.Fprintf(stderr, "resolve policy paths: %v\n", err)
+			return 1
+		}
+		policyPath = resolvedPolicy
+		dataPath = resolvedData
+		ps := policysource.NewLocalFileSource(policyPath, dataPath)
+		policyRef = policyRefOrEmpty(ps)
+	} else {
+		bs, err := bundlesource.NewBundleSource(bundlePath)
+		if err != nil {
+			fmt.Fprintf(stderr, "load bundle: %v\n", err)
+			return 1
+		}
+		ref, _ := bs.PolicyRef()
+		policyRef = ref
+	}
 
 	mode, err := resolveMode(*observeFlag)
 	if err != nil {
@@ -80,9 +102,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		Name:                     "evidra-mcp",
 		Version:                  version.Version,
 		Mode:                     mode,
-		PolicyRef:                policyRefOrEmpty(ps),
+		PolicyRef:                policyRef,
 		PolicyPath:               policyPath,
 		DataPath:                 dataPath,
+		BundlePath:               bundlePath,
+		Environment:              environment,
 		EvidencePath:             evidencePath,
 		IncludeFileResourceLinks: envBool("EVIDRA_INCLUDE_FILE_RESOURCE_LINKS", false),
 	})
@@ -154,20 +178,22 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "evidra-mcp — Local MCP server that enforces deterministic policy on AI-generated infra changes.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "USAGE:")
+	fmt.Fprintln(w, "  evidra-mcp --bundle <path> [flags]")
 	fmt.Fprintln(w, "  evidra-mcp --policy <path> --data <path> [flags]")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "REQUIRED:")
-	fmt.Fprintln(w, "  --policy <path>         Path to rego entrypoint (e.g. policy/profiles/ops-v0.1/policy.rego)")
-	fmt.Fprintln(w, "  --data <path>           Path to policy data.json (e.g. policy/profiles/ops-v0.1/data.json)")
+	fmt.Fprintln(w, "POLICY SOURCE (one of):")
+	fmt.Fprintln(w, "  --bundle <path>         Path to OPA bundle directory (e.g. policy/bundles/ops-v0.1)")
+	fmt.Fprintln(w, "  --policy <path>         Path to rego entrypoint (legacy loose-file mode)")
+	fmt.Fprintln(w, "  --data <path>           Path to policy data.json (legacy loose-file mode)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "FLAGS:")
+	fmt.Fprintln(w, "  --environment <env>     Environment label for policy evaluation (e.g. prod, staging)")
 	fmt.Fprintf(w, "  --evidence-dir <dir>    Where to store evidence chain (default: %s; override via EVIDRA_EVIDENCE_DIR/EVIDRA_EVIDENCE_PATH)\n", defaultEvidence)
 	fmt.Fprintln(w, "  --evidence-store <dir>  Alias for --evidence-dir")
 	fmt.Fprintln(w, "  --observe               Observe-only: do not block, only report (default: enforce)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "EXAMPLES:")
-	fmt.Fprintln(w, "  evidra-mcp --policy policy/profiles/ops-v0.1/policy.rego \\")
-	fmt.Fprintln(w, "             --data   policy/profiles/ops-v0.1/data.json \\")
+	fmt.Fprintln(w, "  evidra-mcp --bundle policy/bundles/ops-v0.1 \\")
 	fmt.Fprintf(w, "             --evidence-dir %s\n", defaultEvidence)
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "NOTES:")

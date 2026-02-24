@@ -38,6 +38,8 @@ type Options struct {
 	PolicyRef                string
 	PolicyPath               string
 	DataPath                 string
+	BundlePath               string
+	Environment              string
 	EvidencePath             string
 	IncludeFileResourceLinks bool
 }
@@ -202,6 +204,8 @@ func newValidateService(opts Options) *ValidateService {
 	return &ValidateService{
 		policyPath:               opts.PolicyPath,
 		dataPath:                 opts.DataPath,
+		bundlePath:               opts.BundlePath,
+		environment:              opts.Environment,
 		evidencePath:             opts.EvidencePath,
 		policyRef:                opts.PolicyRef,
 		mode:                     opts.Mode,
@@ -212,6 +216,8 @@ func newValidateService(opts Options) *ValidateService {
 type ValidateService struct {
 	policyPath               string
 	dataPath                 string
+	bundlePath               string
+	environment              string
 	evidencePath             string
 	policyRef                string
 	mode                     Mode
@@ -229,6 +235,8 @@ func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvoc
 	res, err := validate.EvaluateInvocation(ctx, inv, validate.Options{
 		PolicyPath:  s.policyPath,
 		DataPath:    s.dataPath,
+		BundlePath:  s.bundlePath,
+		Environment: s.environment,
 		EvidenceDir: s.evidencePath,
 	})
 	if err != nil {

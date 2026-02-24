@@ -1,5 +1,4 @@
-POLICY_PATH ?= ./policy/profiles/ops-v0.1/policy.rego
-POLICY_DATA_PATH ?= ./policy/profiles/ops-v0.1/data.json
+BUNDLE_PATH ?= ./policy/bundles/ops-v0.1
 
 .PHONY: test fmt lint build tidy
 

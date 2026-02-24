@@ -7,9 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"sort"
 	"strings"
 	"time"
 
+	"samebits.com/evidra/pkg/bundlesource"
 	"samebits.com/evidra/pkg/config"
 	"samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/invocation"
@@ -29,6 +32,8 @@ var (
 type Options struct {
 	PolicyPath   string
 	DataPath     string
+	BundlePath   string
+	Environment  string
 	EvidenceDir  string
 	SkipEvidence bool
 }
@@ -68,24 +73,36 @@ func EvaluateInvocation(ctx context.Context, inv invocation.ToolInvocation, opts
 }
 
 func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (Result, error) {
-	policyPath, dataPath, err := config.ResolvePolicyData(opts.PolicyPath, opts.DataPath)
+	var src runtime.PolicySource
+	bundlePath := resolveBundlePath(opts.BundlePath)
+	if bundlePath != "" {
+		bs, err := bundlesource.NewBundleSource(bundlePath)
+		if err != nil {
+			return Result{}, fmt.Errorf("%w: %w", ErrPolicyFailure, err)
+		}
+		src = bs
+	} else {
+		policyPath, dataPath, err := config.ResolvePolicyData(opts.PolicyPath, opts.DataPath)
+		if err != nil {
+			return Result{}, fmt.Errorf("%w: %w", ErrPolicyFailure, err)
+		}
+		src = policysource.NewLocalFileSource(policyPath, dataPath)
+	}
+	runtimeEval, err := runtime.NewEvaluator(src)
 	if err != nil {
 		return Result{}, fmt.Errorf("%w: %w", ErrPolicyFailure, err)
 	}
-	runtimeEval, err := runtime.NewEvaluator(policysource.NewLocalFileSource(policyPath, dataPath))
-	if err != nil {
-		return Result{}, fmt.Errorf("%w: %w", ErrPolicyFailure, err)
-	}
-	evalResult, err := evaluateScenarioWithRuntime(ctx, runtimeEval, sc)
+	environment := resolveEnvironment(opts.Environment)
+	evalResult, err := evaluateScenarioWithRuntime(ctx, runtimeEval, sc, environment)
 	if err != nil {
 		return Result{}, fmt.Errorf("%w: %w", ErrPolicyFailure, err)
 	}
 
 	finalPass := evalResult.Pass
 	finalRisk := evalResult.RiskLevel
-	finalReasons := dedupeStrings(evalResult.Reasons)
-	finalRuleIDs := dedupeStrings(evalResult.RuleIDs)
-	finalHints := dedupeStrings(evalResult.Hints)
+	finalReasons := sortedDedupeStrings(evalResult.Reasons)
+	finalRuleIDs := sortedDedupeStrings(evalResult.RuleIDs)
+	finalHints := sortedDedupeStrings(evalResult.Hints)
 
 	var store *evidence.Store
 	var evidenceID string
@@ -101,9 +118,13 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		evidenceID = fmt.Sprintf("evt-%d", time.Now().UTC().UnixNano())
 	}
 	rec := evidence.EvidenceRecord{
-		EventID:   evidenceID,
-		Timestamp: time.Now().UTC(),
-		PolicyRef: evalResult.PolicyRef,
+		EventID:          evidenceID,
+		Timestamp:        time.Now().UTC(),
+		PolicyRef:        evalResult.PolicyRef,
+		BundleRevision:   runtimeEval.BundleRevision(),
+		ProfileName:      runtimeEval.ProfileName(),
+		EnvironmentLabel: environment,
+		InputHash:        scenarioHash(sc),
 		Actor: invocation.Actor{
 			Type:   sc.Actor.Type,
 			ID:     actorID(sc.ScenarioID, sc.Actor.ID),
@@ -120,7 +141,7 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 			Allow:     finalPass,
 			RiskLevel: finalRisk,
 			Reason:    primaryReason(finalReasons),
-			Reasons:   dedupeStrings(finalReasons),
+			Reasons:   sortedDedupeStrings(finalReasons),
 			Hints:     finalHints,
 			RuleIDs:   finalRuleIDs,
 			Advisory:  false,
@@ -142,7 +163,7 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		Pass:       finalPass,
 		RiskLevel:  finalRisk,
 		EvidenceID: evidenceID,
-		Reasons:    dedupeStrings(finalReasons),
+		Reasons:    sortedDedupeStrings(finalReasons),
 		RuleIDs:    finalRuleIDs,
 		Hints:      finalHints,
 	}, nil
@@ -276,7 +297,38 @@ func dedupeStrings(in []string) []string {
 	return out
 }
 
-func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evaluator, sc scenario.Scenario) (scenarioEvaluation, error) {
+func sortedDedupeStrings(in []string) []string {
+	out := dedupeStrings(in)
+	sort.Strings(out)
+	return out
+}
+
+func resolveBundlePath(explicit string) string {
+	if path := strings.TrimSpace(explicit); path != "" {
+		return path
+	}
+	if path := strings.TrimSpace(os.Getenv("EVIDRA_BUNDLE_PATH")); path != "" {
+		return path
+	}
+	if fileExists(config.DefaultBundlePath) {
+		return config.DefaultBundlePath
+	}
+	return ""
+}
+
+func resolveEnvironment(explicit string) string {
+	if env := strings.TrimSpace(explicit); env != "" {
+		return env
+	}
+	return strings.TrimSpace(os.Getenv("EVIDRA_ENVIRONMENT"))
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evaluator, sc scenario.Scenario, environment string) (scenarioEvaluation, error) {
 	res := scenarioEvaluation{
 		Pass:      true,
 		RiskLevel: "low",
@@ -302,8 +354,9 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 				ID:     actorID,
 				Origin: sc.Source,
 			},
-			Tool:      tool,
-			Operation: operation,
+			Tool:        tool,
+			Operation:   operation,
+			Environment: environment,
 			Params: map[string]interface{}{
 				invocation.KeyScenarioID: sc.ScenarioID,
 				"action": map[string]interface{}{
@@ -340,12 +393,12 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 		res.RuleIDs = append(res.RuleIDs, decision.Hits...)
 		res.Hints = append(res.Hints, decision.Hints...)
 		if !decision.Allow && len(decision.Hits) == 0 {
-			res.RuleIDs = append(res.RuleIDs, "POL-UNLABELED-01")
+			res.RuleIDs = append(res.RuleIDs, "sys.unlabeled_deny")
 		}
 	}
-	res.RuleIDs = dedupeStrings(res.RuleIDs)
-	res.Hints = dedupeStrings(res.Hints)
-	res.Reasons = dedupeStrings(res.Reasons)
+	res.RuleIDs = sortedDedupeStrings(res.RuleIDs)
+	res.Hints = sortedDedupeStrings(res.Hints)
+	res.Reasons = sortedDedupeStrings(res.Reasons)
 	return res, nil
 }
 
