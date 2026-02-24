@@ -189,3 +189,4 @@ GOAL
 
 Deliver a clean, deterministic, OPA-native, single-bundle-compliant repository
 with aligned code, CI, and documentation, and a verified drift-free final state.
+

@@ -3,7 +3,9 @@ package bundlesource_test
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"samebits.com/evidra/pkg/bundlesource"
@@ -73,6 +75,60 @@ func TestBundleSourceLoadPolicy(t *testing.T) {
 		if filepath.Base(name) == "tests" || filepath.Ext(name) == "_test.rego" {
 			t.Errorf("test file %q should not be in policy modules", name)
 		}
+	}
+}
+
+func TestNewBundleSourceValidation(t *testing.T) {
+	cases := []struct {
+		name     string
+		manifest string
+		wantErr  string
+	}{
+		{
+			name:    "missing revision",
+			manifest: `{"roots":["evidra"],"metadata":{"profile_name":"ops-v0.1"}}`,
+			wantErr: "missing revision",
+		},
+		{
+			name:    "missing roots",
+			manifest: `{"revision":"r1","roots":[],"metadata":{"profile_name":"ops-v0.1"}}`,
+			wantErr: "missing roots",
+		},
+		{
+			name:    "invalid root uppercase",
+			manifest: `{"revision":"r1","roots":["Evidra"],"metadata":{"profile_name":"ops-v0.1"}}`,
+			wantErr: "invalid root",
+		},
+		{
+			name:    "invalid root with dot",
+			manifest: `{"revision":"r1","roots":["ev.idra"],"metadata":{"profile_name":"ops-v0.1"}}`,
+			wantErr: "invalid root",
+		},
+		{
+			name:    "missing profile_name",
+			manifest: `{"revision":"r1","roots":["evidra"],"metadata":{}}`,
+			wantErr: "missing metadata.profile_name",
+		},
+		{
+			name:    "no metadata",
+			manifest: `{"revision":"r1","roots":["evidra"]}`,
+			wantErr: "missing metadata.profile_name",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, ".manifest"), []byte(tc.manifest), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, err := bundlesource.NewBundleSource(dir)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.wantErr)
+			}
+		})
 	}
 }
 

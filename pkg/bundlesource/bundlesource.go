@@ -18,14 +18,23 @@ type BundleManifest struct {
 }
 
 // BundleSource implements runtime.PolicySource for OPA bundle directories.
-// It reads policy modules and data files from a standard OPA bundle layout.
+//
+// Data loading follows the OPA bundle directory layout: each data.json file is
+// placed at the namespace determined by its directory path relative to the bundle
+// root. For example, evidra/data/params/data.json maps to data.evidra.data.params.
+//
+// Only data.json files under a declared bundle root (from .manifest roots) are
+// loaded, matching OPA's per-root ownership semantics for single-bundle use.
+// YAML data files and multi-bundle root isolation (OPA bundle service semantics)
+// are not implemented; use the OPA bundle service if those are required.
 type BundleSource struct {
 	bundleDir string
 	manifest  BundleManifest
 }
 
 // NewBundleSource creates a BundleSource from a bundle directory path.
-// It validates the .manifest file at init time.
+// It validates the .manifest at init time: revision, non-empty roots with valid
+// identifiers, and a non-empty profile_name in metadata are all required.
 func NewBundleSource(bundleDir string) (*BundleSource, error) {
 	manifestPath := filepath.Join(bundleDir, ".manifest")
 	data, err := os.ReadFile(manifestPath)
@@ -42,14 +51,36 @@ func NewBundleSource(bundleDir string) (*BundleSource, error) {
 	if len(manifest.Roots) == 0 {
 		return nil, fmt.Errorf("bundle manifest missing roots")
 	}
+	for _, root := range manifest.Roots {
+		if err := validateRootIdentifier(root); err != nil {
+			return nil, fmt.Errorf("bundle manifest invalid root %q: %w", root, err)
+		}
+	}
+	if manifest.Metadata["profile_name"] == "" {
+		return nil, fmt.Errorf("bundle manifest missing metadata.profile_name")
+	}
 	return &BundleSource{
 		bundleDir: bundleDir,
 		manifest:  manifest,
 	}, nil
 }
 
+// validateRootIdentifier checks that a root is a non-empty lowercase identifier
+// (matching OPA data path segment conventions: lowercase, alphanumeric, underscores).
+func validateRootIdentifier(root string) error {
+	if root == "" {
+		return fmt.Errorf("root must not be empty")
+	}
+	for _, c := range root {
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') {
+			return fmt.Errorf("root must be lowercase alphanumeric/underscore, got char %q", c)
+		}
+	}
+	return nil
+}
+
 // LoadPolicy returns all .rego modules under the bundle directory,
-// excluding test files.
+// excluding test files and the tests/ directory.
 func (s *BundleSource) LoadPolicy() (map[string][]byte, error) {
 	modules := map[string][]byte{}
 	err := filepath.WalkDir(s.bundleDir, func(path string, d fs.DirEntry, err error) error {
@@ -90,6 +121,10 @@ func (s *BundleSource) LoadPolicy() (map[string][]byte, error) {
 
 // LoadData returns the merged data from all data.json files under the bundle
 // directory, preserving the directory-based namespace structure.
+//
+// Only data.json files under a declared bundle root are loaded. For example,
+// with roots=["evidra"], only data.json files under evidra/ are included.
+// This matches OPA's per-root data ownership rule for single-bundle deployments.
 func (s *BundleSource) LoadData() ([]byte, error) {
 	merged := map[string]interface{}{}
 	err := filepath.WalkDir(s.bundleDir, func(path string, d fs.DirEntry, err error) error {
@@ -105,11 +140,16 @@ func (s *BundleSource) LoadData() ([]byte, error) {
 		if d.Name() != "data.json" {
 			return nil
 		}
-		content, err := os.ReadFile(path)
+		rel, err := filepath.Rel(s.bundleDir, filepath.Dir(path))
 		if err != nil {
 			return err
 		}
-		rel, err := filepath.Rel(s.bundleDir, filepath.Dir(path))
+		relSlash := filepath.ToSlash(rel)
+		// Only load data.json files that are under a declared root.
+		if rel != "." && !isUnderAnyRoot(s.manifest.Roots, relSlash) {
+			return nil
+		}
+		content, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
@@ -124,7 +164,7 @@ func (s *BundleSource) LoadData() ([]byte, error) {
 				merged[k] = v
 			}
 		} else {
-			parts := strings.Split(filepath.ToSlash(rel), "/")
+			parts := strings.Split(relSlash, "/")
 			setNested(merged, parts, fileData)
 		}
 		return nil
@@ -136,6 +176,17 @@ func (s *BundleSource) LoadData() ([]byte, error) {
 		return nil, nil
 	}
 	return json.Marshal(merged)
+}
+
+// isUnderAnyRoot reports whether the slash-separated rel path is under at
+// least one of the declared bundle roots.
+func isUnderAnyRoot(roots []string, rel string) bool {
+	for _, root := range roots {
+		if rel == root || strings.HasPrefix(rel, root+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // setNested places data at a nested map path.
