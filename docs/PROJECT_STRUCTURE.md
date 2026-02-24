@@ -1,6 +1,6 @@
 # Project Structure & Module Map
 
-This repository is organized around the Evidra v1-slim CLI/evaluator surface plus the supporting policy and evidence subsystems. The following sections summarize the major directories and their build/test scope.
+This repository is organized around the Evidra v0.1 CLI/evaluator surface plus the supporting policy and evidence subsystems. The following sections summarize the major directories and their build/test scope.
 
 ## Repository Layout
 

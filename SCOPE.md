@@ -1,4 +1,4 @@
-# Evidra v1-slim scope
+# Evidra v0.1 scope
 
 ## Mission
 
@@ -19,4 +19,4 @@ Deliver a single-purpose, deterministic DevOps validator that reads Terraform pl
 
 ## Guideline
 
-No new commands or policy areas without a short design note explaining why they belong in v1-slim.
+No new commands or policy areas without a short design note explaining why they belong in v0.1.

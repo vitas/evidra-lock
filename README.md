@@ -1,4 +1,4 @@
-# Evidra v1-slim
+# Evidra v0.1
 
 Evidra deterministically enforces policy on infrastructure changes through a local MCP server plus focused offline tooling.
 

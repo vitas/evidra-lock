@@ -1,4 +1,4 @@
-# Release Checklist (v1-slim)
+# Release Checklist (v0.1)
 
 ## Build & test
 
