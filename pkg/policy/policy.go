@@ -88,8 +88,6 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 	}
 	if env := inv.Environment; env != "" {
 		input["environment"] = env
-	} else if ctx, ok := inv.Context["environment"]; ok {
-		input["environment"] = ctx
 	}
 
 	results, err := e.query.Eval(context.Background(), rego.EvalInput(input))

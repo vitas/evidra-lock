@@ -8,7 +8,6 @@ test_deny_public_exposure_without_approval if {
 		"tool": "terraform",
 		"operation": "plan",
 		"environment": "dev",
-		"context": {"environment": "dev"},
 		"actions": [
 			{
 				"kind": "terraform.plan",

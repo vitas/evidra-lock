@@ -8,7 +8,6 @@ test_deny_prod_without_change_approved if {
 		"tool": "kubectl",
 		"operation": "apply",
 		"environment": "prod",
-		"context": {"environment": "prod"},
 		"actions": [
 			{
 				"kind": "k8s.apply",

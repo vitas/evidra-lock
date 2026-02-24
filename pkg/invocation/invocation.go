@@ -20,7 +20,7 @@ var allowedParamKeys = map[string]bool{
 	KeyTarget: true, KeyPayload: true, KeyRiskTags: true, KeyScenarioID: true,
 }
 var allowedContextKeys = map[string]bool{
-	KeySource: true, KeyIntent: true, KeyScenarioID: true, "environment": true,
+	KeySource: true, KeyIntent: true, KeyScenarioID: true,
 }
 
 type Actor struct {

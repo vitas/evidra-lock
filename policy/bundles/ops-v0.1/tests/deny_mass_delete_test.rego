@@ -8,7 +8,7 @@ test_deny_mass_delete_without_breakglass if {
 		"tool": "kubectl",
 		"operation": "delete",
 		"environment": "dev",
-		"context": {"environment": "dev"},
+
 		"actions": [
 			{
 				"kind": "kubectl.delete",
@@ -29,7 +29,7 @@ test_deny_mass_destroy_without_breakglass if {
 		"tool": "terraform",
 		"operation": "plan",
 		"environment": "dev",
-		"context": {"environment": "dev"},
+
 		"actions": [
 			{
 				"kind": "terraform.plan",

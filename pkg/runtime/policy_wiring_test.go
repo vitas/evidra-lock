@@ -89,14 +89,12 @@ func newPolicyEvaluator(t *testing.T) *runtime.Evaluator {
 func evaluateInvocation(t *testing.T, eval *runtime.Evaluator, actions []map[string]interface{}, env, operation string) policy.Decision {
 	t.Helper()
 	inv := invocation.ToolInvocation{
-		Actor:     invocation.Actor{Type: "human", ID: "test-user", Origin: "runtime-test"},
-		Tool:      "kubectl",
-		Operation: operation,
+		Actor:       invocation.Actor{Type: "human", ID: "test-user", Origin: "runtime-test"},
+		Tool:        "kubectl",
+		Operation:   operation,
+		Environment: env,
 		Params: map[string]interface{}{
 			"actions": mapSliceToInterface(actions),
-		},
-		Context: map[string]interface{}{
-			"environment": env,
 		},
 	}
 	decision, err := eval.EvaluateInvocation(inv)

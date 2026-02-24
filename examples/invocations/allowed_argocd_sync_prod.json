@@ -2,6 +2,6 @@
   "actor": {"type": "human", "id": "ops-user", "origin": "cli"},
   "tool": "argocd",
   "operation": "app-sync",
-  "params": {"payload": {"app": "payments-api"}},
-  "context": {"environment": "prod", "cluster": "remote"}
+  "environment": "prod",
+  "params": {"payload": {"app": "payments-api"}}
 }

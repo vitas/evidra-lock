@@ -2,8 +2,8 @@
   "actor": {"type": "human", "id": "local-dev", "origin": "cli"},
   "tool": "terraform",
   "operation": "plan",
+  "environment": "dev",
   "params": {
     "payload": {"dir": "./infra"}
-  },
-  "context": {"environment": "dev", "cluster": "local"}
+  }
 }

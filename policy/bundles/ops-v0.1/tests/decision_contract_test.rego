@@ -8,7 +8,7 @@ test_decision_contract if {
 		"tool": "kubectl",
 		"operation": "apply",
 		"environment": "dev",
-		"context": {"environment": "dev"},
+
 		"actions": [
 			{
 				"kind": "k8s.apply",
@@ -32,7 +32,7 @@ test_allowed_operation_reason if {
 		"tool": "kubectl",
 		"operation": "get",
 		"environment": "dev",
-		"context": {"environment": "dev"},
+
 		"actions": [
 			{
 				"kind": "kubectl.get",
@@ -54,7 +54,7 @@ test_hints_dedup if {
 		"tool": "kubectl",
 		"operation": "apply",
 		"environment": "dev",
-		"context": {"environment": "dev"},
+
 		"actions": [
 			{
 				"kind": "kubectl.delete",
@@ -84,7 +84,7 @@ test_risk_high_with_breakglass_tag if {
 		"tool": "kubectl",
 		"operation": "get",
 		"environment": "dev",
-		"context": {"environment": "dev"},
+
 		"actions": [
 			{
 				"kind": "kubectl.get",

@@ -8,7 +8,6 @@ test_deny_kube_system_without_breakglass if {
 		"tool": "kubectl",
 		"operation": "apply",
 		"environment": "dev",
-		"context": {"environment": "dev"},
 		"actions": [
 			{
 				"kind": "k8s.apply",

@@ -8,7 +8,6 @@ test_warn_breakglass_exposure_lists_hits_and_hints if {
 		"tool": "kubectl",
 		"operation": "apply",
 		"environment": "prod",
-		"context": {"environment": "prod"},
 		"source": "cli",
 		"actor": {"type": "human"},
 		"actions": [

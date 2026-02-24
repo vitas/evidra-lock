@@ -9,5 +9,5 @@
       "namespace": "payments"
     }
   },
-  "context": {"environment": "prod", "cluster": "remote"}
+  "environment": "prod"
 }
