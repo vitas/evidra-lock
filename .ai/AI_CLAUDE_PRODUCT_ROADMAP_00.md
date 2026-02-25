@@ -9,7 +9,7 @@ Generated: 2026-02-25
 - **The MCP integration is the genuine differentiator** — no other open-source tool positions itself as a safety layer between an AI agent and infrastructure execution. This angle is underexploited in current docs and positioning.
 - **Six OPA rules is not a product.** The policy engine is excellent; the policy *library* is a stub. Developers who clone and see six rules for `kube-system` and `prod` namespace will assume the project is a demo skeleton.
 - **The evidence chain is buried.** Hash-linked append-only evidence with chain validation is a strong trust primitive. It is currently mentioned in passing. It should be the headline for every security-conscious DevOps audience.
-- **Stdio-only MCP is a real constraint.** Every MCP integration other than Claude Desktop and process-local agents needs HTTP. This is the single biggest blocker for Copilot/Cursor/Windsurf/API-level integrations.
+- **Stdio-only MCP is a real constraint.** Stdio-only MCP limits broader integrations. Offline MCP is sufficient for initial adoption and local agent workflows, but HTTP transport will unlock Copilot/Cursor/Windsurf and remote API-level integrations. This is the next major expansion milestone after P0.
 - **Zero discoverability.** No Homebrew formula, no Docker image on GHCR, no GitHub Action, no badge for "installable in 30 seconds." Right now a developer must clone, build, and figure out the bundle path manually.
 - **The project is 6–8 weeks of focused work away from being genuinely adoptable** by a DevOps team that uses AI coding assistants.
 
@@ -19,7 +19,7 @@ Generated: 2026-02-25
 
 ## P0 — Critical (Adoption blockers)
 
-> Can a developer connect Evidra to an AI agent in under 5 minutes and see it block a dangerous action?
+> Can a developer install Evidra, connect it to an AI agent, and see a dangerous action blocked — in under 5 minutes?
 
 **Full detail:** [AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md](./AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md)
 
@@ -29,6 +29,19 @@ Generated: 2026-02-25
 | 2 | Install path: Homebrew + Docker for `evidra-mcp` | Medium | High | Release |
 | 3 | MCP-first README and demo GIF | Low | High | Docs |
 | 4 | 3-minute MCP quickstart | Low | High | Docs |
+
+### P0 Exit Criteria
+
+- `evidra-mcp` starts on a clean machine with no flags and no bundle path set.
+- `brew install <org>/evidra/evidra-mcp` produces a working binary on macOS.
+- `docker run ghcr.io/<org>/evidra-mcp:latest` starts the MCP server with no mounts or env vars.
+- README opens with a demo GIF showing `validate` → PASS and `validate` → FAIL with a hint.
+- `claude_desktop_config.json` snippet in README is copy-pasteable and connects to a running `evidra-mcp`.
+- `docs/quickstart-mcp.md` takes a developer from zero to a blocked action with a visible hint in under 5 minutes.
+
+### P0 Complete When
+
+P0 is complete when a developer unfamiliar with the codebase can install, connect, and observe a blocked action in under 5 minutes without reading any internal documentation.
 
 ---
 

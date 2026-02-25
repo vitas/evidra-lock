@@ -9,9 +9,9 @@ Source prompt: product_owner_feature_proposal_road_map.md (strategic shift: MCP-
 Evidra is repositioned as: **MCP-first AI safety backend for infrastructure agents.**
 
 Gating question for P0:
-> Can a developer connect Evidra to an AI agent in under 5 minutes and see it block a dangerous action?
+> Can a developer install Evidra, connect it to an AI agent, and see a dangerous action blocked — in under 5 minutes?
 
-If not — it's P0. Everything else is P0.1+.
+If not — it's P0. If it does not directly reduce time-to-first-block, it does not belong in P0. Everything else is P0.1+.
 
 **P0 scope:** zero-config `evidra-mcp` startup, install path for the MCP binary, MCP-first README + demo, 3-minute quickstart.
 
@@ -21,7 +21,9 @@ If not — it's P0. Everything else is P0.1+.
 
 ## P0 — Critical (Adoption blockers)
 
-> Gating question: Can a developer connect Evidra to an AI agent in under 5 minutes and see it block a dangerous action? If not — it belongs here.
+> Can a developer install Evidra, connect it to an AI agent, and see a dangerous action blocked — in under 5 minutes?
+
+If it does not directly reduce time-to-first-block, it does not belong in P0.
 
 ---
 
@@ -34,120 +36,115 @@ If not — it's P0. Everything else is P0.1+.
 **Owner:** MCP
 
 **Definition of Done:**
-- `evidra-mcp` starts with zero flags on a clean machine and accepts MCP tool calls.
-- stderr emits `using built-in ops-v0.1 bundle (override with --bundle or EVIDRA_BUNDLE_PATH)`.
+- `evidra-mcp` starts on a clean machine with no flags and accepts a `validate` tool call.
 - `docker run ghcr.io/<org>/evidra-mcp` starts and serves `validate` with no mounts or env vars.
 
 **Execution Plan:**
 1. Add `//go:embed policy/bundles/ops-v0.1` in `cmd/evidra-mcp/main.go`; use `embed.FS`.
-2. Write `extractEmbeddedBundle(fs embed.FS, destDir string) error` in `cmd/evidra-mcp/` — binary concern only.
-3. Extend bundle path resolution in `pkg/config`: final fallback calls extract into `os.MkdirTemp`, caches path for process lifetime.
-4. Print the single-line stderr notice on embedded fallback.
-5. Update `Dockerfile.mcp`: `FROM gcr.io/distroless/static`, copy binary only — no bundle volume.
+2. Write `extractEmbeddedBundle(fs embed.FS, destDir string) error` in `cmd/evidra-mcp/`.
+3. Extend bundle path resolution in `pkg/config`: final fallback extracts into `os.MkdirTemp`, cached for process lifetime.
+4. Print `using built-in ops-v0.1 bundle (override with --bundle or EVIDRA_BUNDLE_PATH)` to stderr on fallback.
+5. Update `Dockerfile.mcp`: `FROM gcr.io/distroless/static`, copy binary only.
 
 ---
 
 ### 2. Install path: `evidra-mcp` first (Homebrew + Docker)
 
-**Why it matters:** No Homebrew formula and no Docker image means every install requires cloning and building. Developers need one command to get a running MCP server.
+**Why it matters:** Without Homebrew or Docker, every install requires cloning and building. A developer needs one command to get a running MCP server.
 
 **Complexity:** Medium
 **Adoption impact:** High
 **Owner:** Release
 
 **Definition of Done:**
-- `brew install <org>/evidra/evidra-mcp` installs a working binary; starts with zero flags.
-- `docker run ghcr.io/<org>/evidra-mcp:latest` starts the MCP server — no mounts, no env vars.
-- README install block links to working Homebrew tap and GHCR image; no placeholder text.
+- `brew install <org>/evidra/evidra-mcp` produces a binary that starts with no flags.
+- `docker run ghcr.io/<org>/evidra-mcp:latest` starts the MCP server with no mounts or env vars.
+- README install block links to the working tap and image with no placeholder text.
 
 **Execution Plan:**
-1. Create `homebrew-evidra` tap repo; add stub formula with placeholder archive URL.
-2. Add `brews` block to `.goreleaser.yaml`; `install: bin.install "evidra-mcp"`. CLI is secondary.
+1. Create `homebrew-evidra` tap repo; add formula pointing at GoReleaser archive.
+2. Add `brews` block to `.goreleaser.yaml`; `install: bin.install "evidra-mcp"`.
 3. Write `Dockerfile.mcp`: `FROM gcr.io/distroless/static`, copy binary, `ENTRYPOINT ["/evidra-mcp"]`.
-4. Add `dockers` block to `.goreleaser.yaml` for `ghcr.io/<org>/evidra-mcp`; tag `{{ .Tag }}` and `latest`.
-5. Add GHCR login step to `.github/workflows/release.yml` using `GITHUB_TOKEN`.
-6. Cut `v0.1.0` tag; confirm Homebrew formula updates and image appears on GHCR.
+4. Add `dockers` block to `.goreleaser.yaml`; tag `{{ .Tag }}` and `latest`.
+5. Add GHCR login to `.github/workflows/release.yml` using `GITHUB_TOKEN`.
+6. Cut `v0.1.0` tag; verify tap formula and GHCR image are live.
 
 ---
 
 ### 3. MCP-first README and demo
 
-**Why it matters:** The current README leads with architecture. A developer needs to see install → config block → AI agent blocked, in under 90 seconds of reading.
+**Why it matters:** The README leads with architecture. A developer must see install → config → blocked action in under 90 seconds of reading — before any explanation.
 
 **Complexity:** Low
 **Adoption impact:** High
 **Owner:** Docs
 
 **Definition of Done:**
-- README opens with positioning line and terminal GIF (≤ 3 MB) before any prose.
-- GIF shows: `validate` → PASS, then `validate` → FAIL with hint returned.
-- Install block within first 20 lines; Homebrew and Docker paths only — no `git clone`.
-- Copy-pasteable `claude_desktop_config.json` block is present and syntactically valid.
-- No internal package paths (`pkg/`, `cmd/`) appear in the README.
+- README opens with a terminal GIF before any prose.
+- GIF shows: `validate` → PASS, then `validate` → FAIL with a hint.
+- Install block appears within the first 20 lines; Homebrew and Docker only.
+- A `claude_desktop_config.json` snippet is present, copy-pasteable, and syntactically valid.
 
 **Execution Plan:**
-1. Confirm `examples/terraform_plan_pass.json` and `examples/terraform_deny_mass_delete.json` exist and produce expected PASS/FAIL.
-2. Write `demo.tape` for `vhs`: start `evidra-mcp`, PASS call, FAIL call, show hints.
-3. Record GIF; keep under 3 MB.
-4. Rewrite README: positioning → GIF → install → Claude Desktop config block → quickstart link → docs link.
-5. Write and test `claude_desktop_config.json` against an installed binary; include exact `command` and `args`.
-6. Move architecture, package table, and internals to `docs/architecture.md`; link from README footer only.
+1. Confirm `examples/terraform_plan_pass.json` and `examples/terraform_deny_mass_delete.json` produce PASS and FAIL.
+2. Write `demo.tape` for `vhs`: start `evidra-mcp`, PASS call, FAIL call, hints visible.
+3. Record GIF.
+4. Rewrite README: GIF → install → `claude_desktop_config.json` → quickstart link.
+5. Move architecture and package internals to `docs/architecture.md`; link from footer.
 
 ---
 
 ### 4. 3-minute MCP quickstart: connect, call, see a block
 
-**Why it matters:** There is no path from zero to "AI agent blocked by Evidra" in under 5 minutes. Without it the product cannot be evaluated. Developers close the tab.
+**Why it matters:** There is no path from zero to "blocked by Evidra" today. Without it the product cannot be evaluated. Developers close the tab.
 
 **Complexity:** Low
 **Adoption impact:** High
 **Owner:** Docs
 
 **Definition of Done:**
-- `docs/quickstart-mcp.md` covers: install → configure Claude Desktop → PASS call → FAIL call with hints — completable in under 3 minutes.
-- Every command is copy-pasteable and produces the documented output on a clean macOS machine.
-- FAIL scenario uses `examples/terraform_deny_mass_delete.json` and shows exact hint text from the bundle.
-- "What just happened?" section explains the evidence record and how to retrieve it with `get_event`.
-- README links to `docs/quickstart-mcp.md` from the install block.
+- `docs/quickstart-mcp.md` takes a developer from install to a blocked action with a visible hint in under 3 minutes.
+- Every command is copy-pasteable and works on a clean macOS machine.
+- The FAIL scenario shows the exact hint text returned by the bundle.
 
 **Execution Plan:**
-1. Write `docs/quickstart-mcp.md`: Prerequisites → Install → Configure Claude Desktop → PASS scenario → FAIL scenario → Inspect evidence.
-2. Confirm `examples/terraform_deny_mass_delete.json` triggers `ops.mass_delete` with the embedded bundle.
-3. Include the exact `validate` input JSON so the quickstart works without a real Terraform plan.
-4. Write "What just happened?" — one paragraph: decision made, evidence written, retrievable via `get_event <event_id>`.
+1. Write `docs/quickstart-mcp.md`: Install → Configure Claude Desktop → PASS call → FAIL call → see hint.
+2. Confirm `examples/terraform_deny_mass_delete.json` triggers `ops.mass_delete`.
+3. Include the exact `validate` input JSON — quickstart must work without a real Terraform plan.
+4. Add "What just happened?" — one paragraph: policy fired, evidence written, retrievable via `get_event <event_id>`.
 5. Link from README install block as "→ 3-minute quickstart."
 
 ---
 
 ## P0.1 — Engineering Polish (After Initial MCP Adoption)
 
-Deferred from P0. Tackle after the first developer can complete the quickstart end-to-end.
+> Important — but not required for first adoption. Tackle after the first developer completes the quickstart end-to-end.
 
 ### Release pipeline hardening
 
-- Run `goreleaser release --snapshot --clean` locally before cutting any release tag; fix all errors first.
+- Run `goreleaser release --snapshot --clean` locally before cutting any release tag.
 - Add smoke test job to `release.yml`: pull published image, run `--version`, assert exit 0.
 - Verify Homebrew formula auto-update succeeds on tag push; add failure alert.
 
 ### Binary size verification
 
-- Record binary size delta after embedding the bundle (`go build -o /dev/null ./cmd/evidra-mcp && du -sh`); document in PR.
+- Record binary size delta after embedding the bundle; document in PR.
 - Set a soft size budget (5 MB increase); revisit if exceeded.
 
 ### Quickstart reviewer validation
 
-- Have one reviewer (not the author) complete `docs/quickstart-mcp.md` on a clean machine before the doc is considered stable.
+- Have one reviewer (not the author) complete `docs/quickstart-mcp.md` on a clean machine.
 - Fix any broken steps; re-test after each fix.
 
 ### CI hardening
 
-- Add `bundle-test.yml` workflow: trigger on `policy/bundles/**` changes; run `opa test policy/bundles/ops-v0.1/ -v`; block merge on failure.
-- Add `TestZeroConfigMCPStart` to CI matrix so it runs on every push, not just locally.
-- Confirm `go test -race ./...` runs in `ci.yml` (already in Makefile).
+- Add `bundle-test.yml` workflow: trigger on `policy/bundles/**`; run `opa test`; block merge on failure.
+- Add `TestZeroConfigMCPStart` to CI matrix.
+- Confirm `go test -race ./...` runs in `ci.yml`.
 
 ### Trust signals
 
-- CI badge (passing) in README header.
-- Go Report Card badge (`A` grade) in README header.
-- Confirm `LICENSE` file at repo root with correct SPDX identifier.
+- CI badge in README header.
+- Go Report Card badge in README header.
+- Confirm `LICENSE` at repo root with correct SPDX identifier.
 - Add `SECURITY.md` with vulnerability disclosure contact.
