@@ -26,6 +26,12 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Go toolchain info
+        run: |
+          echo "go version:   $(go version)"
+          echo "GOVERSION:    $(go env GOVERSION)"
+          echo "GOMOD:        $(go env GOMOD)"
+
       - name: GoReleaser snapshot (dry run)
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -106,6 +112,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Go toolchain info
+        run: |
+          echo "go version:   $(go version)"
+          echo "GOVERSION:    $(go env GOVERSION)"
+          echo "GOMOD:        $(go env GOMOD)"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6

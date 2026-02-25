@@ -18,6 +18,12 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Go toolchain info
+        run: |
+          echo "go version:   $(go version)"
+          echo "GOVERSION:    $(go env GOVERSION)"
+          echo "GOMOD:        $(go env GOMOD)"
+
       - name: Check formatting
         run: |
           files=$(gofmt -l .)
