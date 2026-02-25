@@ -39,6 +39,13 @@ jobs:
       - name: Run race tests (linux)
         run: go test -race ./...
 
+      - name: Validate demo examples
+        run: |
+          go build -o bin/evidra ./cmd/evidra
+          bin/evidra validate examples/demo/kubernetes_kube_system_delete.json && exit 1 || test $? -eq 2
+          bin/evidra validate examples/demo/terraform_public_s3.json && exit 1 || test $? -eq 2
+          bin/evidra validate examples/demo/kubernetes_safe_apply.json
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:

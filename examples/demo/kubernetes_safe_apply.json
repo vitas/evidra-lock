@@ -1,0 +1,19 @@
+{
+  "scenario_id": "demo-k8s-pass",
+  "actor": {"type": "ai-agent", "id": "demo", "origin": "cli"},
+  "source": "cli",
+  "timestamp": "2026-01-01T00:00:00Z",
+  "actions": [
+    {
+      "kind": "kubectl.apply",
+      "target": {"namespace": "default"},
+      "intent": "deploy web app to default namespace",
+      "payload": {
+        "resource": "deployment",
+        "namespace": "default",
+        "name": "web-frontend"
+      },
+      "risk_tags": ["change-approved"]
+    }
+  ]
+}

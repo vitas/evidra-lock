@@ -1,0 +1,20 @@
+{
+  "scenario_id": "demo-terraform-deny",
+  "actor": {"type": "ai-agent", "id": "demo", "origin": "cli"},
+  "source": "cli",
+  "timestamp": "2026-01-01T00:00:00Z",
+  "actions": [
+    {
+      "kind": "terraform.plan",
+      "target": {"dir": "./infra"},
+      "intent": "create S3 bucket without public access block",
+      "payload": {
+        "resource_type": "aws_s3_bucket",
+        "resource_name": "my-data-bucket",
+        "destroy_count": 0,
+        "resource_count": 1
+      },
+      "risk_tags": []
+    }
+  ]
+}

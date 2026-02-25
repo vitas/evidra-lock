@@ -1,0 +1,19 @@
+{
+  "scenario_id": "demo-k8s-deny",
+  "actor": {"type": "ai-agent", "id": "demo", "origin": "cli"},
+  "source": "cli",
+  "timestamp": "2026-01-01T00:00:00Z",
+  "actions": [
+    {
+      "kind": "kubectl.delete",
+      "target": {"namespace": "kube-system"},
+      "intent": "delete pods in kube-system",
+      "payload": {
+        "resource": "pod",
+        "namespace": "kube-system",
+        "selector": "--all"
+      },
+      "risk_tags": []
+    }
+  ]
+}
