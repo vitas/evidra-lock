@@ -19,24 +19,30 @@ Generated: 2026-02-25
 
 ## P0 — Critical (Adoption blockers)
 
-> Gating question: Can a developer connect Evidra to an AI agent in under 5 minutes and see it block a dangerous action? If not — it belongs here.
+> Can a developer connect Evidra to an AI agent in under 5 minutes and see it block a dangerous action?
 
-**Full P0 plan (items, DoD, execution steps):** [AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md](./AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md)
+**Full detail:** [AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md](./AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md)
 
-### Items
-
-| # | Title | Complexity | Adoption impact | Owner |
+| # | Item | Complexity | Adoption impact | Owner |
 |---|---|---|---|---|
-| 1 | Embed the bundle — zero-config `evidra-mcp` startup | Medium | High | MCP |
-| 2 | Install path: `evidra-mcp` first (Homebrew + Docker) | Medium | High | Release |
+| 1 | Embed bundle — zero-config `evidra-mcp` startup | Medium | High | MCP |
+| 2 | Install path: Homebrew + Docker for `evidra-mcp` | Medium | High | Release |
 | 3 | MCP-first README and demo GIF | Low | High | Docs |
-| 4 | 3-minute MCP quickstart: connect, call, see a block | Low | High | Docs |
+| 4 | 3-minute MCP quickstart | Low | High | Docs |
 
-### Scope
+---
 
-**In:** embedded bundle, `evidra-mcp` Homebrew/Docker release, README rewrite, `docs/quickstart-mcp.md`.
+## P0.1 — Engineering Polish (After Initial MCP Adoption)
 
-**Out:** policy library expansion, GitHub Action, coverage tooling, HTTP transport (→ P1.1), evidence export polish, `list_rules`/`simulate` tools, enterprise/compliance features.
+Deferred from P0. Full detail in [AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md](./AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md).
+
+| Group | Items |
+|---|---|
+| Release pipeline | goreleaser snapshot dry-run, smoke test job, Homebrew auto-update alert |
+| Binary size | size delta recorded in PR, 5 MB soft budget |
+| Quickstart validation | reviewer dry-run on clean machine |
+| CI hardening | `bundle-test.yml` workflow, `TestZeroConfigMCPStart` in matrix, race detector in `ci.yml` |
+| Trust signals | CI badge, Go Report Card badge, `LICENSE`, `SECURITY.md` |
 
 ---
 
