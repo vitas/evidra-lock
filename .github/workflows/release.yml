@@ -21,7 +21,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/evidra-io/evidra-mcp
+          images: ghcr.io/vitas/evidra
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -46,7 +46,7 @@ jobs:
         run: |
           { cat cmd/evidra-mcp/test/docker/testdata/init.jsonl \
                cmd/evidra-mcp/test/docker/testdata/validate_pass.jsonl; sleep 2; } \
-            | timeout 10 docker run --rm -i ghcr.io/evidra-io/evidra-mcp:latest \
+            | timeout 10 docker run --rm -i ghcr.io/vitas/evidra:latest \
               >stdout.log 2>stderr.log || true
 
           echo "--- stderr ---"
