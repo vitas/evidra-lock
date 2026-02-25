@@ -1,6 +1,6 @@
 # Evidra v0.1
 
-The safety layer for AI agents touching real infrastructure.
+The safety layer for AI agents and  touching real infrastructure.
 
 Evidra deterministically enforces policy on infrastructure changes through a local MCP server plus focused offline tooling.
 

@@ -19,159 +19,24 @@ Generated: 2026-02-25
 
 ## P0 — Critical (Adoption blockers)
 
-### 1. Embed the bundle — fix zero-config first run
+> Gating question: Can a developer connect Evidra to an AI agent in under 5 minutes and see it block a dangerous action? If not — it belongs here.
 
-**Why it matters:** `evidra validate plan.json` fails with a bundle-path error on any machine that didn't clone the repo. This breaks every Homebrew and Docker install silently and immediately.
+**Full P0 plan (items, DoD, execution steps):** [AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md](./AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md)
 
-**Complexity:** Medium
-**Adoption impact:** High
-**Owner:** CLI
+### Items
 
-**Definition of Done:**
-- `go install` + `evidra validate examples/terraform_plan_pass.json` succeeds in a fresh directory with zero flags set.
-- `evidra-mcp` starts without `--bundle` on a clean machine.
-- `TestZeroConfigValidate` integration test passes in CI.
-- stderr emits `using built-in ops-v0.1 bundle` when the embedded bundle is used.
+| # | Title | Complexity | Adoption impact | Owner |
+|---|---|---|---|---|
+| 1 | Embed the bundle — zero-config `evidra-mcp` startup | Medium | High | MCP |
+| 2 | Install path: `evidra-mcp` first (Homebrew + Docker) | Medium | High | Release |
+| 3 | MCP-first README and demo GIF | Low | High | Docs |
+| 4 | 3-minute MCP quickstart: connect, call, see a block | Low | High | Docs |
 
-**Execution Plan (ordered steps):**
-- Add `//go:embed policy/bundles/ops-v0.1` directive in `cmd/evidra/main.go` and `cmd/evidra-mcp/main.go`; use `embed.FS`.
-- Write `extractEmbeddedBundle(fs embed.FS, destDir string) error` in `cmd/` (not `pkg/`; this is a binary concern).
-- Extend `resolveBundlePath` in `pkg/validate/validate.go` with a fourth fallback: call extract into `os.MkdirTemp`, cache the path for the process lifetime.
-- Print single line to stderr on embedded fallback: `using built-in ops-v0.1 bundle (override with --bundle or EVIDRA_BUNDLE_PATH)`.
-- Add `TestZeroConfigValidate` in `pkg/validate` that calls `EvaluateFile` with empty `Options` and a fixture file.
-- Verify binary size increase is acceptable (`go build -o /dev/null ./cmd/evidra && du -sh`); document in PR.
+### Scope
 
----
+**In:** embedded bundle, `evidra-mcp` Homebrew/Docker release, README rewrite, `docs/quickstart-mcp.md`.
 
-### 2. Release artifacts: Homebrew tap + Docker images
-
-**Why it matters:** No Homebrew formula and no Docker image means every install requires cloning and building. These two artifacts are the minimum bar for a project to be taken seriously.
-
-**Complexity:** Medium
-**Adoption impact:** High
-**Owner:** Release
-
-**Definition of Done:**
-- `brew install <org>/evidra/evidra` installs both `evidra` and `evidra-mcp` on macOS.
-- `docker run ghcr.io/<org>/evidra-mcp` starts the MCP server with the built-in bundle and zero flags.
-- `goreleaser release --snapshot --clean` succeeds locally before tagging.
-- Both Docker images appear on GHCR within 5 minutes of a `v*` tag push.
-- README install block links to working Homebrew tap and GHCR image.
-
-**Execution Plan (ordered steps):**
-- Create `homebrew-evidra` tap repo; add stub formula with placeholder archive URL.
-- Add `brews` block to `.goreleaser.yaml` targeting the tap repo; set `install: bin.install "evidra" && bin.install "evidra-mcp"`.
-- Write `Dockerfile.mcp`: `FROM gcr.io/distroless/static`, copy binary, set `ENTRYPOINT ["/evidra-mcp"]` (relies on P0.1 embedded bundle).
-- Add `dockers` block to `.goreleaser.yaml` for `evidra-mcp` image; tag both `{{ .Tag }}` and `latest`.
-- Add GHCR login (`ghcr.io`) to `.github/workflows/release.yml` using `GITHUB_TOKEN`.
-- Run `goreleaser release --snapshot --clean`; fix any errors.
-- Cut `v0.1.0` tag; verify tap formula auto-updates and images appear on GHCR.
-
----
-
-### 3. README rewrite + 60-second demo recording
-
-**Why it matters:** The current README describes the architecture before proving the tool works. Conversion happens in the first 90 seconds. A developer needs to see a PASS and a FAIL with hints before they scroll.
-
-**Complexity:** Low
-**Adoption impact:** High
-**Owner:** Docs
-
-**Definition of Done:**
-- README opens with a one-sentence positioning line followed by a terminal GIF (≤ 3 MB).
-- Install block appears within the first 20 lines; links are live (Homebrew formula and GHCR image exist).
-- Copy-pasteable `claude_desktop_config.json` block for `evidra-mcp` is present and correct.
-- GIF shows: PASS case, FAIL case with hints, `evidra evidence verify`.
-- No internal package paths (`pkg/`, `cmd/`) appear in the README.
-- All links resolve; no placeholder text remains.
-
-**Execution Plan (ordered steps):**
-- Create `examples/terraform_deny_mass_delete.json` if it doesn't exist — required for the FAIL demo case.
-- Write `demo.tape` for `vhs`: (1) `evidra validate examples/terraform_plan_pass.json`, (2) `evidra validate examples/terraform_deny_mass_delete.json`, (3) `evidra evidence verify`.
-- Record GIF; verify it renders correctly in GitHub's Markdown renderer.
-- Rewrite README structure: hook → GIF → install (Homebrew / `go install` / Docker) → 2-command quickstart → MCP config block → docs link.
-- Add Claude Desktop `claude_desktop_config.json` snippet pointing at the installed `evidra-mcp` binary.
-- Delete or demote QUICKSTART.md to a `docs/` link only; keep README fully self-contained.
-
----
-
-### 4. Policy library: 6 rules → 15+ rules
-
-**Why it matters:** Six rules for `kube-system` and `prod` namespaces is a skeleton. Any engineer who opens the `rules/` directory will count the files and conclude the project is not production-ready.
-
-**Complexity:** Medium
-**Adoption impact:** High
-**Owner:** Policy
-
-**Definition of Done:**
-- At least 15 rules total across `k8s.*`, `tf.*`, and `ops.*` domains.
-- Each new rule ships with: Rego file, params/hints entry, 2 OPA tests (trigger + bypass), POLICY_CATALOG rule card.
-- `opa test policy/bundles/ops-v0.1/ -v` passes with 0 failures.
-- POLICY_CATALOG quick index table reflects all rules.
-- No inline literals in any rule body — all tunables go through `resolve_param`.
-
-**Execution Plan (ordered steps):**
-- Add `k8s.rbac_cluster_admin` — deny `clusterrolebinding` granting `cluster-admin` without breakglass tag.
-- Add `k8s.privileged_container` — deny pods with `securityContext.privileged: true`.
-- Add `k8s.no_resource_limits` — warn on containers without CPU/memory limits.
-- Add `k8s.host_network` — deny pods with `hostNetwork: true`.
-- Add `tf.iam_wildcard_policy` — deny IAM policies where `Action` contains `"*"`.
-- Add `tf.open_security_group` — deny security group ingress with `0.0.0.0/0` outside ports 80/443; make port list a param.
-- Add `tf.destroy_production` — deny `terraform destroy` when environment resolves to a protected namespace.
-- Add `tf.unencrypted_storage` — warn on EBS volumes and RDS instances with encryption disabled.
-- Add `ops.no_dry_run` — warn when operation is `apply` and `scenario_id` has no prior `plan` evidence record.
-- For every rule: write `params/data.json` entry (if tunable), `rule_hints/data.json` entry, 2 OPA tests; run `opa test` before committing.
-- Update POLICY_CATALOG quick index table with all new rule cards.
-
----
-
-### 5. Developer trust signals
-
-**Why it matters:** A developer evaluating an unfamiliar OSS tool checks four things in the first minute: CI status, test coverage, license, and whether the project has a security policy. All four are absent or unclear. These are 2-hour fixes with disproportionate credibility impact.
-
-**Complexity:** Low
-**Adoption impact:** Medium
-**Owner:** Infra
-
-**Definition of Done:**
-- CI badge (passing) visible in README.
-- Go Report Card badge (`A` grade) visible in README.
-- `LICENSE` file present at repo root (confirm correct SPDX identifier).
-- `SECURITY.md` present at repo root with a vulnerability disclosure contact.
-- Codecov or similar coverage badge present; coverage ≥ 70% on `pkg/validate`, `pkg/evidence`, `pkg/mcpserver`.
-- `bundle-test.yml` workflow runs `opa test` on every push to `policy/bundles/**`; blocks merge on failure.
-
-**Execution Plan (ordered steps):**
-- Verify `LICENSE` file exists and contains the correct license text; add if missing.
-- Add `SECURITY.md` with: supported versions table, how to report a vulnerability (email or GitHub private advisory).
-- Add CI badge and Go Report Card badge to README header.
-- Add Codecov integration: `codecov/codecov-action@v4` step in `ci.yml`; push first coverage report.
-- Add `bundle-test.yml` workflow: trigger on `policy/bundles/**` changes; run `opa test policy/bundles/ops-v0.1/ -v`; fail PR if tests fail.
-- Register project on Go Report Card; verify grade; fix any lint issues surfaced.
-
----
-
-### 6. `evidra evidence verify` as a standalone trust primitive
-
-**Why it matters:** The hash-linked evidence chain is the most distinctive technical feature in the project. It should be a one-command proof that an AI agent's actions were recorded and unmodified — the "trust but verify" story for security teams, who are the internal advocates that get DevOps tools adopted.
-
-**Complexity:** Low
-**Adoption impact:** Medium
-**Owner:** CLI
-
-**Definition of Done:**
-- `evidra evidence verify` prints a clean chain report: total records, first/last timestamps, hash validity, any gaps or tampering detected.
-- `--exit-code` flag exits 1 when chain is invalid (CI use).
-- `evidra evidence verify --json` emits machine-readable output.
-- `evidra evidence export --format jsonl|csv --since <timestamp>` works for SIEM integration.
-- README has an "Audit & Compliance" section using the word "tamper-evident".
-
-**Execution Plan (ordered steps):**
-- Audit current `evidra evidence verify` output; ensure it prints total records, first/last timestamps, and per-record hash chain status.
-- Add `--exit-code` flag: `os.Exit(1)` when chain validation fails.
-- Add `--json` flag: emit structured JSON for machine consumers (CI, dashboards).
-- Add `evidra evidence export` subcommand with `--format jsonl|csv` and `--since <duration|timestamp>` flags.
-- Write "Audit & Compliance" section in README; include `evidra evidence verify` in the demo GIF.
+**Out:** policy library expansion, GitHub Action, coverage tooling, HTTP transport (→ P1.1), evidence export polish, `list_rules`/`simulate` tools, enterprise/compliance features.
 
 ---
 
