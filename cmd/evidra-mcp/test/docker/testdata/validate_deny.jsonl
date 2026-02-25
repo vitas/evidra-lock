@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"validate","arguments":{"actor":{"type":"human","id":"tester","origin":"cli"},"tool":"kubectl","operation":"delete","params":{"payload":{"namespace":"kube-system"}},"context":{}}}}

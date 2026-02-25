@@ -1,0 +1,32 @@
+name: Docker Smoke (local)
+
+on: push
+
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t evidra-mcp:smoke .
+
+      - name: Smoke test
+        run: |
+          { cat cmd/evidra-mcp/test/docker/testdata/init.jsonl \
+               cmd/evidra-mcp/test/docker/testdata/validate_pass.jsonl; sleep 2; } \
+            | timeout 10 docker run --rm -i evidra-mcp:smoke \
+              >stdout.log 2>stderr.log || true
+
+          echo "--- stderr ---"
+          cat stderr.log
+
+          grep -q "using built-in ops-v0.1 bundle" stderr.log \
+            || { echo "FAIL: missing embedded bundle notice"; exit 1; }
+
+          grep '"id":2' stdout.log | grep -q '"allow"' \
+            || { echo "FAIL: response missing allow field"; cat stdout.log; exit 1; }
+
+          echo "PASS: smoke test ok"

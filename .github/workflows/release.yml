@@ -7,8 +7,59 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/evidra-io/evidra-mcp
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Smoke test
+        run: |
+          { cat cmd/evidra-mcp/test/docker/testdata/init.jsonl \
+               cmd/evidra-mcp/test/docker/testdata/validate_pass.jsonl; sleep 2; } \
+            | timeout 10 docker run --rm -i ghcr.io/evidra-io/evidra-mcp:latest \
+              >stdout.log 2>stderr.log || true
+
+          echo "--- stderr ---"
+          cat stderr.log
+
+          grep -q "using built-in ops-v0.1 bundle" stderr.log \
+            || { echo "FAIL: missing embedded bundle notice"; exit 1; }
+
+          grep '"id":2' stdout.log | grep -q '"allow"' \
+            || { echo "FAIL: response missing allow field"; cat stdout.log; exit 1; }
+
+          echo "PASS: smoke test ok"
+
   goreleaser:
     runs-on: ubuntu-latest
     steps:
