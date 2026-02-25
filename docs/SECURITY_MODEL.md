@@ -1,24 +1,76 @@
-# Evidra Security Model
+# Security Model
 
-## Enforcement Assumptions
+## Design Philosophy
 
-- All validation flows (CLI or MCP) share a single core (`pkg/validate`) that loads the OPA bundle (default `policy/bundles/ops-v0.1`), evaluates the request, and writes an evidence record. Keeping requests inside this control path ensures decisions, hits, and hints stay deterministic.
-- The MCP server exposes only the `validate` tool and `get_event` evidence lookup, so registries/execute paths are not part of the v0.1 scope.
-- Policy decisions are always recorded, even in `--observe` mode; advisory runs still append evidence with advisory metadata.
+Evidra is a pre-execution validation layer. The policy baseline (`ops-v0.1`) contains 23 rules focused exclusively on catastrophic failure prevention: production namespace deletion, world-open security groups, wildcard IAM policies, privileged container escape.
 
-## Tamper-Evident Scope
+### What Evidra does
 
-- The evidence store at `~/.evidra/evidence` is append-only and hash-chained. Each written record includes `previous_hash` plus a self-verifying `hash`, making tampering detectable.
-- Evidence records contain actor/tool/operation info, policy decision (allow/hints/reasons), and execution metadata (status, optional exit code). The hash covers the canonical JSON representation except for the `hash` field itself.
-- If evidence cannot be written, the validation pipeline reports an internal failure so the caller can’t bypass logging.
+- Evaluates infrastructure changes against deterministic policy before execution.
+- Returns structured decisions with rule IDs, reasons, and actionable hints.
+- Records every decision (allow and deny) in a tamper-evident evidence chain.
 
-## Known Bypass Vectors
+### Non-goals
 
-- Any path that skips `pkg/validate`/`evidra-mcp` or writes to the evidence log directly is out of scope for v0.1.
-- Adversaries with root on the host could still rewrite evidence storage unless the evidence directory is mounted on immutable media or exported elsewhere.
+- **Not a CIS compliance scanner.** Does not implement full CIS benchmarks or aim for checkbox coverage.
+- **Not a replacement for tfsec, trivy, or checkov.** Those tools perform deep static analysis across hundreds of rules. Evidra evaluates a small, curated set of catastrophic guardrails.
+- **Not a runtime security tool.** No runtime API calls, no cloud provider connections, no live infrastructure inspection.
+- **Not an enforcement gateway.** Evidra validates and records — it does not execute commands or manage infrastructure directly.
 
-## Recommended Deployment Pattern
+---
 
-- Run `evidra-mcp` inside an isolated runtime with network controls so only trusted clients can submit ToolInvocations.
-- Limit agent shells/other runtimes so they cannot bypass the MCP server or the offline `evidra validate` CLI.
-- Export evidence segments (`evidra evidence export`) to a hardened vault for long-term auditing and independent validation.
+## Deterministic Evaluation
+
+All policy evaluation is local and deterministic:
+
+- Input is static configuration data (Terraform plan JSON, Kubernetes manifests, ArgoCD sync policies).
+- No network calls during evaluation. No external dependencies at runtime.
+- Given the same input and policy bundle, the same decision is produced every time.
+- The OPA engine is embedded in the binary. Parameters are resolved from the bundle's `data.json` using a `by_env` fallback chain (environment-specific → default).
+- Evaluation works in air-gapped environments.
+
+---
+
+## Enforcement Model
+
+Two modes are supported:
+
+- **Enforce** (default): Deny decisions block the action. The AI agent receives a structured denial and cannot proceed without addressing the policy violation.
+- **Observe** (`--observe`): Policy is evaluated and recorded, but denials are downgraded to advisories. Useful for rollout and tuning.
+
+In both modes, every decision is recorded to the evidence store. Observe mode does not skip logging.
+
+---
+
+## Evidence Integrity
+
+The evidence store at `~/.evidra/evidence` is append-only JSONL with hash-linked records:
+
+- Each record includes `previous_hash` (linking to the prior record) and a self-verifying `hash`.
+- The hash covers the canonical JSON representation of the record (excluding the `hash` field itself).
+- Tampering with any record breaks the hash chain, detectable via `evidra evidence verify`.
+- If evidence cannot be written, the validation pipeline returns an error — the caller cannot silently bypass logging.
+
+Evidence records contain:
+
+- Actor identity and origin (human, agent, system; cli, mcp).
+- Tool, operation, and target parameters.
+- Full policy decision (allow/deny, risk level, rule IDs, reasons, hints).
+- Timestamps and event IDs.
+
+---
+
+## Known Limitations
+
+- **Bypass risk:** Any execution path that skips `pkg/validate` / `evidra-mcp` is not covered. If an agent can execute commands without calling the `validate` tool, Evidra provides no protection for that path.
+- **Host-level access:** An adversary with root access to the host can rewrite the evidence store directly. Mitigate by exporting evidence to an external system.
+- **Static analysis only:** Evidra evaluates declared configuration, not runtime state. A Terraform plan that passes policy may still produce unexpected results due to provider behavior.
+
+---
+
+## Recommended Deployment
+
+- Run `evidra-mcp` in an isolated runtime with network controls so only trusted clients can submit tool invocations.
+- Restrict agent shells so they cannot bypass the MCP server or the offline `evidra validate` CLI.
+- Export evidence segments to a hardened store for long-term auditing: `evidra evidence export`.
+- Start with `--observe` mode to validate policy against real workloads before switching to enforce.
