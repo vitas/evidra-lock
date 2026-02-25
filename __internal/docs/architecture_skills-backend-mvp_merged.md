@@ -23,16 +23,16 @@ The skills backend does **not** execute infrastructure operations itself. It eva
 
 The skills backend is an extension layer. It reuses the following components from the hosted API MVP without modification:
 
-| Component | Reused from Hosted API MVP |
-|---|---|
-| Authentication | Bearer key auth, `api_keys` table, SHA-256 hashing, auth middleware |
-| Tenant isolation | `tenant_id` from key, `WHERE tenant_id = $1` on all queries |
-| Policy engine | `internal/engine.Adapter` → `pkg/runtime.Evaluator` → OPA bundle |
+| Component            | Reused from Hosted API MVP |
+|----------------------|----------------|
+| Authentication       | Bearer key auth, `api_keys` table, SHA-256 hashing, auth middleware |
+| Tenant isolation     | `tenant_id` from key, `WHERE tenant_id = $1` on all queries |
+| Policy engine        | `internal/engine.Adapter` → `pkg/runtime.Evaluator` → OPA bundle |
 | Evidence persistence | `evidence` table (Postgres JSONB), hash-linked chain per tenant |
-| Error model | `{"ok": false, "error": {"code": "...", "message": "..."}}` |
-| Rate limiting | In-memory token bucket per key/IP |
-| Observability | Structured `slog` logging, Prometheus metrics, `usage_counters` |
-| Deployment | Single Go binary, Postgres, reverse proxy, `golang-migrate` |
+| Error model          | `{"ok": false, "error": {"code": "...", "message": "..."}}` |
+| Rate limiting        | In-memory token bucket per key/IP |
+| Observability        | Structured `slog` logging, Prometheus metrics, `usage_counters` |
+| Deployment           | Single Go binary, Postgres, reverse proxy, `golang-migrate` |
 
 New components added by the skills backend: `skills` table, `executions` table, `execution_evidence` join table, skills HTTP handlers, execution state machine.
 

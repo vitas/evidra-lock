@@ -2,16 +2,36 @@
 
 **Date:** 2026-02-25
 **Status:** Draft
-**Scope:** Unified hosted API: stateless policy evaluator with skills, client-side evidence
-**Supersedes:** `architecture_hosted-api-mvp.md`, `architecture_skills-backend-mvp.md`
+**Scope:** Hosted API — stateless policy evaluator, client-side evidence
+
+### Launch Phases
+
+| | Phase 0 (MCP / single-user) | Phase 1 (Public launch) | Phase 2 (Feature flag) |
+|---|---|---|---|
+| **Mode** | Stateless — no Postgres | Postgres required | Postgres required |
+| **Endpoints** | `POST /v1/validate`, `GET /v1/evidence/pubkey`, `GET /healthz` | + `POST /v1/keys`, `GET /readyz` | + `/v1/skills/*`, `/v1/executions/*` |
+| **Auth** | Static token (`EVIDRA_API_KEY`) | Dynamic key issuance | Dynamic key issuance |
+| **Usage tracking** | None (Prometheus metrics only) | `usage_counters` table | + `executions` table |
+| **Landing page** | No | Yes | — |
+| **Gate** | `DATABASE_URL` not set | `DATABASE_URL` set | + `EVIDRA_SKILLS_ENABLED=true` |
+
+**Phase 0** is for running Evidra as a remote MCP server or single-tenant
+sidecar. No database, no key management, no usage counters. One static API key
+from an env var. The server starts instantly, evaluates policy, signs evidence,
+returns it. Nothing is stored anywhere — metrics go to Prometheus, evidence goes
+to the client.
+
+**Transition to Phase 1:** Set `DATABASE_URL` and run migrations. The server
+detects Postgres and enables dynamic key issuance, usage tracking, and the
+landing page. The static `EVIDRA_API_KEY` continues to work (treated as a
+pre-provisioned key) so existing MCP clients don't break.
+
+All skills endpoints return `404` when the feature flag is off. The DB migration
+creates all tables upfront (no schema change needed to enable Phase 2).
 
 ---
 
 ## 1. High-Level Architecture
-
-<!-- CHANGED: Removed `evidence` table from Postgres. Added `skills` and `executions` tables.
-     Removed `execution_evidence` join table. Added Evidence Signer component.
-     The server is now a stateless policy evaluator — no long-term evidence storage. -->
 
 ```
                           ┌───────────────────────┐
@@ -64,25 +84,22 @@
 
 ### Components
 
-**Landing page** — A single static HTML file served by the reverse proxy (or
-embedded in the Go binary via `embed`). Contains one form field (optional label)
-and a "Get API Key" button that POSTs to `/v1/keys`. The response displays the
-key exactly once.
+**API service (`evidra-api`)** — A single Go binary. Core: OPA engine (loaded
+once at startup from bundled policy profile) + Ed25519 signer. Two modes:
 
-**API service (`evidra-api`)** — A single Go binary. Stateless except for an
-in-memory OPA engine (loaded once at startup from the bundled policy profile)
-and the Ed25519 signing key (loaded once at startup).
-All durable state lives in Postgres.
+- **Phase 0 (stateless):** No Postgres. Auth via static `EVIDRA_API_KEY` env
+  var. No key issuance, no usage counters, no landing page. Pure policy
+  evaluator + signer. Start with one env var and a signing key.
+- **Phase 1+ (Postgres):** Dynamic key issuance, usage tracking, landing page.
+  Static `EVIDRA_API_KEY` continues to work alongside dynamic keys.
 
-<!-- CHANGED: Removed "evidence records" from Postgres description. Server is now
-     explicitly a stateless policy evaluator. -->
+**Landing page** *(Phase 1+)* — Static HTML, "Get API Key" form → `POST /v1/keys`.
+Disabled when `DATABASE_URL` is not set.
 
-**PostgreSQL** — Single instance. Stores tenants, hashed API keys, usage
-counters, skill definitions, and lightweight execution records. No read replicas
-for MVP. **No evidence records** — evidence is returned to the client in the
-response body for client-side storage.
-
-<!-- CHANGED: Replaced server-side evidence section. Added Evidence Signer component. -->
+**PostgreSQL** *(Phase 1+)* — Single instance. Stores tenants, hashed API keys,
+usage counters, skill definitions, and lightweight execution records. No read
+replicas for MVP. **No evidence records** — evidence is returned to the client
+in the response body for client-side storage.
 
 **Evidence Signer** — An Ed25519 signing module (`internal/evidence`). Every
 `validate` and `execute` response includes a complete, server-signed
@@ -92,7 +109,7 @@ record's authenticity without contacting the server.
 
 ### Request Flows
 
-**A) Issue Key Flow**
+**A) Issue Key Flow** *(Phase 1+ only — requires Postgres)*
 ```
 Browser → POST /v1/keys {label?}
   1. Generate tenant_id (ULID)
@@ -102,44 +119,42 @@ Browser → POST /v1/keys {label?}
   5. INSERT into api_keys (id, tenant_id, key_hash, prefix, label, created_at)
   6. Return {key: "ev1_...", prefix: "ev1_...<first 8>", tenant_id} — plaintext shown once
 ```
-
-<!-- CHANGED: Validate flow no longer writes to Postgres evidence table.
-     Instead, builds an evidence record, signs it with Ed25519, and returns it
-     in the response body. -->
+Returns `404` in Phase 0 (no Postgres).
 
 **B) Validate Flow**
 ```
-Agent → POST /v1/validate  [Authorization: Bearer ev1_...]
-  1. Auth middleware: SHA-256(key), lookup api_keys WHERE key_hash = $1
-     → reject if not found or revoked_at IS NOT NULL
-     → set tenant_id in request context
+Agent → POST /v1/validate  [Authorization: Bearer <key>]
+  1. Auth middleware:
+     Phase 0: constant-time compare against EVIDRA_API_KEY
+       → set synthetic tenant_id = "static" in context
+     Phase 1+: SHA-256(key), lookup api_keys WHERE key_hash = $1
+       → reject if not found or revoked_at IS NOT NULL
+       → set tenant_id in request context
   2. Handler: unmarshal body as invocation.ToolInvocation
   3. Adapter: call engine.Evaluate(ctx, inv) → Decision
   4. Build evidence record (event_id, timestamp, actor, decision, input_hash, ...)
   5. Build signing payload (deterministic text), sign with Ed25519
-  6. Increment usage counter (upsert into usage_counters)
-  7. Update api_keys SET last_used_at = now()
-  8. Return {ok, event_id, decision, evidence_record (signed)}
+  6. If Postgres available: increment usage counter, update last_used_at
+  7. Return {ok, event_id, decision, evidence_record (signed)}
 ```
 
-<!-- CHANGED: Removed Evidence Retrieval Flow (C). Server has nothing to return.
-     Added Evidence Verify Flow instead. -->
-
-<!-- CHANGED(v2): Evidence Verify Flow is now public — no auth required.
-     Removed tenant_id check (evidence records do not contain tenant_id). -->
-
-**C) Evidence Verify Flow**
+**C) Evidence Verify Flow** *(opt-in, `EVIDRA_VERIFY_ENABLED=true`)*
 ```
-Anyone → POST /v1/evidence/verify  (no auth required, IP rate-limited)
-  1. Unmarshal submitted evidence_record from request body
-  2. Extract signing_payload and signature from record
-  3. Verify Ed25519 signature over signing_payload
-  4. Return {ok, valid: true/false, reason}
+Client → POST /v1/evidence/verify  [Authorization: Bearer ev1_...]
+  1. If EVIDRA_VERIFY_ENABLED=false → 404
+  2. Auth middleware → tenant_id
+  3. Unmarshal submitted evidence_record from request body
+  4. Extract signing_payload and signature from record
+  5. Verify Ed25519 signature over signing_payload
+  6. Re-derive signing_payload from structured fields, compare (payload_field_mismatch check)
+  7. Return {ok, valid: true/false, reason}
 ```
 
-<!-- CHANGED: Added Skills Execute Flow showing no server-side evidence storage. -->
+Note: Offline verification via the public key (`GET /v1/evidence/pubkey`) is
+the primary verification path. This endpoint is a convenience for clients that
+prefer not to implement Ed25519 locally.
 
-**D) Skills Execute Flow**
+**D) Skills Execute Flow** *(Phase 2)*
 ```
 Agent → POST /v1/skills/{skill_id}:execute  [Authorization: Bearer ev1_...]
   1. Auth middleware → tenant_id
@@ -190,10 +205,6 @@ The plaintext `key` is returned exactly once. It is never stored or retrievable.
 
 ### `POST /v1/validate`
 
-<!-- CHANGED: Response now includes `evidence_record` with server signature.
-     No server-side evidence write. The `500 evidence write failure` error is
-     removed — signing is in-memory and cannot fail in the DB-failure sense. -->
-
 Requires `Authorization: Bearer <key>`.
 
 **Request body** — identical to `invocation.ToolInvocation`:
@@ -217,9 +228,6 @@ Requires `Authorization: Bearer <key>`.
 No new schema. The body is deserialized directly into `invocation.ToolInvocation`.
 
 **Optional query parameter:** `?profile=ops-v0.1` (reserved for future multi-profile support; MVP uses the single bundled profile).
-
-<!-- CHANGED(v2): evidence_record now includes `signing_payload` field instead
-     of relying on canonical JSON serialization for signature verification. -->
 
 **Response (200):**
 ```json
@@ -282,26 +290,42 @@ Error body:
 }
 ```
 
----
+**Design note: deny = HTTP 200.** Both `validate` and `execute` return `200`
+for all policy decisions, including deny. The HTTP status reflects *request
+processing*, not *policy outcome*. A deny is a successful evaluation, not a
+server error. The policy verdict is in `decision.allow`.
 
-<!-- CHANGED: Removed `GET /v1/evidence/{evidence_id}` endpoint entirely.
-     Server has no evidence to return. Replaced with POST /v1/evidence/verify
-     and GET /v1/evidence/pubkey. -->
+Why this matters for clients:
+- **Do not rely on HTTP status to detect deny.** Check `decision.allow` in
+  every response. A `200` with `allow: false` means the action is blocked.
+- **Monitoring:** Track deny rate via `decision.allow`, not HTTP error codes.
+  Standard HTTP error rate dashboards (4xx/5xx) will not surface policy denials.
+- **Proxies and SDKs:** Some HTTP clients treat only 4xx/5xx as failures. If
+  your platform auto-retries on non-2xx, the `200` prevents retry storms on
+  deny (which would be pointless — the policy will deny again).
+
+Rationale: a `403`/`409` would conflate infrastructure errors with policy
+decisions, make evidence records ambiguous (was it a real error or a policy
+deny?), and trigger retry logic in most HTTP client libraries. Stripe,
+Twilio, and other policy-evaluating APIs use the same pattern.
+
+---
 
 ### `POST /v1/evidence/verify`
 
-<!-- CHANGED(v2): No authentication required. This is a public endpoint with
-     IP-based rate limiting only. The Ed25519 verify operation uses the public
-     key (already exposed at /v1/evidence/pubkey), so gating it behind auth
-     adds friction without security benefit. Removed tenant_id check — evidence
-     records intentionally do not contain tenant_id. -->
+**Disabled by default.** Controlled by `EVIDRA_VERIFY_ENABLED` (default: `false`).
+Returns `404` when disabled.
 
-No authentication required (public endpoint, rate-limited by IP).
+When enabled, requires `Authorization: Bearer <key>` (same as other
+authenticated endpoints). This prevents the endpoint from becoming a public
+CPU target — Ed25519 verify + payload rebuild is cheap per-call but unbounded
+under bot traffic.
 
-Accepts an evidence record previously returned by the server and validates
-its Ed25519 signature. Allows clients, auditors, and compliance systems to
-confirm that a record is authentic and unmodified without needing an API key
-or implementing Ed25519 verification themselves.
+**Why not public:** Offline verification via `GET /v1/evidence/pubkey` covers
+every use case (auditors, compliance systems, cross-language clients). The
+server-side verify endpoint is a convenience, not a necessity. Making it
+authenticated and opt-in eliminates a DDoS surface with zero loss of
+functionality.
 
 **Request:**
 ```json
@@ -349,9 +373,6 @@ or implementing Ed25519 verification themselves.
 
 Possible `reason` values: `signature_mismatch`, `malformed_record`, `unknown_key_id`, `payload_field_mismatch`.
 
-<!-- CHANGED(v3): Expanded payload_field_mismatch explanation with concrete
-     attack example. -->
-
 The `payload_field_mismatch` reason indicates that the `signing_payload` string
 does not match the structured fields in the evidence record. The server
 re-derives the signing payload from the structured JSON fields and compares it
@@ -363,6 +384,8 @@ This catches attacks where an adversary modifies displayed data (e.g., changing
 
 **Errors:**
 - `400` — missing or malformed evidence_record
+- `401` — missing or invalid key
+- `404` — endpoint disabled (`EVIDRA_VERIFY_ENABLED=false`)
 - `429` — rate limit exceeded
 
 ---
@@ -391,6 +414,10 @@ No JSON re-serialization needed. The `signing_payload` string is the exact
 input that was signed.
 
 ---
+
+---
+
+> **Phase 2 — all endpoints below require `EVIDRA_SKILLS_ENABLED=true`.** Returns `404` when disabled.
 
 ### `POST /v1/skills`
 
@@ -507,8 +534,6 @@ Retrieve a single skill definition including the full `input_schema`. Requires `
 
 ---
 
-<!-- CHANGED(v3): Added PUT and DELETE endpoints for skill lifecycle management. -->
-
 ### `PUT /v1/skills/{skill_id}`
 
 Update a skill definition. Full replacement — all fields are required (same body
@@ -589,10 +614,6 @@ Requires `Authorization: Bearer <key>`.
 
 ### `POST /v1/skills/{skill_id}:execute`
 
-<!-- CHANGED: Response now includes `evidence_record` with server signature.
-     No evidence written to Postgres. Lightweight execution record stored
-     with 90-day retention. -->
-
 Execute policy evaluation, create lightweight execution record, return signed evidence.
 Requires `Authorization: Bearer <key>`.
 
@@ -613,8 +634,6 @@ Requires `Authorization: Bearer <key>`.
   "idempotency_key": "deploy-api-v2.3-20260225T100000"
 }
 ```
-
-<!-- CHANGED(v2): evidence_record includes signing_payload field. -->
 
 **Response (200) — allowed:**
 ```json
@@ -699,17 +718,12 @@ Requires `Authorization: Bearer <key>`.
 }
 ```
 
-Note: a denied execution returns `200` with `"ok": true` and `"status": "denied"`. The HTTP status reflects that the request was processed correctly. The `decision.allow` field carries the policy verdict.
-
-<!-- CHANGED(v2): Idempotent replay no longer returns a cached evidence_record.
-     The execution row stores only metadata. The client is responsible for
-     caching the evidence_record from the first response. -->
+Note: a denied execution returns `200` with `"ok": true` and `"status": "denied"`.
+See design note under `POST /v1/validate` for full rationale. Clients **must**
+check `decision.allow` — HTTP `200` does not mean the action is permitted.
 
 **Idempotency:** If `idempotency_key` matches an existing execution for this
 tenant, a minimal replay response is returned without re-evaluation:
-
-<!-- CHANGED(v3): Added `created_at` to idempotent replay response. The client
-     needs to know when the original request was processed. -->
 
 ```json
 {
@@ -744,9 +758,6 @@ original response. Idempotency keys expire with execution row cleanup (90 days).
 
 ### `GET /v1/executions/{execution_id}`
 
-<!-- CHANGED: Returns lightweight execution record. No full evidence payload.
-     `event_id` is a plain string field, not a FK to evidence table. -->
-
 Retrieve a lightweight execution record. Requires `Authorization: Bearer <key>`.
 
 **Response (200):**
@@ -774,9 +785,6 @@ Retrieve a lightweight execution record. Requires `Authorization: Bearer <key>`.
 }
 ```
 
-<!-- CHANGED(v2): Removed mention of evidence_record_jsonb cache. The server
-     stores no evidence payload. -->
-
 The `event_id` is a reference the client can use to correlate with their
 locally-stored evidence record. The server does not store evidence payloads.
 
@@ -793,10 +801,26 @@ running and the OPA engine is loaded.
 
 ### `GET /readyz`
 
-No auth. Returns `200 OK` only when Postgres is reachable (a `SELECT 1` probe).
-Returns `503` otherwise. Used by orchestrators for readiness gating.
+No auth. In Phase 1+: returns `200 OK` only when Postgres is reachable
+(`SELECT 1`). Returns `503` otherwise. In Phase 0 (no Postgres): always returns
+`200 OK` (same as `/healthz`). Used by orchestrators for readiness gating.
 
 ---
+
+### Endpoint Comparison
+
+| | Validate | Simulate | Execute |
+|---|---|---|---|
+| **Phase** | **0** | **2** | **2** |
+| Endpoint | `POST /v1/validate` | `POST /v1/skills/{id}:simulate` | `POST /v1/skills/{id}:execute` |
+| Input | Raw `ToolInvocation` | Skill input (schema-validated) | Skill input (schema-validated) |
+| Policy evaluation | Yes | Yes | Yes |
+| Evidence record returned | **Yes** (signed) | **No** | **Yes** (signed) |
+| Execution record in DB | **No** | **No** | **Yes** (lightweight, 90 days) |
+| Usage counter | Incremented (`validate`) | Incremented (`simulate`) | Incremented (`execute`) |
+| Idempotency key | Not supported | Not supported | Supported |
+
+`simulate` is for dry-run / pre-flight checks — rate-limited and metered, but produces no evidence record. `validate` accepts a raw `ToolInvocation` directly. `execute` is the skills-based flow with schema validation and execution records. Evidence records are produced **regardless** of allow/deny decisions. Timeouts: OPA 5s, HTTP 30s, DB 10s. The server does not retry internally; callers retry with idempotency keys.
 
 ### Rate Limits
 
@@ -815,14 +839,13 @@ Returns `503` otherwise. Used by orchestrators for readiness gating.
 
 Burst allowance: 2x the per-minute rate.
 
-<!-- CHANGED(v2): Moved POST /v1/evidence/verify from per-key to per-IP limits.
-     It is now a public endpoint. -->
-
 **Per-IP limits (unauthenticated):**
 - `POST /v1/keys`: 5 requests/hour per IP
-- `POST /v1/evidence/verify`: 60 requests/minute per IP
 - `GET /v1/evidence/pubkey`: 60 requests/minute per IP
 - Global: 100 requests/minute per IP across all endpoints
+
+**Opt-in endpoints (per-key, when enabled):**
+- `POST /v1/evidence/verify`: 60 requests/minute per key (requires `EVIDRA_VERIFY_ENABLED=true`)
 
 **Implementation:** In-memory token bucket (`golang.org/x/time/rate`) keyed by
 tenant_id (authenticated) or IP (unauthenticated). Sufficient for single-node
@@ -831,13 +854,6 @@ MVP. Returns `429 Too Many Requests` with `Retry-After` header.
 ---
 
 ## 3. Data Model (PostgreSQL)
-
-<!-- CHANGED: Removed `evidence` table entirely. Removed `execution_evidence`
-     join table. `executions` table stores `event_id` as a plain TEXT field
-     (not a FK). -->
-
-<!-- CHANGED(v2): Removed `evidence_record_jsonb` from `executions` table.
-     No evidence payload stored server-side at all. -->
 
 ### `tenants`
 
@@ -885,7 +901,7 @@ SHA-256 is the correct choice.
 
 ---
 
-### `skills`
+### `skills` *(Phase 2)*
 
 ```sql
 CREATE TABLE skills (
@@ -917,14 +933,7 @@ CREATE INDEX idx_skills_tenant ON skills (tenant_id) WHERE deleted_at IS NULL;
 
 ---
 
-### `executions`
-
-<!-- CHANGED: No FK to evidence table. `event_id` is a plain TEXT field storing
-     the reference. Removed `execution_evidence` join table. -->
-
-<!-- CHANGED(v2): Removed `evidence_record_jsonb` column. Execution rows store
-     only metadata (~100-150 bytes/row). Idempotent replay returns a minimal
-     response built from the stored metadata columns. -->
+### `executions` *(Phase 2)*
 
 ```sql
 CREATE TABLE executions (
@@ -999,8 +1008,9 @@ ON CONFLICT (tenant_id, endpoint, bucket) DO UPDATE SET
 
 ### Retention
 
-<!-- CHANGED: Removed `evidence` and `execution_evidence` rows from retention table.
-     All server-side data has bounded retention. -->
+The server stores no evidence — all evidence records are returned to clients.
+Server-side data is bounded: at 10k req/day, `executions` holds ~900k rows
+(~90-135 MB) at steady state.
 
 | Table | Retention | Cleanup |
 |---|---|---|
@@ -1014,8 +1024,6 @@ ON CONFLICT (tenant_id, endpoint, bucket) DO UPDATE SET
 
 ### Migrations
 
-<!-- CHANGED: Single migration file. No evidence table. No execution_evidence table. -->
-
 ```
 internal/migrate/migrations/
   001_initial.up.sql      -- tenants, api_keys, usage_counters, skills, executions
@@ -1024,7 +1032,7 @@ internal/migrate/migrations/
 
 ---
 
-## 4. Skill Definition Schema
+## 4. Skill Definition Schema *(Phase 2)*
 
 A skill maps a named action to the existing `ToolInvocation` model. The skill definition controls how the `ToolInvocation` is built from the caller's input.
 
@@ -1141,39 +1149,9 @@ hash := sha256.Sum256([]byte(plaintextKey))
 
 No salt needed — the key itself has 256 bits of entropy.
 
-### Constant-Time Comparison
+### API Key Implementation Notes
 
-Authentication performs:
-1. SHA-256 hash the incoming Bearer token.
-2. Query Postgres by `key_hash`.
-3. If no row found, return 401 after a constant-time sleep (50-100ms jitter)
-   to prevent timing-based enumeration.
-4. `crypto/subtle.ConstantTimeCompare` is not needed for the hash lookup
-   itself (Postgres index lookup), but is used if any secondary comparison is
-   done in application code.
-
-### Safe Parsing
-
-```go
-func parseAPIKey(header string) (string, error) {
-    // Require "Bearer " prefix (case-sensitive, single space)
-    // Require key starts with "ev1_"
-    // Require total key length between 40 and 60 chars
-    // Reject keys containing non-base62 characters after prefix
-    // Return sanitized key string
-}
-```
-
-### "Show Once" Behavior
-
-1. The plaintext key is generated in memory, hashed, and stored.
-2. The plaintext is returned in the HTTP response body.
-3. The plaintext is never written to Postgres, logs, or any durable store.
-4. The response includes `Cache-Control: no-store` to prevent browser caching.
-5. Server logs record only the `prefix` field, never the full key.
-
-<!-- CHANGED: Added evidence record signing section (Ed25519). This is the core
-     change — replaces server-side evidence storage with cryptographic signing. -->
+Authentication hashes the incoming Bearer token with SHA-256 and queries Postgres by `key_hash`. On miss, a constant-time sleep (50-100ms jitter) prevents timing-based enumeration. Key parsing requires `Bearer ` prefix, `ev1_` key prefix, length 40-60 chars, base62 characters only. The plaintext key is generated in memory, returned once in the response with `Cache-Control: no-store`, and never persisted — logs record only the `prefix` field.
 
 ### Evidence Record Signing (Ed25519)
 
@@ -1196,10 +1174,13 @@ Additional advantages of Ed25519:
 
 ```go
 // At startup:
-// 1. Load Ed25519 private key from EVIDRA_SIGNING_KEY_PATH (PEM file)
-//    or EVIDRA_SIGNING_KEY (base64-encoded 64-byte seed+key in env var)
-// 2. If neither is set, generate a new keypair and write to
-//    data/signing_key.pem (first-run only; logged as warning)
+// 1. Load Ed25519 private key from EVIDRA_SIGNING_KEY (base64 env var)
+//    or EVIDRA_SIGNING_KEY_PATH (PEM file)
+// 2. If neither is set:
+//    a) EVIDRA_ENV=development → generate ephemeral keypair, log warning
+//       "using auto-generated signing key — evidence will not survive restart"
+//    b) any other EVIDRA_ENV (or unset) → fatal: refuse to start
+//       "EVIDRA_SIGNING_KEY or EVIDRA_SIGNING_KEY_PATH required in production"
 // 3. Derive public key from private key
 // 4. Set server_id (key_id) from EVIDRA_SERVER_ID env var or hostname
 
@@ -1210,10 +1191,10 @@ type Signer struct {
 }
 ```
 
-<!-- CHANGED(v2): Replaced json.Marshal canonical serialization with explicit
-     signing_payload — a deterministic text format that any language can
-     reconstruct. This eliminates cross-language JSON serialization mismatches
-     (field ordering, omitempty, null vs [], whitespace). -->
+**Why no auto-generation in production:** On ephemeral disks (k8s pods, PaaS),
+a restart or reschedule would generate a new key. All previously issued evidence
+records become unverifiable — the public key at `/v1/evidence/pubkey` no longer
+matches their signatures. This silently breaks the core value proposition.
 
 **Signing payload format:**
 
@@ -1244,20 +1225,37 @@ rule_ids={comma-separated, sorted alphabetically}\n
 hints={comma-separated, sorted alphabetically}\n
 ```
 
-<!-- CHANGED(v3): Added `reasons` to signing payload between `reason` and
-     `rule_ids`. Without this, an attacker could modify the `reasons` array
-     in the JSON without invalidating the signature. -->
-
 Rules:
 - Version prefix `evidra.v1\n` is always the first line.
 - All fields are present in every payload (empty string for absent values).
-- Lists (`reasons`, `rule_ids`, `hints`) are sorted alphabetically and joined with `,` (no spaces).
+- **Value sanitization:** Before insertion, all scalar values are sanitized:
+  newlines (`\n`, `\r`) replaced with space, leading/trailing whitespace trimmed.
+  This is enforced at `BuildSigningPayload` time, not at input validation.
+- **List sanitization:** Individual list items (`reasons`, `rule_ids`, `hints`)
+  are sanitized the same way, plus commas (`,`) are replaced with semicolons
+  (`;`) to prevent delimiter confusion. Lists are then sorted alphabetically
+  and joined with `,` (no spaces).
 - Empty lists produce an empty value after `=`.
 - Timestamps are always RFC3339 in UTC with `Z` suffix (no timezone offset).
 - No trailing newline after the last field.
 
+```go
+func sanitizeValue(s string) string {
+    s = strings.ReplaceAll(s, "\n", " ")
+    s = strings.ReplaceAll(s, "\r", " ")
+    return strings.TrimSpace(s)
+}
+
+func sanitizeListItem(s string) string {
+    s = sanitizeValue(s)
+    s = strings.ReplaceAll(s, ",", ";")
+    return s
+}
+```
+
 This format is trivially constructible in any language — no JSON serializer
 ambiguity, no struct field ordering dependency, no `null` vs `[]` vs `""` issues.
+The sanitization rules are simple enough to reimplement in 5 lines in any language.
 
 **Signing process:**
 
@@ -1265,25 +1263,25 @@ ambiguity, no struct field ordering dependency, no `null` vs `[]` vs `""` issues
 func (s *Signer) BuildSigningPayload(rec *EvidenceRecord) string {
     var b strings.Builder
     b.WriteString("evidra.v1\n")
-    fmt.Fprintf(&b, "event_id=%s\n", rec.EventID)
+    fmt.Fprintf(&b, "event_id=%s\n", sanitizeValue(rec.EventID))
     fmt.Fprintf(&b, "timestamp=%s\n", rec.Timestamp.UTC().Format(time.RFC3339))
-    fmt.Fprintf(&b, "server_id=%s\n", rec.ServerID)
-    fmt.Fprintf(&b, "policy_ref=%s\n", rec.PolicyRef)
-    fmt.Fprintf(&b, "skill_id=%s\n", rec.SkillID)
-    fmt.Fprintf(&b, "execution_id=%s\n", rec.ExecutionID)
-    fmt.Fprintf(&b, "actor_type=%s\n", rec.Actor.Type)
-    fmt.Fprintf(&b, "actor_id=%s\n", rec.Actor.ID)
-    fmt.Fprintf(&b, "actor_origin=%s\n", rec.Actor.Origin)
-    fmt.Fprintf(&b, "tool=%s\n", rec.Tool)
-    fmt.Fprintf(&b, "operation=%s\n", rec.Operation)
-    fmt.Fprintf(&b, "environment=%s\n", rec.Environment)
-    fmt.Fprintf(&b, "input_hash=%s\n", rec.InputHash)
+    fmt.Fprintf(&b, "server_id=%s\n", sanitizeValue(rec.ServerID))
+    fmt.Fprintf(&b, "policy_ref=%s\n", sanitizeValue(rec.PolicyRef))
+    fmt.Fprintf(&b, "skill_id=%s\n", sanitizeValue(rec.SkillID))
+    fmt.Fprintf(&b, "execution_id=%s\n", sanitizeValue(rec.ExecutionID))
+    fmt.Fprintf(&b, "actor_type=%s\n", sanitizeValue(rec.Actor.Type))
+    fmt.Fprintf(&b, "actor_id=%s\n", sanitizeValue(rec.Actor.ID))
+    fmt.Fprintf(&b, "actor_origin=%s\n", sanitizeValue(rec.Actor.Origin))
+    fmt.Fprintf(&b, "tool=%s\n", sanitizeValue(rec.Tool))
+    fmt.Fprintf(&b, "operation=%s\n", sanitizeValue(rec.Operation))
+    fmt.Fprintf(&b, "environment=%s\n", sanitizeValue(rec.Environment))
+    fmt.Fprintf(&b, "input_hash=%s\n", sanitizeValue(rec.InputHash))
     fmt.Fprintf(&b, "allow=%t\n", rec.Decision.Allow)
-    fmt.Fprintf(&b, "risk_level=%s\n", rec.Decision.RiskLevel)
-    fmt.Fprintf(&b, "reason=%s\n", rec.Decision.Reason)
-    fmt.Fprintf(&b, "reasons=%s\n", sortedJoin(rec.Decision.Reasons))
-    fmt.Fprintf(&b, "rule_ids=%s\n", sortedJoin(rec.Decision.RuleIDs))
-    fmt.Fprintf(&b, "hints=%s", sortedJoin(rec.Decision.Hints))
+    fmt.Fprintf(&b, "risk_level=%s\n", sanitizeValue(rec.Decision.RiskLevel))
+    fmt.Fprintf(&b, "reason=%s\n", sanitizeValue(rec.Decision.Reason))
+    fmt.Fprintf(&b, "reasons=%s\n", sanitizedSortedJoin(rec.Decision.Reasons))
+    fmt.Fprintf(&b, "rule_ids=%s\n", sanitizedSortedJoin(rec.Decision.RuleIDs))
+    fmt.Fprintf(&b, "hints=%s", sanitizedSortedJoin(rec.Decision.Hints))
     return b.String()
 }
 
@@ -1313,14 +1311,16 @@ func (s *Signer) Verify(rec *EvidenceRecord) (bool, string) {
     return true, ""
 }
 
-func sortedJoin(ss []string) string {
+func sanitizedSortedJoin(ss []string) string {
     if len(ss) == 0 {
         return ""
     }
-    sorted := make([]string, len(ss))
-    copy(sorted, ss)
-    sort.Strings(sorted)
-    return strings.Join(sorted, ",")
+    sanitized := make([]string, len(ss))
+    for i, s := range ss {
+        sanitized[i] = sanitizeListItem(s)
+    }
+    sort.Strings(sanitized)
+    return strings.Join(sanitized, ",")
 }
 ```
 
@@ -1333,12 +1333,6 @@ MVP uses a single key. For rotation (post-MVP):
 4. Each evidence record's `server_id` identifies which key signed it.
 
 ### Evidence Record Schema
-
-<!-- CHANGED: New section — defines the evidence record that is returned to clients. -->
-
-<!-- CHANGED(v2): Added `SigningPayload` field. Removed `omitempty` from
-     SkillID, ExecutionID, Environment — all fields are always present in the
-     signing payload, so they must always be present in the struct. -->
 
 The `evidence_record` is a self-contained JSON object:
 
@@ -1354,7 +1348,7 @@ type EvidenceRecord struct {
     Tool           string          `json:"tool"`
     Operation      string          `json:"operation"`
     Environment    string          `json:"environment"`
-    InputHash      string          `json:"input_hash"`       // SHA-256 of canonical input JSON
+    InputHash      string          `json:"input_hash"`       // SHA-256 of server-canonical input (not client-reproducible)
     Decision       DecisionRecord  `json:"decision"`
     SigningPayload string          `json:"signing_payload"`  // deterministic text, input to Ed25519
     Signature      string          `json:"signature"`        // base64(Ed25519(signing_payload))
@@ -1384,16 +1378,16 @@ type DecisionRecord struct {
 |---|---|
 | **Evidence forgery** | Ed25519 signature over deterministic `signing_payload`. Clients verify with the server's public key. Forging requires the private key. |
 | **Evidence tampering** | Signature covers the `signing_payload` which encodes all decision-relevant fields. `POST /v1/evidence/verify` also checks that structured JSON fields match the `signing_payload` (detects payload/field desync). |
-<!-- CHANGED(v3): event_id is now ULID-based, not nanosecond timestamp. -->
+
 | **Replay of evidence records** | Each record has a unique `event_id` (ULID). Clients deduplicate by `event_id`. |
 | **Input injection via skill input** | Input validated against registered `input_schema` before `ToolInvocation` construction. Schema is set at registration time, not by the caller. |
 | **Risk tag escalation** | `risk_tags` are fixed in the skill definition. Execute request cannot override them. |
 | **Replay of API requests** | `idempotency_key` deduplication. TLS required for all external traffic. |
 | **Privilege escalation via skill mutation** | Skills can only be mutated by the same tenant's API key. No cross-tenant access. |
 | **SSRF** | The server does not make outbound HTTP calls. It only evaluates policy locally. |
-| **Signing key compromise** | Key is loaded from a file or env var, never logged, never exposed via API. Rotation procedure documented. |
+| **Signing key compromise** | Key is loaded from env var or file, never logged, never exposed via API. Server refuses to start without an explicit key in production (no auto-generation). Rotation procedure documented. |
 | **Enumeration** | 404 returned for all not-found cases regardless of existence. IDs use ULIDs (not sequential). |
-| **Verify endpoint abuse** | `POST /v1/evidence/verify` is public but IP rate-limited (60 req/min). No secrets are exposed — it performs a mathematical operation using the public key. |
+| **Verify endpoint abuse** | `POST /v1/evidence/verify` is disabled by default (`EVIDRA_VERIFY_ENABLED=false`). When enabled, requires API key authentication. Offline verification via public key is the primary path. |
 
 ### Abuse Mitigations
 
@@ -1430,95 +1424,7 @@ tenants, preventing existence enumeration.
 
 ---
 
-## 6. Execution Semantics
-
-### Simulate vs Validate vs Execute
-
-| | Simulate | Validate | Execute |
-|---|---|---|---|
-| Endpoint | `POST /v1/skills/{id}:simulate` | `POST /v1/validate` | `POST /v1/skills/{id}:execute` |
-| Input | Skill input (schema-validated) | Raw `ToolInvocation` | Skill input (schema-validated) |
-| Policy evaluation | Yes | Yes | Yes |
-| Evidence record returned | **No** | **Yes** (signed) | **Yes** (signed) |
-| Execution record in DB | **No** | **No** | **Yes** (lightweight, 90 days) |
-| Usage counter | Incremented (`simulate`) | Incremented (`validate`) | Incremented (`execute`) |
-| Idempotency key | Not supported | Not supported | Supported |
-
-<!-- CHANGED(v3): Clarified that simulate is rate-limited and metered, not a
-     free bypass of validate. -->
-
-`simulate` is for dry-run / pre-flight checks. Agents can call simulate to
-preview a decision before committing. Simulate is rate-limited and metered via
-`usage_counters` (endpoint: `simulate`), but produces no evidence record. It
-exists for pre-flight checks where the client wants to preview a decision
-without creating an audit commitment.
-
-`validate` is the raw policy evaluation endpoint. It accepts a `ToolInvocation`
-directly (no skill definition needed) and returns a signed evidence record.
-
-`execute` is the skills-based flow. It loads a skill definition, validates
-input against the schema, evaluates policy, creates an execution record, and
-returns a signed evidence record.
-
-### When Evidence Records Are Produced
-
-<!-- CHANGED: Evidence is never written to the DB. It is always returned in the
-     response body as a signed JSON object. -->
-
-Evidence records are produced by `validate` and `execute` endpoints. They are
-**returned in the response body**, not stored on the server. The client owns
-the evidence record from the moment it receives the response.
-
-Evidence records are produced **regardless** of whether the decision is allow
-or deny. A denied execution still produces a signed evidence record — the
-client can use it to prove that the policy evaluation happened and what the
-outcome was.
-
-### Decision and Execution State
-
-| Decision | Execution Status | Meaning |
-|---|---|---|
-| `allow: true` | `"allowed"` | Policy passed. Platform should proceed with the infrastructure action. |
-| `allow: false` | `"denied"` | Policy blocked. Platform should not proceed. |
-| (evaluation error) | `"error"` | Policy engine failed. Platform should treat as deny. |
-
-Execution status is terminal at creation. There are no status transitions in MVP.
-
-### Idempotency
-
-<!-- CHANGED(v2): Idempotent replay returns a minimal response from execution
-     metadata, not a cached evidence_record. Client must cache evidence from
-     the original response. -->
-
-- The `idempotency_key` field is optional on execute requests.
-- If provided, the backend checks for an existing execution with the same
-  `(tenant_id, idempotency_key)` in the `executions` table.
-- If found, a **minimal replay response** is returned without re-evaluation.
-  The replay response includes `execution_id`, `event_id`, `status`,
-  `created_at`, and the decision summary (`allow`, `risk_level`) from the
-  stored metadata columns.
-  It does **not** include a full `evidence_record` — the client must have
-  cached the evidence record from the original response.
-- If not found, a new execution proceeds normally.
-- Keys are strings, max 128 chars, set by the caller.
-  Recommended format: `{skill-name}-{unique-context}-{timestamp}`.
-- Idempotency keys are cleaned up with execution rows at 90-day retention.
-
-### Timeouts
-
-- Policy evaluation timeout: 5 seconds (OPA engine). If exceeded, returns `422` with `"code": "policy_timeout"`.
-- Request timeout: 30 seconds (HTTP server). Covers full request lifecycle.
-- Database query timeout: 10 seconds.
-
-### Retries
-
-The server does not retry internally. If a transient failure occurs (DB
-unavailable, lock contention), the endpoint returns an error and the caller
-retries. Idempotency keys make retries safe for execute.
-
----
-
-## 7. Reuse of Existing Engine
+## 6. Reuse of Existing Engine
 
 ### Entry point
 
@@ -1559,19 +1465,9 @@ resolved at startup (either embedded in the binary or read from a config path).
 The `?profile=` query parameter is accepted but ignored for now — it exists so
 clients can start passing it without breaking when multi-profile is added.
 
-<!-- CHANGED: Removed "Evidence linking to tenant" section. Evidence is no longer
-     written to Postgres. Instead, the handler builds an evidence record in
-     memory and signs it. -->
-
-<!-- CHANGED(v2): Builder now constructs signing_payload and calls signer with
-     the payload-based approach. -->
-
 ### Building and signing evidence
 
 After `Evaluate` returns, the handler builds an evidence record in memory:
-
-<!-- CHANGED(v3): event_id uses ULID instead of UnixNano to avoid collisions
-     under horizontal scaling. -->
 
 ```go
 rec := evidence.EvidenceRecord{
@@ -1583,6 +1479,28 @@ rec := evidence.EvidenceRecord{
     Operation:   inv.Operation,
     Environment: inv.Environment,
     InputHash:   sha256OfInput(inv),
+```
+
+**`input_hash` semantics:** The hash is computed server-side over the
+`ToolInvocation` struct after `ValidateStructure()` has normalized it (sorted
+keys, normalized empty fields). It is a **server-canonical hash** — clients
+should not attempt to reproduce it, as JSON serialization varies across
+languages (`null` vs absent, key ordering, number formatting). The hash serves
+two purposes: (1) proving that two evidence records evaluated the same input
+without exposing the input, and (2) allowing the server to detect duplicate
+inputs internally. Clients comparing inputs should use the `event_id` for
+correlation, not `input_hash`.
+
+```go
+func sha256OfInput(inv invocation.ToolInvocation) string {
+    // json.Marshal uses Go's deterministic struct field ordering
+    // and sorted map keys (Go 1.12+). This is stable within the
+    // server process but NOT guaranteed to match other languages.
+    b, _ := json.Marshal(inv)
+    h := sha256.Sum256(b)
+    return "sha256:" + hex.EncodeToString(h[:])
+}
+```
     Decision: evidence.DecisionRecord{
         Allow:     decision.Allow,
         RiskLevel: decision.RiskLevel,
@@ -1600,18 +1518,14 @@ signer.Sign(&rec) // builds signing_payload, signs it, sets both fields
 
 ---
 
-## 8. Code Architecture (Go)
-
-<!-- CHANGED: Removed internal/storage/evidence.go and
-     internal/storage/execution_evidence.go. Removed internal/api/evidence_handler.go.
-     Added internal/evidence/ package (signer, builder, types).
-     Added internal/api/verify_handler.go. -->
+## 7. Code Architecture (Go)
 
 ```
 cmd/
   evidra-api/
-    main.go                  # Entrypoint: parse env, init DB, init engine,
-                             # init signer, start server
+    main.go                  # Entrypoint: detect mode (Phase 0 if no DATABASE_URL),
+                             # init DB if available, init engine, init signer,
+                             # init auth (static key or DB-backed), start server
 
 internal/
   api/
@@ -1619,15 +1533,18 @@ internal/
     middleware.go            # Request logging, recovery, request-id, CORS, body limit
     keys_handler.go          # POST /v1/keys
     validate_handler.go      # POST /v1/validate
-    skills_handler.go        # POST/GET /v1/skills, GET/PUT/DELETE /v1/skills/{id}
-    execute_handler.go       # POST /v1/skills/{id}:simulate, POST /v1/skills/{id}:execute,
+    skills_handler.go        # POST/GET /v1/skills, GET/PUT/DELETE /v1/skills/{id}  [Phase 2]
+    execute_handler.go       # POST /v1/skills/{id}:simulate, POST /v1/skills/{id}:execute,  [Phase 2]
                              # GET /v1/executions/{id}
-    verify_handler.go        # POST /v1/evidence/verify (public), GET /v1/evidence/pubkey
+    verify_handler.go        # POST /v1/evidence/verify (opt-in, auth required), GET /v1/evidence/pubkey
     health_handler.go        # GET /healthz, /readyz
     response.go              # JSON response helpers, error formatting
 
   auth/
-    middleware.go            # Bearer token extraction, key lookup, tenant context injection
+    middleware.go            # Bearer token extraction, dual-mode auth:
+                             #   Phase 0: constant-time compare against EVIDRA_API_KEY
+                             #   Phase 1+: SHA-256 hash → DB lookup
+                             # Tenant context injection (synthetic "static" tenant in Phase 0)
     apikey.go                # Key generation, parsing, hashing functions
     context.go               # TenantID get/set on context.Context
 
@@ -1640,7 +1557,7 @@ internal/
     builder.go               # Build EvidenceRecord from Decision + ToolInvocation
     types.go                 # EvidenceRecord, DecisionRecord structs
 
-  skills/
+  skills/                            # [Phase 2]
     validator.go             # JSON Schema validation (registration + input)
     builder.go               # BuildInvocation(skill, input, actor, env) → ToolInvocation
 
@@ -1648,9 +1565,9 @@ internal/
     postgres.go              # *sql.DB initialization, connection pool, ping
     tenants.go               # TenantRepo: Create
     apikeys.go               # APIKeyRepo: Create, FindByHash, Revoke, TouchLastUsed
-    skills.go                # SkillRepo: Create, FindByID, FindByName, ListByTenant,
+    skills.go                # SkillRepo: [Phase 2] Create, FindByID, FindByName, ListByTenant,
                              #   Update, SoftDelete
-    executions.go            # ExecutionRepo: Create, FindByID, FindByIdempotencyKey
+    executions.go            # ExecutionRepo: [Phase 2] Create, FindByID, FindByIdempotencyKey
     usage.go                 # UsageRepo: Increment (upsert usage_counters)
 
   ratelimit/
@@ -1709,7 +1626,7 @@ packages that import `pkg/*`. Both are thin adapters — no business logic.
 
 ---
 
-## 9. Observability
+## 8. Observability
 
 ### Structured Log Fields
 
@@ -1761,9 +1678,6 @@ Exposed at `GET /metrics` (behind a separate port or basic auth for MVP).
 
 ### Audit Logging
 
-<!-- CHANGED: No server-side evidence table. The signed evidence record in the
-     response IS the audit trail, owned by the client. -->
-
 - `validate` and `execute` calls return signed evidence records. This is the
   primary audit mechanism — the client persists the records.
 - `simulate` calls are counted via `usage_counters` but produce no evidence.
@@ -1772,187 +1686,26 @@ Exposed at `GET /metrics` (behind a separate port or basic auth for MVP).
 
 ---
 
-## 10. Retention and Cost Model
-
-<!-- CHANGED: New section. Explains the economic rationale for client-side evidence. -->
-
-### Problem: Server-Side Evidence Is Unbounded
-
-In the original design, the server stored every evidence record in Postgres
-indefinitely. This creates an unbounded cost liability:
-- Storage grows linearly with request volume across all tenants.
-- The operator pays for audit data retention that primarily benefits the client.
-- At scale, the `evidence` table dominates Postgres storage and backup costs.
-
-### Solution: Stateless Policy Evaluator
-
-The server is a stateless policy evaluator. It receives a request, runs OPA,
-signs the result, and returns it. The only server-side state with indefinite
-retention is:
-- `tenants` and `api_keys` — O(number of tenants), small.
-- `skills` — O(number of skills), small.
-
-Everything else is bounded:
-- `executions` — 90-day retention, O(request volume × 90 days).
-- `usage_counters` — 90-day retention, O(tenants × endpoints × hours × 90 days).
-
-### Cost Breakdown
-
-<!-- CHANGED(v2): Recalculated row size without evidence_record_jsonb.
-     Execution rows are now ~100-150 bytes instead of ~500 bytes. -->
-
-| Data class | Retention | Storage owner | Growth |
-|---|---|---|---|
-| Tenants, keys | Indefinite | Server | O(tenants) — bounded |
-| Skills | Indefinite | Server | O(skills) — bounded by 200/tenant cap |
-| Executions | 90 days | Server | O(requests/day × 90) — bounded |
-| Usage counters | 90 days | Server | O(tenants × 6 endpoints × 2160 hours) — bounded |
-| Evidence records | Indefinite | **Client** | Client's problem |
-
-At 10k requests/day across all tenants, the `executions` table holds ~900k rows
-at steady state. At ~100-150 bytes/row (metadata only, no JSONB payload), that
-is ~90-135 MB. Negligible on a single Postgres instance.
-
----
-
-## 11. Client-Side Evidence Guide
-
-<!-- CHANGED: New section. Guidance for clients on persisting evidence records. -->
-
-### Overview
+## 9. Client-Side Evidence Guide
 
 Every `POST /v1/validate` and `POST /v1/skills/{id}:execute` response includes
-an `evidence_record` field. This is a complete, server-signed JSON object that
-the client must persist to maintain an audit trail.
+an `evidence_record` field — a complete, server-signed JSON object. The server
+does not store evidence records; the client must persist them.
 
-The server does not store evidence records. If the client discards the response,
-the evidence is lost.
+For `execute` with `idempotency_key`, the full `evidence_record` is returned
+only on the first call. Subsequent calls return a minimal replay response.
 
-<!-- CHANGED(v2): Idempotent replay does not return the evidence_record.
-     Clients must cache the original response. -->
+Storage options: append to JSONL file, use the `evidra` CLI local evidence
+store (hash-linked chains), or forward to S3/ELK/Splunk. Verification is done
+offline using the Ed25519 public key from `GET /v1/evidence/pubkey` (the
+primary path). The optional `POST /v1/evidence/verify` endpoint is available
+when `EVIDRA_VERIFY_ENABLED=true`.
 
-**Important:** For `execute` requests with an `idempotency_key`, the server
-returns the full `evidence_record` only on the **first** call. Subsequent calls
-with the same key return a minimal replay response without the evidence record.
-Clients must persist the evidence record from the first response.
-
-### Option 1: Append to JSONL File
-
-The simplest approach. Pipe the evidence record to a file:
-
-```bash
-# Using curl and jq
-curl -s -X POST https://api.evidra.rest/v1/validate \
-  -H "Authorization: Bearer ev1_..." \
-  -H "Content-Type: application/json" \
-  -d '{"actor":{"type":"agent","id":"bot","origin":"api"},"tool":"kubectl","operation":"get","params":{"target":{},"payload":{}}}' \
-  | jq -c '.evidence_record' >> evidence.jsonl
-```
-
-Each line in `evidence.jsonl` is a self-contained signed record. Verify any
-record later:
-
-<!-- CHANGED(v2): Removed Authorization header from verify curl example —
-     endpoint is now public. -->
-
-```bash
-# Verify a single record (no API key required)
-head -1 evidence.jsonl | \
-  curl -s -X POST https://api.evidra.rest/v1/evidence/verify \
-    -H "Content-Type: application/json" \
-    -d "{\"evidence_record\": $(cat)}"
-```
-
-### Option 2: Use the Evidra CLI Local Evidence Store
-
-The `evidra` CLI binary includes a local evidence store with hash-linked chain
-validation. Clients can write server-signed records into the local store:
-
-```bash
-# In your agent/platform code:
-# 1. Call the API
-response=$(curl -s -X POST https://api.evidra.rest/v1/validate ...)
-
-# 2. Extract and store the evidence record
-echo "$response" | jq -c '.evidence_record' | evidra evidence import --stdin
-
-# 3. Verify chain integrity
-evidra evidence verify
-```
-
-This gives you the best of both worlds: server-signed records (proving the
-server evaluated the policy) stored in a hash-linked chain (proving no records
-were deleted or reordered).
-
-### Option 3: Send to External System
-
-Forward evidence records to S3, Elasticsearch, Splunk, or any append-only store:
-
-```python
-# Python example
-import requests, json
-
-resp = requests.post(
-    "https://api.evidra.rest/v1/validate",
-    headers={"Authorization": "Bearer ev1_..."},
-    json=invocation,
-)
-data = resp.json()
-
-# Forward to S3
-s3.put_object(
-    Bucket="evidra-audit",
-    Key=f"evidence/{data['event_id']}.json",
-    Body=json.dumps(data["evidence_record"]),
-)
-```
-
-### Verification
-
-Clients can verify evidence records in two ways:
-
-<!-- CHANGED(v2): Updated verification examples to use signing_payload instead
-     of re-serializing JSON. Removed auth from online example. -->
-
-**Online** — Send the record to `POST /v1/evidence/verify` (no API key
-required). The server checks the signature and confirms the signing payload
-matches the structured fields:
-
-```bash
-curl -s -X POST https://api.evidra.rest/v1/evidence/verify \
-  -H "Content-Type: application/json" \
-  -d '{"evidence_record": ...}'
-```
-
-**Offline** — Fetch the public key from `GET /v1/evidence/pubkey` once, then
-verify the Ed25519 signature over the `signing_payload` string:
-
-```go
-// Go example
-pubKey := fetchPublicKey() // one-time fetch from GET /v1/evidence/pubkey
-rec := loadEvidenceRecord()
-
-sigBytes, _ := base64.StdEncoding.DecodeString(rec.Signature)
-valid := ed25519.Verify(pubKey, []byte(rec.SigningPayload), sigBytes)
-```
-
-```python
-# Python example (using PyNaCl)
-from nacl.signing import VerifyKey
-import base64
-
-verify_key = VerifyKey(public_key_bytes)
-sig = base64.b64decode(record["signature"])
-# signing_payload is the exact bytes that were signed — no JSON re-serialization
-verify_key.verify(record["signing_payload"].encode("utf-8"), sig)
-```
-
-No JSON canonicalization needed. The `signing_payload` string is the exact
-input that was signed — just verify the signature over that string.
+See `docs/client-evidence-guide.md` for curl/Python examples and full details.
 
 ---
 
-## 12. Deployment
+## 10. Deployment
 
 ### Artifacts
 
@@ -1960,23 +1713,30 @@ input that was signed — just verify the signature over that string.
 - **Policy bundle:** The `policy/bundles/ops-v0.1/` directory is either
   embedded via `//go:embed` or mounted as a volume. Embedding is preferred for
   simplicity.
-- **Signing key:** Ed25519 private key file or env var. Generated on first run
-  if not provided.
+- **Signing key:** Ed25519 private key, provided via env var or file path.
+  Required in production — server refuses to start without it. In dev mode
+  (`EVIDRA_ENV=development`), an ephemeral key is auto-generated with a warning.
 - **Migrations:** SQL files in `internal/migrate/migrations/`, applied at
   startup or via CLI flag.
 
 ### Configuration (env vars)
 
-<!-- CHANGED: Added EVIDRA_SIGNING_KEY_PATH, EVIDRA_SERVER_ID. Removed evidence-related vars. -->
-
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `DATABASE_URL` | yes | — | Postgres connection string |
+| `EVIDRA_SKILLS_ENABLED` | No | `false` | Enable Phase 2 skills endpoints. When `false`, all `/v1/skills/*` and `/v1/executions/*` return `404`. |
+|---|---|---|---|
+| `EVIDRA_VERIFY_ENABLED` | No | `false` | Enable `POST /v1/evidence/verify`. When `false`, returns `404`. Offline verification via pubkey is always available. |
+|---|---|---|---|
+| `DATABASE_URL` | **Phase 1+** | — | Postgres connection string. When absent, server runs in Phase 0 (stateless). |
+| `EVIDRA_API_KEY` | **Phase 0** | — | Static API key for single-tenant mode. Any string ≥32 chars. Required when `DATABASE_URL` is not set. Also works in Phase 1+ as a pre-provisioned key (bypasses DB lookup). |
 | `LISTEN_ADDR` | no | `:8080` | HTTP listen address |
 | `EVIDRA_API_POLICY_PATH` | no | embedded | Override policy .rego path |
 | `EVIDRA_API_DATA_PATH` | no | embedded | Override data.json path |
-| `EVIDRA_SIGNING_KEY_PATH` | no | `data/signing_key.pem` | Ed25519 private key file |
-| `EVIDRA_SIGNING_KEY` | no | — | Ed25519 private key (base64, overrides file) |
+| `EVIDRA_ENV` | no | `production` | `production` or `development`. Controls signing key behavior. |
+| `EVIDRA_SIGNING_KEY` | **yes*** | — | Ed25519 private key (base64). Required in production. |
+| `EVIDRA_SIGNING_KEY_PATH` | **yes*** | — | Ed25519 private key PEM file. Alternative to env var. |
+
+\* One of `EVIDRA_SIGNING_KEY` or `EVIDRA_SIGNING_KEY_PATH` is **required** when `EVIDRA_ENV != development`. Server refuses to start without it.
 | `EVIDRA_SERVER_ID` | no | hostname | Key ID embedded in evidence records |
 | `EVIDRA_SKILLS_MAX_PER_TENANT` | no | `200` | Maximum skills per tenant |
 | `EVIDRA_SKILLS_INPUT_SCHEMA_MAX_BYTES` | no | `65536` | Maximum input_schema size |
@@ -1985,11 +1745,6 @@ input that was signed — just verify the signature over that string.
 | `LOG_FORMAT` | no | `json` | `json` or `text` |
 
 ### Docker
-
-<!-- CHANGED(v3): Go version matches go.mod (1.24.6). Runtime image switched
-     from alpine to distroless (no shell, no package manager, runs as non-root
-     UID 65534). CGO_ENABLED=0 for static binary. -trimpath -ldflags for smaller
-     binary. ENTRYPOINT instead of CMD. -->
 
 ```dockerfile
 FROM golang:1.24.6-alpine AS build
@@ -2023,20 +1778,33 @@ Use **golang-migrate** (`github.com/golang-migrate/migrate/v4`):
 
 ### Local Dev Mode
 
+**Phase 0 (no Postgres — fastest start):**
+```bash
+# One-liner: stateless mode with ephemeral signing key
+EVIDRA_ENV=development \
+EVIDRA_API_KEY="my-dev-token-at-least-32-characters-long" \
+  bin/evidra-api
+```
+
+No database, no migrations. Validate endpoint works immediately.
+
+**Phase 1+ (with Postgres):**
 ```bash
 # Start Postgres
 docker run -d --name evidra-pg -e POSTGRES_DB=evidra -e POSTGRES_PASSWORD=dev -p 5432:5432 postgres:16
 
-# Run migrations + start server (signing key auto-generated on first run)
+# Run migrations + start server (dev mode: ephemeral signing key)
+EVIDRA_ENV=development \
 DATABASE_URL="postgres://postgres:dev@localhost:5432/evidra?sslmode=disable" \
   bin/evidra-api --migrate
 ```
 
 ### Process Management
 
-- Graceful shutdown on SIGTERM (drain in-flight requests, close DB pool).
-- Health checks: `/healthz` (liveness), `/readyz` (readiness — DB reachable).
-- Run as a systemd service, Docker container, or on a PaaS (Fly.io, Railway).
+- Graceful shutdown on SIGTERM (drain in-flight requests; close DB pool if connected).
+- Health checks: `/healthz` (liveness — process + OPA), `/readyz` (readiness — DB if connected, else same as healthz).
+- Phase 0: no external dependencies. Start time < 1 second.
+- Run as a systemd service, Docker container, sidecar, or on a PaaS (Fly.io, Railway).
 
 ### Scaling Notes (Post-MVP)
 
@@ -2050,44 +1818,7 @@ DATABASE_URL="postgres://postgres:dev@localhost:5432/evidra?sslmode=disable" \
 
 ---
 
-## 13. Traffic Measurement
-
-### Metrics to Evaluate Demand
-
-| Metric | Source | Query |
-|---|---|---|
-| **Keys issued (total)** | `tenants` table | `SELECT count(*) FROM tenants` |
-| **Keys issued (last 7d)** | `tenants` table | `WHERE created_at > now() - '7d'` |
-| **Active keys (used in last 7d)** | `api_keys` table | `WHERE last_used_at > now() - '7d'` |
-| **Request rate per endpoint** | `usage_counters` | `SUM(request_count) GROUP BY endpoint, bucket` |
-| **Deny/allow ratio** | `usage_counters` | `SUM(deny_count) / SUM(allow_count) WHERE endpoint IN ('validate','execute')` |
-| **Error rate** | `usage_counters` | `SUM(error_count) / SUM(request_count)` |
-| **p95 latency** | Prometheus histogram | `histogram_quantile(0.95, ...)` |
-| **Top tenants by volume** | `usage_counters` | `GROUP BY tenant_id ORDER BY SUM(request_count) DESC LIMIT 20` |
-| **Skills per tenant** | `skills` table | `SELECT tenant_id, count(*) FROM skills WHERE deleted_at IS NULL GROUP BY tenant_id` |
-| **Executions per skill** | `executions` table | `SELECT skill_id, count(*) FROM executions GROUP BY skill_id ORDER BY count DESC` |
-
-### Retention
-
-<!-- CHANGED: Removed evidence rows from retention table. All server data is bounded. -->
-
-| Data | Retention |
-|---|---|
-| `usage_counters` rows | 90 days (daily cleanup) |
-| `executions` rows | 90 days (daily cleanup) |
-| Prometheus metrics | 14 days (default Prometheus retention) |
-| Structured logs | 30 days (external log sink) |
-
-### Demand Signals
-
-- \>50 active keys → add org/team support
-- \>10k requests/day → add async usage counter writes (batch insert)
-- p95 latency >200ms → profile OPA evaluation, add engine caching
-- \>100 keys/week issuance → add email verification or abuse detection
-
----
-
-## 14. Non-Goals
+## 11. Non-Goals
 
 - **No marketplace.** Skills are registered per-tenant via API. No discovery, search, or cross-tenant sharing.
 - **No billing.** Usage counters exist but no metering, invoicing, or payment integration.
@@ -2098,92 +1829,123 @@ DATABASE_URL="postgres://postgres:dev@localhost:5432/evidra?sslmode=disable" \
 - **No async execution.** All policy evaluation is synchronous.
 - **No server-side evidence storage.** Evidence is returned to the client. The server is stateless with respect to audit data.
 
+**Scaling triggers (post-MVP):**
+- \>50 active keys → add org/team support
+- \>10k requests/day → add async usage counter writes (batch insert)
+- p95 latency >200ms → profile OPA evaluation, add engine caching
+- \>100 keys/week issuance → add email verification or abuse detection
+
 ---
 
-## 15. Implementation Plan
+## 12. Implementation Plan
 
-### Task Sequence
+### Launch Phases
 
-**Phase 1: Signing infrastructure**
+**Phase 1 = public launch.** Phase 2 = hidden behind `EVIDRA_SKILLS_ENABLED`.
+DB migration creates all tables upfront — enabling Phase 2 requires zero schema changes.
 
-<!-- CHANGED: New phase — Ed25519 signing is a prerequisite for everything else. -->
+### Phase 1 Task Sequence (Public Launch)
 
-<!-- CHANGED(v2): Updated task 1.1 to include SigningPayload field.
-     Updated task 1.2 to include BuildSigningPayload and payload-based verify. -->
+**1A: Signing infrastructure**
 
 | # | Task | DoD |
 |---|---|---|
 | 1.1 | `internal/evidence/types.go` — `EvidenceRecord`, `DecisionRecord` structs | Structs defined with `SigningPayload` and `Signature` fields. JSON tags match spec. No `omitempty` on fields included in signing payload. |
-| 1.2 | `internal/evidence/signer.go` — Ed25519 `Signer` | `BuildSigningPayload`, `Sign`, `Verify` methods. Signing payload uses deterministic text format (not JSON). Key loading from file and env var. Auto-generation on first run. Unit tests including cross-verification (build payload in test, verify matches). |
+| 1.2 | `internal/evidence/signer.go` — Ed25519 `Signer` | `BuildSigningPayload`, `Sign`, `Verify` methods. Deterministic text format. Key loading from env var or file. Fail-fast in production when no key provided. Ephemeral key in `EVIDRA_ENV=development` only. Unit tests including cross-verification. |
 | 1.3 | `internal/evidence/builder.go` — `BuildRecord` | Builds `EvidenceRecord` from `engine.Result` + `invocation.ToolInvocation`. Unit tests. |
 
-**Phase 2: Database schema and storage**
+**1B: Database and storage**
 
 | # | Task | DoD |
 |---|---|---|
-| 2.1 | Write `001_initial.up.sql` migration | Tables: tenants, api_keys, usage_counters, skills, executions. No evidence table. No `evidence_record_jsonb` column. Indexes verified. `down.sql` reverses cleanly. |
-| 2.2 | `internal/storage/postgres.go` | Connection pool init, ping. |
-| 2.3 | `internal/storage/tenants.go` — `TenantRepo` | `Create`. Unit tests with test DB. |
-| 2.4 | `internal/storage/apikeys.go` — `APIKeyRepo` | `Create`, `FindByHash`, `Revoke`, `TouchLastUsed`. Unit tests. |
-| 2.5 | `internal/storage/skills.go` — `SkillRepo` | `Create`, `FindByID`, `FindByName`, `ListByTenant`, `Update`, `SoftDelete`. Unit tests. |
-| 2.6 | `internal/storage/executions.go` — `ExecutionRepo` | `Create`, `FindByID`, `FindByIdempotencyKey`. Unit tests. |
-| 2.7 | `internal/storage/usage.go` — `UsageRepo` | `Increment` (upsert). Unit tests. |
+| 1.4 | Write `001_initial.up.sql` migration | All tables: tenants, api_keys, usage_counters, skills, executions. All created upfront (Phase 2 tables exist but are unused until flag is on). `down.sql` reverses cleanly. |
+| 1.5 | `internal/storage/postgres.go` | Connection pool init, ping. |
+| 1.6 | `internal/storage/tenants.go` — `TenantRepo` | `Create`. Unit tests with test DB. |
+| 1.7 | `internal/storage/apikeys.go` — `APIKeyRepo` | `Create`, `FindByHash`, `Revoke`, `TouchLastUsed`. Unit tests. |
+| 1.8 | `internal/storage/usage.go` — `UsageRepo` | `Increment` (upsert). Unit tests. |
 
-**Phase 3: Auth and engine**
+**1C: Auth and engine**
 
 | # | Task | DoD |
 |---|---|---|
-| 3.1 | `internal/auth/` | Key generation, SHA-256 hashing, parsing, Bearer extraction, tenant context. Unit tests. |
-| 3.2 | `internal/engine/adapter.go` | Init `runtime.Evaluator` once, expose `Evaluate` method. Unit tests. |
+| 1.9 | `internal/auth/` | Dual-mode auth: Phase 0 (constant-time compare against `EVIDRA_API_KEY`, synthetic tenant) and Phase 1+ (SHA-256 hash, DB lookup). Key generation, parsing, Bearer extraction, tenant context. Unit tests for both modes. |
+| 1.10 | `internal/engine/adapter.go` | Init `runtime.Evaluator` once, expose `Evaluate` method. Unit tests. |
 
-**Phase 4: Skills validation and invocation builder**
-
-| # | Task | DoD |
-|---|---|---|
-| 4.1 | Add JSON Schema validation library | `github.com/santhosh-tekuri/jsonschema/v5` or equivalent. |
-| 4.2 | `internal/skills/validator.go` | `ValidateSchema(schema)`, `ValidateInput(schema, input)`. Unit tests with edge cases. |
-| 4.3 | `internal/skills/builder.go` | `BuildInvocation(skill, input, actor, env) → ToolInvocation`. Target merging, risk tag injection, context construction. Unit tests. |
-
-**Phase 5: HTTP handlers**
+**1D: HTTP handlers (Phase 1 endpoints)**
 
 | # | Task | DoD |
 |---|---|---|
-| 5.1 | `internal/api/keys_handler.go` | `POST /v1/keys`. Handler tests. |
-| 5.2 | `internal/api/validate_handler.go` | `POST /v1/validate`. Returns signed evidence record with `signing_payload`. Handler tests. |
-| 5.3 | `internal/api/skills_handler.go` | `POST/GET /v1/skills`, `GET/PUT/DELETE /v1/skills/{id}`. Handler tests. |
-| 5.4 | `internal/api/execute_handler.go` | `POST /v1/skills/{id}:simulate`, `POST /v1/skills/{id}:execute`, `GET /v1/executions/{id}`. Idempotent replay returns minimal response (no evidence_record). Handler tests. |
-| 5.5 | `internal/api/verify_handler.go` | `POST /v1/evidence/verify` (public, no auth), `GET /v1/evidence/pubkey`. Verify checks signature over `signing_payload` and confirms payload matches structured fields. Handler tests. |
-| 5.6 | Wire into router + middleware | Mount all handlers in `router.go`. Verify handler mounted without auth middleware. Rate limiter, logging, recovery, body limit. |
+| 1.11 | `internal/api/keys_handler.go` | `POST /v1/keys`. Handler tests. |
+| 1.12 | `internal/api/validate_handler.go` | `POST /v1/validate`. Returns signed evidence record with `signing_payload`. Handler tests. |
+| 1.13 | `internal/api/verify_handler.go` | `POST /v1/evidence/verify` (opt-in via `EVIDRA_VERIFY_ENABLED`, requires auth), `GET /v1/evidence/pubkey` (public). Verify checks signature over `signing_payload` and confirms payload matches structured fields. Handler tests. |
+| 1.14 | `internal/api/health_handler.go` | `GET /healthz`, `GET /readyz`. |
+| 1.15 | Wire router + middleware | Mount Phase 1 handlers. Pubkey handler without auth. Verify handler behind auth + `EVIDRA_VERIFY_ENABLED` flag. Rate limiter, logging, recovery, body limit. Feature flag middleware for `/v1/skills/*` and `/v1/executions/*` → `404`. |
 
-**Phase 6: Integration tests**
-
-| # | Task | DoD |
-|---|---|---|
-| 6.1 | Validate flow integration test | `POST /v1/validate` → verify response has signed evidence_record with `signing_payload` → verify signature with pubkey endpoint. |
-| 6.2 | Skill CRUD integration test | Register → list → get → update → soft delete. Against real Postgres. |
-| 6.3 | Execute flow integration test | Register skill → execute (allow) → verify execution record → verify evidence_record signature via `signing_payload`. |
-| 6.4 | Deny flow integration test | Register skill with target kube-system → execute → verify denied → verify evidence_record still returned. |
-| 6.5 | Simulate flow integration test | Register skill → simulate → verify no evidence_record in response → verify no execution record. |
-| 6.6 | Idempotency test | Execute with key → re-execute with same key → verify same execution_id → verify replay response has `idempotent_replay: true` and no evidence_record → verify single execution row in DB. |
-| 6.7 | Tenant isolation test | Tenant A registers skill → Tenant B cannot see/execute it. |
-| 6.8 | Evidence verify test (public) | Take evidence_record from validate response → POST to /v1/evidence/verify **without API key** → valid. Tamper with a field → verify → `payload_field_mismatch`. Tamper with signature → verify → `signature_mismatch`. |
-| 6.9 | Cross-language signing payload test | Reconstruct `signing_payload` from evidence_record fields in a test (simulating a non-Go client), compare to the `signing_payload` in the response. Must match exactly. |
-
-**Phase 7: Docker smoke test**
+**1E: Landing page**
 
 | # | Task | DoD |
 |---|---|---|
-| 7.1 | `docker-compose.yml` | `evidra-api` + `postgres:16`. Health check passes. |
-| 7.2 | Smoke test script | Issue key → validate → verify evidence signature (no API key for verify) → register skill → simulate → execute → get execution → verify evidence. All pass. |
+| 1.16 | Static HTML landing page | Single page with "Get API Key" form. `embed` in Go binary or served by reverse proxy. Calls `POST /v1/keys`, displays key once. |
+
+**1F: Integration tests**
+
+| # | Task | DoD |
+|---|---|---|
+| 1.17 | **Phase 0: stateless flow** | No `DATABASE_URL`. Start with `EVIDRA_API_KEY=test-key`. `POST /v1/validate` with Bearer test-key → signed evidence_record. `GET /v1/evidence/pubkey` → public key. Offline verify succeeds. `POST /v1/keys` → `404`. `GET /readyz` → `200`. |
+| 1.18 | Phase 1: validate flow | Issue key via `POST /v1/keys` → `POST /v1/validate` → verify signed evidence_record → verify signature via pubkey endpoint. |
+| 1.19 | Deny flow | Validate with kube-system target → verify denied (HTTP 200, `allow: false`) → verify evidence_record still signed and returned. |
+| 1.20 | Evidence verify (opt-in) | With `EVIDRA_VERIFY_ENABLED=true`: take evidence_record → `POST /v1/evidence/verify` **with API key** → valid. Tamper field → `payload_field_mismatch`. Tamper signature → `signature_mismatch`. Without flag: → `404`. Without API key: → `401`. |
+| 1.21 | Cross-language signing payload | Reconstruct `signing_payload` from evidence_record fields in test, compare to response. Must match exactly. |
+| 1.22 | Feature flags off | `EVIDRA_SKILLS_ENABLED=false`: skills endpoints → `404`. No `DATABASE_URL`: keys endpoint → `404`. |
+| 1.23 | Static key in Phase 1+ | Set both `DATABASE_URL` and `EVIDRA_API_KEY`. Static key authenticates without DB lookup. Dynamic-issued key also works. Both produce valid evidence. |
+
+**1G: Docker + smoke test**
+
+| # | Task | DoD |
+|---|---|---|
+| 1.24 | `docker-compose.yml` | `evidra-api` + `postgres:16`. Health check passes. |
+| 1.25 | Phase 0 smoke test | Start binary without Postgres. `EVIDRA_API_KEY=test`. Validate → evidence → offline verify. |
+| 1.26 | Phase 1 smoke test | Issue key → validate (allow) → validate (deny) → verify evidence → verify pubkey. All pass. |
+
+### Phase 2 Task Sequence (Skills — Feature Flag)
+
+**2A: Skills storage and validation**
+
+| # | Task | DoD |
+|---|---|---|
+| 2.1 | `internal/storage/skills.go` — `SkillRepo` | `Create`, `FindByID`, `FindByName`, `ListByTenant`, `Update`, `SoftDelete`. Unit tests. |
+| 2.2 | `internal/storage/executions.go` — `ExecutionRepo` | `Create`, `FindByID`, `FindByIdempotencyKey`. Unit tests. |
+| 2.3 | JSON Schema validation library | `github.com/santhosh-tekuri/jsonschema/v5` or equivalent. |
+| 2.4 | `internal/skills/validator.go` | `ValidateSchema(schema)`, `ValidateInput(schema, input)`. Unit tests. |
+| 2.5 | `internal/skills/builder.go` | `BuildInvocation(skill, input, actor, env) → ToolInvocation`. Target merging, risk tag injection. Unit tests. |
+
+**2B: HTTP handlers (Phase 2 endpoints)**
+
+| # | Task | DoD |
+|---|---|---|
+| 2.6 | `internal/api/skills_handler.go` | `POST/GET /v1/skills`, `GET/PUT/DELETE /v1/skills/{id}`. Handler tests. |
+| 2.7 | `internal/api/execute_handler.go` | `POST /v1/skills/{id}:simulate`, `POST /v1/skills/{id}:execute`, `GET /v1/executions/{id}`. Idempotent replay returns minimal response. Handler tests. |
+| 2.8 | Mount behind feature flag | Skills handlers registered in router but gated by `EVIDRA_SKILLS_ENABLED`. |
+
+**2C: Integration tests (Phase 2)**
+
+| # | Task | DoD |
+|---|---|---|
+| 2.9 | Skill CRUD | Register → list → get → update → soft delete. Against real Postgres. |
+| 2.10 | Execute flow | Register skill → execute (allow) → verify execution record → verify evidence_record signature. |
+| 2.11 | Simulate flow | Register skill → simulate → no evidence_record → no execution record. |
+| 2.12 | Idempotency | Execute with key → replay → same execution_id, `idempotent_replay: true`, no evidence_record. |
+| 2.13 | Tenant isolation | Tenant A registers skill → Tenant B cannot see/execute. |
+| 2.14 | Smoke test update | Add: register skill → simulate → execute → get execution to existing smoke script. |
 
 ### Test Plan
 
-| Layer | Tool | Coverage target |
-|---|---|---|
-| Unit | `go test` | Signer (signing payload construction, sign/verify round-trip), builder, storage repos, schema validator, invocation builder, handler logic |
-| Integration | `go test` with test DB | Full request flow through HTTP → engine → signer → storage |
-| Docker smoke | Shell script | End-to-end binary + Postgres, validates API contract |
-| Race detection | `go test -race` | All packages |
+| Layer | Tool | Phase 1 | Phase 2 |
+|---|---|---|---|
+| Unit | `go test` | Signer, builder, auth, key/tenant/usage repos, validate handler | Skills repo, executions repo, schema validator, invocation builder, skills/execute handlers |
+| Integration | `go test` + test DB | Validate → sign → verify flow, deny flow, cross-language payload | Skill CRUD, execute, simulate, idempotency, tenant isolation |
+| Docker smoke | Shell script | Key → validate → verify | + skill → simulate → execute |
+| Race | `go test -race` | All packages | All packages |
 
 ### DoD Checklist (per task)
 
@@ -2197,4 +1959,5 @@ DATABASE_URL="postgres://postgres:dev@localhost:5432/evidra?sslmode=disable" \
 - [ ] Error responses use standard error model
 - [ ] Evidence records use `signing_payload` for signatures, never `json.Marshal`
 - [ ] Evidence records are never stored server-side
-- [ ] Public endpoints (`/v1/evidence/verify`, `/v1/evidence/pubkey`) have no auth middleware
+- [ ] Public endpoints (`/v1/keys`, `/v1/evidence/pubkey`) have no auth middleware
+- [ ] Opt-in endpoints (`/v1/evidence/verify`) gated by feature flag and auth
