@@ -18,6 +18,7 @@ lint:
 
 build:
 	go build -o bin/evidra ./cmd/evidra
+	go build -o bin/evidra-mcp ./cmd/evidra-mcp
 
 tidy:
 	go mod tidy
