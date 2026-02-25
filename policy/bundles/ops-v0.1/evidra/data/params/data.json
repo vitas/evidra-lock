@@ -20,7 +20,7 @@
   "argocd.dangerous_sync.deny_combo": {
     "by_env": { "default": false, "production": true }
   },
-  "s3.versioning.require": {
+  "aws_s3.versioning.require": {
     "by_env": { "default": false, "production": true }
   }
 }

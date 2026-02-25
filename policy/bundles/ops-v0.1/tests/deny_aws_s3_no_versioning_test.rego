@@ -20,7 +20,7 @@ test_deny_s3_no_versioning_in_production if {
 	}
 	d := data.evidra.policy.decision with input as payload
 	not d.allow
-	"s3.no_versioning_prod" in d.hits
+	"aws_s3.no_versioning_prod" in d.hits
 }
 
 test_allow_s3_no_versioning_in_dev if {
@@ -39,7 +39,7 @@ test_allow_s3_no_versioning_in_dev if {
 		}],
 	}
 	d := data.evidra.policy.decision with input as payload
-	not "s3.no_versioning_prod" in d.hits
+	not "aws_s3.no_versioning_prod" in d.hits
 }
 
 test_allow_s3_with_versioning_in_production if {
@@ -58,5 +58,5 @@ test_allow_s3_with_versioning_in_production if {
 		}],
 	}
 	d := data.evidra.policy.decision with input as payload
-	not "s3.no_versioning_prod" in d.hits
+	not "aws_s3.no_versioning_prod" in d.hits
 }

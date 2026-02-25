@@ -93,12 +93,12 @@ Deferred from P0. Full detail in [AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md](./AI_CLAUDE
 | 14 | `terraform.sg_open_world` | Terraform | DENY | AVD-AWS-0107 |
 | 15 | `terraform.s3_public_access` | Terraform | DENY | AVD-AWS-0086/87/91/93 |
 | 16 | `terraform.iam_wildcard_policy` | Terraform | DENY | AVD-AWS-0057 |
-| | *New S3 rules* | | | |
-| 17 | `s3.no_encryption` | S3 | DENY | AVD-AWS-0088 |
-| 18 | `s3.no_versioning_prod` | S3 | DENY | AVD-AWS-0090 |
-| | *New IAM rules* | | | |
-| 19 | `iam.wildcard_policy` | IAM | DENY | AVD-AWS-0057 |
-| 20 | `iam.wildcard_principal` | IAM | DENY | Datadog/Token Security |
+| | *New AWS S3 rules* | | | |
+| 17 | `aws_s3.no_encryption` | AWS S3 | DENY | AVD-AWS-0088 |
+| 18 | `aws_s3.no_versioning_prod` | AWS S3 | DENY | AVD-AWS-0090 |
+| | *New AWS IAM rules* | | | |
+| 19 | `aws_iam.wildcard_policy` | AWS IAM | DENY | AVD-AWS-0057 |
+| 20 | `aws_iam.wildcard_principal` | AWS IAM | DENY | Datadog/Token Security |
 | | *New ArgoCD rules* | | | |
 | 21 | `argocd.autosync_prod` | ArgoCD | DENY | ArgoCD docs |
 | 22 | `argocd.wildcard_destination` | ArgoCD | DENY | ArgoCD docs |
@@ -457,10 +457,10 @@ The current bundle has 6 rules. The research identified 18 must-have guardrails 
 - `terraform.sg_open_world` — deny 0.0.0.0/0 on SSH/RDP (AVD-AWS-0107)
 - `terraform.s3_public_access` — deny missing Block Public Access (AVD-AWS-0086/0087/0091/0093)
 - `terraform.iam_wildcard_policy` — deny Action:\*/Resource:\* (AVD-AWS-0057)
-- `s3.no_encryption` — deny unencrypted buckets (AVD-AWS-0088)
-- `s3.no_versioning_prod` — deny versioning disabled in prod (AVD-AWS-0090)
-- `iam.wildcard_policy` — deny IAM Action:\*/Resource:\* standalone eval (AVD-AWS-0057)
-- `iam.wildcard_principal` — deny Principal:\* in trust policies (Datadog/Token Security research)
+- `aws_s3.no_encryption` — deny unencrypted buckets (AVD-AWS-0088)
+- `aws_s3.no_versioning_prod` — deny versioning disabled in prod (AVD-AWS-0090)
+- `aws_iam.wildcard_policy` — deny IAM Action:\*/Resource:\* standalone eval (AVD-AWS-0057)
+- `aws_iam.wildcard_principal` — deny Principal:\* in trust policies (Datadog/Token Security research)
 
 *Wave 3 — ArgoCD (days 11–12):*
 - `argocd.autosync_prod` — deny automated sync in production

@@ -68,10 +68,10 @@ policy/bundles/ops-v0.1/
 | 12 | `argocd.autosync_prod` | argocd | deny | yes | Automated sync in production |
 | 13 | `argocd.wildcard_destination` | argocd | deny | no | Wildcard namespace/server in AppProject |
 | 14 | `argocd.dangerous_sync_combo` | argocd | deny | yes | auto-sync + prune + selfHeal |
-| 15 | `s3.no_encryption` | s3 | deny | no | S3 missing server-side encryption |
-| 16 | `s3.no_versioning_prod` | s3 | deny | yes | S3 versioning disabled in production |
-| 17 | `iam.wildcard_policy` | iam | deny | no | IAM Action:\* + Resource:\* (effective root) |
-| 18 | `iam.wildcard_principal` | iam | deny | no | Trust policy Principal:\* |
+| 15 | `aws_s3.no_encryption` | aws_s3 | deny | no | S3 missing server-side encryption |
+| 16 | `aws_s3.no_versioning_prod` | aws_s3 | deny | yes | S3 versioning disabled in production |
+| 17 | `aws_iam.wildcard_policy` | aws_iam | deny | no | IAM Action:\* + Resource:\* (effective root) |
+| 18 | `aws_iam.wildcard_principal` | aws_iam | deny | no | Trust policy Principal:\* |
 | 19 | `k8s.protected_namespace` | k8s | deny | no | Changes in restricted namespace |
 | 20 | `ops.unapproved_change` | ops | deny | no | Protected namespace without approval |
 | 21 | `ops.public_exposure` | ops | deny | no | Terraform public exposure |
@@ -282,11 +282,11 @@ policy/bundles/ops-v0.1/
 
 ---
 
-### S3
+### AWS S3
 
 ---
 
-#### s3.no_encryption
+#### aws_s3.no_encryption
 
 **Intent:** Deny S3 buckets without server-side encryption. SSE-S3 is zero-cost and zero-performance-impact.
 
@@ -298,15 +298,15 @@ policy/bundles/ops-v0.1/
 
 ---
 
-#### s3.no_versioning_prod
+#### aws_s3.no_versioning_prod
 
 **Intent:** Deny versioning disabled on production S3 buckets. Without versioning, a single delete permanently destroys data.
 
-**Trigger:** `terraform.plan` action with `resource_type: "aws_s3_bucket"` where `versioning.enabled` is not `true`, when `s3.versioning.require` param is `true`.
+**Trigger:** `terraform.plan` action with `resource_type: "aws_s3_bucket"` where `versioning.enabled` is not `true`, when `aws_s3.versioning.require` param is `true`.
 
 | Param | Default | Production |
 |---|---|---|
-| `s3.versioning.require` | false | true |
+| `aws_s3.versioning.require` | false | true |
 
 **Hints:** Enable versioning on production S3 buckets · Versioning converts destructive deletes into recoverable soft-deletes
 
@@ -314,11 +314,11 @@ policy/bundles/ops-v0.1/
 
 ---
 
-### IAM
+### AWS IAM
 
 ---
 
-#### iam.wildcard_policy
+#### aws_iam.wildcard_policy
 
 **Intent:** Deny IAM policies with `Action: *` combined with `Resource: *` — functionally root for the AWS account.
 
@@ -330,7 +330,7 @@ policy/bundles/ops-v0.1/
 
 ---
 
-#### iam.wildcard_principal
+#### aws_iam.wildcard_principal
 
 **Intent:** Deny IAM trust policies with `Principal: *` or `Principal: {"AWS": "*"}` — allows any AWS account to assume the role.
 
@@ -397,13 +397,13 @@ Warn when any action carries the `breakglass` tag. Ensures audit trail.
 | `terraform.sg_open_world.dangerous_ports` | `terraform.sg_open_world` | list | [22, 3389] | — |
 | `argocd.autosync.deny_automated` | `argocd.autosync_prod` | boolean | false | production: true |
 | `argocd.dangerous_sync.deny_combo` | `argocd.dangerous_sync_combo` | boolean | false | production: true |
-| `s3.versioning.require` | `s3.no_versioning_prod` | boolean | false | production: true |
+| `aws_s3.versioning.require` | `aws_s3.no_versioning_prod` | boolean | false | production: true |
 
 ---
 
 ## 6. Authoring Guidelines
 
-**Rule IDs:** `domain.invariant_name` — lowercase, dot-separated, exactly two segments.
+**Rule IDs:** `domain.invariant_name` — lowercase, dot-separated. Domain may use underscores for AWS-specific namespaces (e.g., `aws_iam.wildcard_policy`).
 
 **Tunable values:** All thresholds and lists in `evidra/data/params/data.json`, never in rule bodies. Every param must define `by_env.default`.
 

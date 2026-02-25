@@ -262,7 +262,7 @@ Rules that failed these criteria — even if widely recommended — are listed i
 
 ---
 
-#### 15. `s3.no_encryption`
+#### 15. `aws_s3.no_encryption`
 
 | Field | Value |
 |---|---|
@@ -277,7 +277,7 @@ Rules that failed these criteria — even if widely recommended — are listed i
 
 ---
 
-#### 16. `s3.no_versioning_prod`
+#### 16. `aws_s3.no_versioning_prod`
 
 | Field | Value |
 |---|---|
@@ -296,7 +296,7 @@ Rules that failed these criteria — even if widely recommended — are listed i
 
 ---
 
-#### 17. `iam.wildcard_policy`
+#### 17. `aws_iam.wildcard_policy`
 
 | Field | Value |
 |---|---|
@@ -311,7 +311,7 @@ Rules that failed these criteria — even if widely recommended — are listed i
 
 ---
 
-#### 18. `iam.wildcard_principal`
+#### 18. `aws_iam.wildcard_principal`
 
 | Field | Value |
 |---|---|
@@ -334,7 +334,7 @@ Every major cloud security incident in the last 8 years maps to one or more of t
 
 | Incident | Year | Cost | Rules That Would Have Caught It |
 |---|---|---|---|
-| Capital One | 2019 | $270M+ | `terraform.s3_public_access`, `iam.wildcard_policy` |
+| Capital One | 2019 | $270M+ | `terraform.s3_public_access`, `aws_iam.wildcard_policy` |
 | Accenture | 2017 | Undisclosed | `terraform.s3_public_access` |
 | US Military CENTCOM | 2017 | Classified | `terraform.s3_public_access` |
 | Twitch | 2021 | Undisclosed | `terraform.s3_public_access` |
@@ -357,7 +357,7 @@ Every major cloud security incident in the last 8 years maps to one or more of t
 
 1. **Every rule has a specific, named incident or documented attack chain.** None are theoretical.
 2. **Every rule is deterministically evaluable from static configuration.** No runtime API calls, no probabilistic analysis, no ML models.
-3. **16 of 18 rules have Low false-positive risk.** The two Medium-FP rules (`iam.wildcard_policy`, `k8s.no_resource_limits`) have well-documented exception lists.
+3. **16 of 18 rules have Low false-positive risk.** The two Medium-FP rules (`aws_iam.wildcard_policy`, `k8s.no_resource_limits`) have well-documented exception lists.
 4. **The rule count is small enough to explain in a meeting.** 18 rules that a security team can audit, understand, and defend in 30 minutes.
 5. **The rules are sourced from industry-standard tools.** Every rule maps to a CIS control, tfsec/trivy AVD ID, or kube-score check. This is not invented; it is curated.
 

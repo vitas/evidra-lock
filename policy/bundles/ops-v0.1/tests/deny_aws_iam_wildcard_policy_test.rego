@@ -21,7 +21,7 @@ test_deny_iam_action_star_resource_star if {
 	}
 	d := data.evidra.policy.decision with input as payload
 	not d.allow
-	"iam.wildcard_policy" in d.hits
+	"aws_iam.wildcard_policy" in d.hits
 }
 
 test_allow_iam_scoped_action_wildcard_resource if {
@@ -41,5 +41,5 @@ test_allow_iam_scoped_action_wildcard_resource if {
 		}],
 	}
 	d := data.evidra.policy.decision with input as payload
-	not "iam.wildcard_policy" in d.hits
+	not "aws_iam.wildcard_policy" in d.hits
 }

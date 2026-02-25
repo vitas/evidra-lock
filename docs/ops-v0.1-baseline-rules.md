@@ -57,10 +57,10 @@ The 18 guardrail rules were selected because:
 | `argocd.autosync_prod` | ArgoCD | prod | Automated sync in production |
 | `argocd.wildcard_destination` | ArgoCD | all | Wildcard namespace/server |
 | `argocd.dangerous_sync_combo` | ArgoCD | prod | auto-sync + prune + selfHeal |
-| `s3.no_encryption` | S3 | all | Missing server-side encryption |
-| `s3.no_versioning_prod` | S3 | prod | Versioning disabled in production |
-| `iam.wildcard_policy` | IAM | all | Action:\* + Resource:\* (root) |
-| `iam.wildcard_principal` | IAM | all | Trust policy Principal:\* |
+| `aws_s3.no_encryption` | AWS S3 | all | Missing server-side encryption |
+| `aws_s3.no_versioning_prod` | AWS S3 | prod | Versioning disabled in production |
+| `aws_iam.wildcard_policy` | AWS IAM | all | Action:\* + Resource:\* (root) |
+| `aws_iam.wildcard_principal` | AWS IAM | all | Trust policy Principal:\* |
 | `k8s.protected_namespace` | Kubernetes | all | Changes in restricted namespace |
 | `ops.unapproved_change` | Ops | all | Protected ns without approval |
 
@@ -81,9 +81,9 @@ The 18 guardrail rules were selected because:
 | Attack Surface | Rules |
 |---|---|
 | Container escape → host | `k8s.privileged_container`, `k8s.host_namespace_escape`, `k8s.run_as_root`, `k8s.hostpath_mount`, `k8s.dangerous_capabilities` |
-| Mass data exposure | `terraform.s3_public_access`, `s3.no_encryption`, `iam.wildcard_policy`, `iam.wildcard_principal` |
-| Irreversible destruction | `ops.mass_delete`, `argocd.dangerous_sync_combo`, `s3.no_versioning_prod` |
-| Account/cluster takeover | `terraform.iam_wildcard_policy`, `k8s.privileged_container`, `iam.wildcard_policy`, `iam.wildcard_principal` |
+| Mass data exposure | `terraform.s3_public_access`, `aws_s3.no_encryption`, `aws_iam.wildcard_policy`, `aws_iam.wildcard_principal` |
+| Irreversible destruction | `ops.mass_delete`, `argocd.dangerous_sync_combo`, `aws_s3.no_versioning_prod` |
+| Account/cluster takeover | `terraform.iam_wildcard_policy`, `k8s.privileged_container`, `aws_iam.wildcard_policy`, `aws_iam.wildcard_principal` |
 | Network exposure | `terraform.sg_open_world`, `ops.public_exposure` |
 | GitOps operational safety | `argocd.autosync_prod`, `argocd.wildcard_destination`, `argocd.dangerous_sync_combo` |
 | Supply chain / integrity | `k8s.mutable_image_tag` |
