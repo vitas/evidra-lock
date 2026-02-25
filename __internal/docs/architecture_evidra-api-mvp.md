@@ -225,7 +225,7 @@ No new schema. The body is deserialized directly into `invocation.ToolInvocation
 ```json
 {
   "ok": true,
-  "event_id": "evt-1708789200000000000",
+  "event_id": "evt_01JEXAMPLEV",
   "decision": {
     "allow": true,
     "risk_level": "low",
@@ -236,7 +236,7 @@ No new schema. The body is deserialized directly into `invocation.ToolInvocation
     "reasons": []
   },
   "evidence_record": {
-    "event_id": "evt-1708789200000000000",
+    "event_id": "evt_01JEXAMPLEV",
     "timestamp": "2026-02-25T10:00:00Z",
     "server_id": "evidra-api-01",
     "policy_ref": "sha256:abc123...",
@@ -253,7 +253,7 @@ No new schema. The body is deserialized directly into `invocation.ToolInvocation
       "hints": [],
       "reasons": []
     },
-    "signing_payload": "evidra.v1\nevent_id=evt-1708789200000000000\ntimestamp=2026-02-25T10:00:00Z\nserver_id=evidra-api-01\npolicy_ref=sha256:abc123...\ntool=terraform\noperation=apply\nenvironment=\ninput_hash=sha256:def456...\nallow=true\nrisk_level=low\nreason=all_policies_passed\nrule_ids=\nhints=\n",
+    "signing_payload": "evidra.v1\nevent_id=evt_01JEXAMPLEV\ntimestamp=2026-02-25T10:00:00Z\nserver_id=evidra-api-01\npolicy_ref=sha256:abc123...\nskill_id=\nexecution_id=\nactor_type=agent\nactor_id=deploy-bot\nactor_origin=api\ntool=terraform\noperation=apply\nenvironment=\ninput_hash=sha256:def456...\nallow=true\nrisk_level=low\nreason=all_policies_passed\nreasons=\nrule_ids=\nhints=",
     "signature": "base64-encoded-ed25519-signature-over-signing_payload"
   }
 }
@@ -307,7 +307,7 @@ or implementing Ed25519 verification themselves.
 ```json
 {
   "evidence_record": {
-    "event_id": "evt-1708789200000000000",
+    "event_id": "evt_01JEXAMPLEV",
     "timestamp": "2026-02-25T10:00:00Z",
     "server_id": "evidra-api-01",
     "policy_ref": "sha256:abc123...",
@@ -324,7 +324,7 @@ or implementing Ed25519 verification themselves.
       "hints": [],
       "reasons": []
     },
-    "signing_payload": "evidra.v1\nevent_id=evt-1708789200000000000\n...",
+    "signing_payload": "evidra.v1\nevent_id=evt_01JEXAMPLEV\n...",
     "signature": "base64-encoded-ed25519-signature"
   }
 }
@@ -349,12 +349,17 @@ or implementing Ed25519 verification themselves.
 
 Possible `reason` values: `signature_mismatch`, `malformed_record`, `unknown_key_id`, `payload_field_mismatch`.
 
+<!-- CHANGED(v3): Expanded payload_field_mismatch explanation with concrete
+     attack example. -->
+
 The `payload_field_mismatch` reason indicates that the `signing_payload` string
-does not match the structured fields in the evidence record. This catches cases
-where someone modifies the JSON fields but keeps the original `signing_payload`
-(the signature would verify, but the data would be inconsistent). The server
-re-derives the signing payload from the structured fields and compares it to the
-submitted `signing_payload` before checking the signature.
+does not match the structured fields in the evidence record. The server
+re-derives the signing payload from the structured JSON fields and compares it
+to the submitted `signing_payload`. If they differ, the signature may still be
+mathematically valid, but the JSON fields have been tampered with after signing.
+This catches attacks where an adversary modifies displayed data (e.g., changing
+`allow: false` to `allow: true` in the JSON) while preserving the original
+`signing_payload` and signature.
 
 **Errors:**
 - `400` — missing or malformed evidence_record
@@ -502,6 +507,42 @@ Retrieve a single skill definition including the full `input_schema`. Requires `
 
 ---
 
+<!-- CHANGED(v3): Added PUT and DELETE endpoints for skill lifecycle management. -->
+
+### `PUT /v1/skills/{skill_id}`
+
+Update a skill definition. Full replacement — all fields are required (same body
+as `POST /v1/skills`). Requires `Authorization: Bearer <key>`.
+
+**Request body** — same schema as `POST /v1/skills`.
+
+**Response (200):** Returns the updated skill object (same shape as `POST /v1/skills` response).
+
+**Errors:**
+- `400` — validation failure (missing required fields, invalid JSON schema)
+- `401` — missing or invalid key
+- `404` — skill not found (or belongs to another tenant)
+- `409` — name conflict with another active skill belonging to this tenant
+
+---
+
+### `DELETE /v1/skills/{skill_id}`
+
+Soft-delete a skill. The skill row is marked with `deleted_at` and excluded
+from listings. Existing execution records referencing this skill are not
+affected. Requires `Authorization: Bearer <key>`.
+
+**Response (200):**
+```json
+{"ok": true}
+```
+
+**Errors:**
+- `401` — missing or invalid key
+- `404` — skill not found (or belongs to another tenant)
+
+---
+
 ### `POST /v1/skills/{skill_id}:simulate`
 
 Dry-run policy evaluation. No evidence record is produced. No execution record is created.
@@ -580,7 +621,7 @@ Requires `Authorization: Bearer <key>`.
 {
   "ok": true,
   "execution_id": "ex_01JEXAMPLE",
-  "event_id": "evt-1740477600000000000",
+  "event_id": "evt_01JEXAMPLEE",
   "decision": {
     "allow": true,
     "risk_level": "low",
@@ -592,7 +633,7 @@ Requires `Authorization: Bearer <key>`.
   "skill_id": "sk_01JEXAMPLE",
   "created_at": "2026-02-25T10:00:00Z",
   "evidence_record": {
-    "event_id": "evt-1740477600000000000",
+    "event_id": "evt_01JEXAMPLEE",
     "timestamp": "2026-02-25T10:00:00Z",
     "server_id": "evidra-api-01",
     "policy_ref": "sha256:abc123...",
@@ -610,7 +651,7 @@ Requires `Authorization: Bearer <key>`.
       "rule_ids": [],
       "hints": []
     },
-    "signing_payload": "evidra.v1\nevent_id=evt-1740477600000000000\n...",
+    "signing_payload": "evidra.v1\nevent_id=evt_01JEXAMPLEE\n...",
     "signature": "base64-encoded-ed25519-signature-over-signing_payload"
   }
 }
@@ -621,7 +662,7 @@ Requires `Authorization: Bearer <key>`.
 {
   "ok": true,
   "execution_id": "ex_01JEXAMPLE2",
-  "event_id": "evt-1740477600000000001",
+  "event_id": "evt_01JEXAMPLEE2",
   "decision": {
     "allow": false,
     "risk_level": "high",
@@ -634,7 +675,7 @@ Requires `Authorization: Bearer <key>`.
   "skill_id": "sk_01JEXAMPLE",
   "created_at": "2026-02-25T10:00:00Z",
   "evidence_record": {
-    "event_id": "evt-1740477600000000001",
+    "event_id": "evt_01JEXAMPLEE2",
     "timestamp": "2026-02-25T10:00:00Z",
     "server_id": "evidra-api-01",
     "policy_ref": "sha256:abc123...",
@@ -652,7 +693,7 @@ Requires `Authorization: Bearer <key>`.
       "rule_ids": ["k8s.protected_namespace"],
       "hints": ["Use a non-system namespace for deployments"]
     },
-    "signing_payload": "evidra.v1\nevent_id=evt-1740477600000000001\n...",
+    "signing_payload": "evidra.v1\nevent_id=evt_01JEXAMPLEE2\n...",
     "signature": "base64-encoded-ed25519-signature-over-signing_payload"
   }
 }
@@ -667,23 +708,27 @@ Note: a denied execution returns `200` with `"ok": true` and `"status": "denied"
 **Idempotency:** If `idempotency_key` matches an existing execution for this
 tenant, a minimal replay response is returned without re-evaluation:
 
+<!-- CHANGED(v3): Added `created_at` to idempotent replay response. The client
+     needs to know when the original request was processed. -->
+
 ```json
 {
   "ok": true,
   "idempotent_replay": true,
   "execution_id": "ex_01JEXAMPLE",
-  "event_id": "evt-1740477600000000000",
+  "event_id": "evt_01JEXAMPLEE",
   "decision": {
     "allow": true,
     "risk_level": "low"
   },
   "status": "allowed",
+  "created_at": "2026-02-25T10:00:00Z",
   "message": "This request was already processed. Use your previously received evidence_record for audit purposes."
 }
 ```
 
 The replay response is built from the execution row's stored metadata
-(`decision_allow`, `decision_risk`, `event_id`, `status`). No full evidence
+(`decision_allow`, `decision_risk`, `event_id`, `status`, `created_at`). No full evidence
 record is returned — the client must cache the `evidence_record` from the
 original response. Idempotency keys expire with execution row cleanup (90 days).
 
@@ -716,7 +761,7 @@ Retrieve a lightweight execution record. Requires `Authorization: Bearer <key>`.
     "decision_allow": true,
     "decision_risk": "low",
     "input_hash": "sha256:abc123...",
-    "event_id": "evt-1740477600000000000",
+    "event_id": "evt_01JEXAMPLEE",
     "environment": "prod",
     "actor": {
       "type": "agent",
@@ -761,6 +806,8 @@ Returns `503` otherwise. Used by orchestrators for readiness gating.
 |---|---|
 | `POST /v1/validate` | 60 req/min |
 | `POST /v1/skills` | 30 req/min |
+| `PUT /v1/skills/{id}` | 30 req/min |
+| `DELETE /v1/skills/{id}` | 30 req/min |
 | `GET /v1/skills`, `GET /v1/skills/{id}` | 120 req/min |
 | `POST /v1/skills/{id}:simulate` | 60 req/min |
 | `POST /v1/skills/{id}:execute` | 60 req/min |
@@ -908,9 +955,9 @@ CREATE UNIQUE INDEX idx_executions_idempotency
 
 **Notes:**
 - `status` is terminal at creation time. No status transitions in MVP (no async execution).
-- `event_id` is a plain reference string (e.g. `"evt-1740477600000000000"`). It allows correlation with client-side evidence stores but is not a foreign key — the server does not store evidence.
+- `event_id` is a plain reference string (e.g. `"evt_01JEXAMPLEE"`). It allows correlation with client-side evidence stores but is not a foreign key — the server does not store evidence.
 - `idempotency_key` uniqueness is enforced per tenant. A daily cleanup job deletes execution rows older than 90 days, which also removes stale idempotency keys.
-- Idempotent replay builds the response from the stored metadata columns (`decision_allow`, `decision_risk`, `event_id`, `status`). No evidence payload is cached or returned on replay.
+- Idempotent replay builds the response from the stored metadata columns (`decision_allow`, `decision_risk`, `event_id`, `status`, `created_at`). No evidence payload is cached or returned on replay.
 
 ---
 
@@ -1192,14 +1239,19 @@ input_hash={input_hash}\n
 allow={true|false}\n
 risk_level={risk_level}\n
 reason={reason}\n
+reasons={comma-separated, sorted alphabetically}\n
 rule_ids={comma-separated, sorted alphabetically}\n
 hints={comma-separated, sorted alphabetically}\n
 ```
 
+<!-- CHANGED(v3): Added `reasons` to signing payload between `reason` and
+     `rule_ids`. Without this, an attacker could modify the `reasons` array
+     in the JSON without invalidating the signature. -->
+
 Rules:
 - Version prefix `evidra.v1\n` is always the first line.
 - All fields are present in every payload (empty string for absent values).
-- Lists (`rule_ids`, `hints`) are sorted alphabetically and joined with `,` (no spaces).
+- Lists (`reasons`, `rule_ids`, `hints`) are sorted alphabetically and joined with `,` (no spaces).
 - Empty lists produce an empty value after `=`.
 - Timestamps are always RFC3339 in UTC with `Z` suffix (no timezone offset).
 - No trailing newline after the last field.
@@ -1229,6 +1281,7 @@ func (s *Signer) BuildSigningPayload(rec *EvidenceRecord) string {
     fmt.Fprintf(&b, "allow=%t\n", rec.Decision.Allow)
     fmt.Fprintf(&b, "risk_level=%s\n", rec.Decision.RiskLevel)
     fmt.Fprintf(&b, "reason=%s\n", rec.Decision.Reason)
+    fmt.Fprintf(&b, "reasons=%s\n", sortedJoin(rec.Decision.Reasons))
     fmt.Fprintf(&b, "rule_ids=%s\n", sortedJoin(rec.Decision.RuleIDs))
     fmt.Fprintf(&b, "hints=%s", sortedJoin(rec.Decision.Hints))
     return b.String()
@@ -1291,7 +1344,7 @@ The `evidence_record` is a self-contained JSON object:
 
 ```go
 type EvidenceRecord struct {
-    EventID        string          `json:"event_id"`         // "evt-<UnixNano>"
+    EventID        string          `json:"event_id"`         // "evt_" + ULID
     Timestamp      time.Time       `json:"timestamp"`        // UTC
     ServerID       string          `json:"server_id"`        // key_id of signing key
     PolicyRef      string          `json:"policy_ref"`       // SHA-256 of policy bundle
@@ -1331,7 +1384,8 @@ type DecisionRecord struct {
 |---|---|
 | **Evidence forgery** | Ed25519 signature over deterministic `signing_payload`. Clients verify with the server's public key. Forging requires the private key. |
 | **Evidence tampering** | Signature covers the `signing_payload` which encodes all decision-relevant fields. `POST /v1/evidence/verify` also checks that structured JSON fields match the `signing_payload` (detects payload/field desync). |
-| **Replay of evidence records** | Each record has a unique `event_id` (nanosecond timestamp). Clients deduplicate by `event_id`. |
+<!-- CHANGED(v3): event_id is now ULID-based, not nanosecond timestamp. -->
+| **Replay of evidence records** | Each record has a unique `event_id` (ULID). Clients deduplicate by `event_id`. |
 | **Input injection via skill input** | Input validated against registered `input_schema` before `ToolInvocation` construction. Schema is set at registration time, not by the caller. |
 | **Risk tag escalation** | `risk_tags` are fixed in the skill definition. Execute request cannot override them. |
 | **Replay of API requests** | `idempotency_key` deduplication. TLS required for all external traffic. |
@@ -1390,9 +1444,14 @@ tenants, preventing existence enumeration.
 | Usage counter | Incremented (`simulate`) | Incremented (`validate`) | Incremented (`execute`) |
 | Idempotency key | Not supported | Not supported | Supported |
 
+<!-- CHANGED(v3): Clarified that simulate is rate-limited and metered, not a
+     free bypass of validate. -->
+
 `simulate` is for dry-run / pre-flight checks. Agents can call simulate to
-preview a decision before committing. No evidence is produced — it is purely
-advisory.
+preview a decision before committing. Simulate is rate-limited and metered via
+`usage_counters` (endpoint: `simulate`), but produces no evidence record. It
+exists for pre-flight checks where the client wants to preview a decision
+without creating an audit commitment.
 
 `validate` is the raw policy evaluation endpoint. It accepts a `ToolInvocation`
 directly (no skill definition needed) and returns a signed evidence record.
@@ -1435,8 +1494,9 @@ Execution status is terminal at creation. There are no status transitions in MVP
 - If provided, the backend checks for an existing execution with the same
   `(tenant_id, idempotency_key)` in the `executions` table.
 - If found, a **minimal replay response** is returned without re-evaluation.
-  The replay response includes `execution_id`, `event_id`, `status`, and the
-  decision summary (`allow`, `risk_level`) from the stored metadata columns.
+  The replay response includes `execution_id`, `event_id`, `status`,
+  `created_at`, and the decision summary (`allow`, `risk_level`) from the
+  stored metadata columns.
   It does **not** include a full `evidence_record` — the client must have
   cached the evidence record from the original response.
 - If not found, a new execution proceeds normally.
@@ -1510,9 +1570,12 @@ clients can start passing it without breaking when multi-profile is added.
 
 After `Evaluate` returns, the handler builds an evidence record in memory:
 
+<!-- CHANGED(v3): event_id uses ULID instead of UnixNano to avoid collisions
+     under horizontal scaling. -->
+
 ```go
 rec := evidence.EvidenceRecord{
-    EventID:     fmt.Sprintf("evt-%d", time.Now().UTC().UnixNano()),
+    EventID:     "evt_" + ulid.Make().String(),
     Timestamp:   time.Now().UTC(),
     PolicyRef:   decision.PolicyRef,
     Actor:       inv.Actor,
@@ -1556,7 +1619,7 @@ internal/
     middleware.go            # Request logging, recovery, request-id, CORS, body limit
     keys_handler.go          # POST /v1/keys
     validate_handler.go      # POST /v1/validate
-    skills_handler.go        # POST/GET /v1/skills, GET /v1/skills/{id}
+    skills_handler.go        # POST/GET /v1/skills, GET/PUT/DELETE /v1/skills/{id}
     execute_handler.go       # POST /v1/skills/{id}:simulate, POST /v1/skills/{id}:execute,
                              # GET /v1/executions/{id}
     verify_handler.go        # POST /v1/evidence/verify (public), GET /v1/evidence/pubkey
@@ -1663,7 +1726,7 @@ Every request logs these fields via `slog`:
   "path": "/v1/skills/sk_01JEXAMPLE:execute",
   "http_status": 200,
   "duration_ms": 12,
-  "event_id": "evt-1740477600000000000",
+  "event_id": "evt_01JEXAMPLEE",
   "execution_id": "ex_01JEXAMPLE",
   "skill_id": "sk_01JEXAMPLE",
   "decision_allow": true,
@@ -1923,16 +1986,22 @@ input that was signed — just verify the signature over that string.
 
 ### Docker
 
+<!-- CHANGED(v3): Go version matches go.mod (1.24.6). Runtime image switched
+     from alpine to distroless (no shell, no package manager, runs as non-root
+     UID 65534). CGO_ENABLED=0 for static binary. -trimpath -ldflags for smaller
+     binary. ENTRYPOINT instead of CMD. -->
+
 ```dockerfile
-FROM golang:1.23-alpine AS build
+FROM golang:1.24.6-alpine AS build
 WORKDIR /app
 COPY . .
-RUN go build -o evidra-api ./cmd/evidra-api
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
+    -o evidra-api ./cmd/evidra-api
 
-FROM alpine:3.19
+FROM gcr.io/distroless/static:nonroot
 COPY --from=build /app/evidra-api /usr/local/bin/
 EXPOSE 8080
-CMD ["evidra-api"]
+ENTRYPOINT ["/usr/local/bin/evidra-api"]
 ```
 
 ### TLS
@@ -2081,7 +2150,7 @@ DATABASE_URL="postgres://postgres:dev@localhost:5432/evidra?sslmode=disable" \
 |---|---|---|
 | 5.1 | `internal/api/keys_handler.go` | `POST /v1/keys`. Handler tests. |
 | 5.2 | `internal/api/validate_handler.go` | `POST /v1/validate`. Returns signed evidence record with `signing_payload`. Handler tests. |
-| 5.3 | `internal/api/skills_handler.go` | `POST/GET /v1/skills`, `GET /v1/skills/{id}`. Handler tests. |
+| 5.3 | `internal/api/skills_handler.go` | `POST/GET /v1/skills`, `GET/PUT/DELETE /v1/skills/{id}`. Handler tests. |
 | 5.4 | `internal/api/execute_handler.go` | `POST /v1/skills/{id}:simulate`, `POST /v1/skills/{id}:execute`, `GET /v1/executions/{id}`. Idempotent replay returns minimal response (no evidence_record). Handler tests. |
 | 5.5 | `internal/api/verify_handler.go` | `POST /v1/evidence/verify` (public, no auth), `GET /v1/evidence/pubkey`. Verify checks signature over `signing_payload` and confirms payload matches structured fields. Handler tests. |
 | 5.6 | Wire into router + middleware | Mount all handlers in `router.go`. Verify handler mounted without auth middleware. Rate limiter, logging, recovery, body limit. |
