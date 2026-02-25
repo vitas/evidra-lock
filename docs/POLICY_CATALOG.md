@@ -8,11 +8,25 @@ Last updated: 2026-02-25
 
 ## 1. Overview
 
-### What the policy bundle is
+### What this is (and what it is not)
 
-The `ops-v0.1` bundle is an OPA-native policy archive that contains all rule definitions, shared helpers, and their associated parameter and hint data. Every evaluation request is checked against this bundle; the bundle is the single source of truth for what is allowed, warned, or denied.
+Evidra is **not** a CIS compliance scanner. It does not aim to cover every best-practice checkbox. These are **catastrophic guardrails** — a small, high-signal set of rules that prevent the most devastating infrastructure misconfigurations: production outages, mass data exposure, irreversible destruction, and cluster/account compromise.
 
-The bundle layout:
+Every rule in this bundle satisfies all of the following:
+
+| Criterion | Threshold |
+|---|---|
+| **Prevents catastrophic outcome** | Production outage, mass data exposure, irreversible destruction, or cluster/account compromise |
+| **Deterministic evaluation** | Evaluable from static configuration (manifests, plan JSON, YAML) without runtime API calls |
+| **Low false-positive rate** | Expected FP rate is Low or Medium; no rule with inherently High FP rates is included |
+| **Clear blast radius** | The misconfiguration has documented, real-world attack chains or incident history |
+| **Not hygiene** | Prevents a specific catastrophic scenario, not a general "best practice" |
+
+### Why only these rules
+
+Eighteen guardrail rules (plus 5 operational rules) cover the critical attack surfaces where AI-generated infrastructure changes cause the most damage. This number is small enough to explain in a 30-minute meeting, audit in a single code review, and defend to a security team. Every rule maps to a CIS control, tfsec/trivy AVD ID, or kube-score check — nothing is invented, everything is curated.
+
+### Bundle layout
 
 ```
 policy/bundles/ops-v0.1/
@@ -20,492 +34,379 @@ policy/bundles/ops-v0.1/
 ├── evidra/policy/
 │   ├── policy.rego              — exports the decision object
 │   ├── decision.rego            — aggregates deny/warn results
-│   ├── defaults.rego            — shared helpers (resolve_param, has_tag, action_namespace)
+│   ├── defaults.rego            — shared helpers (resolve_param, has_tag, action_namespace, all_containers)
 │   └── rules/                   — one file per rule
 ├── evidra/data/params/          — tunable parameter values
 ├── evidra/data/rule_hints/      — human-readable remediation hints
-└── tests/                       — OPA test suite
+└── tests/                       — OPA test suite (70 tests)
 ```
 
-For the full bundle contract, including data namespace mappings and OPA path conventions, see [POLICY_TECHNICAL_SPEC.md](POLICY_TECHNICAL_SPEC.md).
+### How rules, params, and hints work
 
-### What a rule ID is
-
-A rule ID is a dotted canonical identifier of the form `domain.invariant_name`, for example `ops.mass_delete` or `k8s.protected_namespace`. Rule IDs:
-
-- Appear in the `hits` array of every decision output.
-- Are used as keys in the rule hints data to look up remediation strings.
-- Must not encode environment names, severity levels, or ordinal counters.
-- Are stable once released; changing an ID breaks downstream evidence records and hint lookups.
-
-### What a hint is
-
-A hint is a short, actionable remediation string tied to a rule ID. When a rule fires, its ID appears in `hits`. The decision aggregator collects hint strings for every entry in `hits`, deduplicates them, and returns them in the `hints` array of the decision output. Hints inform the caller what to do next; they do not affect the allow/deny outcome.
-
-If a rule fires but its ID has no hint entry, no hint is emitted for it.
-
-### How params work
-
-Tunable values live in `evidra/data/params/data.json`. Each entry is keyed by a param identifier and holds a `by_env` map:
-
-```json
-"ops.mass_delete.max_deletes": {
-  "by_env": { "default": 5, "production": 3 }
-}
-```
-
-Rules read param values through the `resolve_param` and `resolve_list_param` helpers. These helpers are the only sanctioned way to access tunable values. No numeric or string literals that represent policy thresholds may appear in rule bodies.
-
-Every param must define a `by_env.default` value. When no environment is supplied, or when the supplied environment has no matching entry, the `default` value is used automatically.
-
-### How environment affects evaluation
-
-`input.environment` is an optional, opaque string label. It is used solely to select an environment-specific value from a param's `by_env` map. When the environment is absent or does not match any key, the `default` entry is used. No environment names are hardcoded in rule logic.
-
-For the precise lookup algorithm, see [POLICY_TECHNICAL_SPEC.md §4](POLICY_TECHNICAL_SPEC.md).
+- **Rule IDs** use `domain.invariant_name` format (e.g., `k8s.privileged_container`). Stable once released.
+- **Params** live in `evidra/data/params/data.json` with `by_env` maps. Accessed via `resolve_param` / `resolve_list_param`.
+- **Hints** live in `evidra/data/rule_hints/data.json`. 1–3 actionable strings per rule, returned in decision output.
+- **Environment** (`input.environment`) selects env-specific param values. No env names are hardcoded in rules.
 
 ---
 
 ## 2. Quick Index
 
-| Rule ID | Domain | Decision Type | Short Description | Key Params |
+| # | Rule ID | Domain | Type | Prod-only | Short Description |
+|---|---|---|---|---|---|
+| 1 | `ops.mass_delete` | ops | deny | no | Bulk-delete exceeds threshold |
+| 2 | `terraform.sg_open_world` | terraform | deny | no | Security group 0.0.0.0/0 on SSH/RDP |
+| 3 | `terraform.s3_public_access` | terraform | deny | no | S3 missing Block Public Access |
+| 4 | `terraform.iam_wildcard_policy` | terraform | deny | no | IAM wildcard Action or Resource |
+| 5 | `k8s.privileged_container` | k8s | deny | no | Container privileged: true |
+| 6 | `k8s.host_namespace_escape` | k8s | deny | no | hostPID / hostIPC / hostNetwork |
+| 7 | `k8s.run_as_root` | k8s | deny | no | Container runs as UID 0 |
+| 8 | `k8s.hostpath_mount` | k8s | deny | no | hostPath volume mount |
+| 9 | `k8s.dangerous_capabilities` | k8s | deny | no | SYS_ADMIN / SYS_PTRACE / NET_RAW |
+| 10 | `k8s.mutable_image_tag` | k8s | warn | no | :latest or untagged image |
+| 11 | `k8s.no_resource_limits` | k8s | warn | no | Missing CPU/memory limits |
+| 12 | `argocd.autosync_prod` | argocd | deny | yes | Automated sync in production |
+| 13 | `argocd.wildcard_destination` | argocd | deny | no | Wildcard namespace/server in AppProject |
+| 14 | `argocd.dangerous_sync_combo` | argocd | deny | yes | auto-sync + prune + selfHeal |
+| 15 | `s3.no_encryption` | s3 | deny | no | S3 missing server-side encryption |
+| 16 | `s3.no_versioning_prod` | s3 | deny | yes | S3 versioning disabled in production |
+| 17 | `iam.wildcard_policy` | iam | deny | no | IAM Action:\* + Resource:\* (effective root) |
+| 18 | `iam.wildcard_principal` | iam | deny | no | Trust policy Principal:\* |
+| 19 | `k8s.protected_namespace` | k8s | deny | no | Changes in restricted namespace |
+| 20 | `ops.unapproved_change` | ops | deny | no | Protected namespace without approval |
+| 21 | `ops.public_exposure` | ops | deny | no | Terraform public exposure |
+| 22 | `ops.autonomous_execution` | ops | warn | no | Agent via MCP (audit) |
+| 23 | `ops.breakglass_used` | ops | warn | no | Breakglass tag present (audit) |
+
+**Summary:** 18 deny rules, 2 warn guardrails, 3 operational rules. 23 total.
+
+---
+
+## 3. Catastrophic Baseline Rules (18)
+
+### Terraform / Infrastructure-as-Code
+
+---
+
+#### ops.mass_delete
+
+**Intent:** Enforces an upper bound on resources deleted/destroyed in a single operation.
+
+**Trigger:** `kubectl.delete` with `resource_count` or `terraform.plan` with `destroy_count` exceeding threshold, without `breakglass` tag.
+
+| Param | Default | Production |
+|---|---|---|
+| `ops.mass_delete.max_deletes` | 5 | 3 |
+
+**Hints:** Reduce deletion scope · Or add risk_tag: breakglass
+
+---
+
+#### terraform.sg_open_world
+
+**Intent:** Deny security groups with 0.0.0.0/0 or ::/0 ingress on SSH (22), RDP (3389), or configurable dangerous ports.
+
+**Trigger:** `terraform.plan` action with `security_group_rules` containing world-open CIDR on a port in the dangerous ports list.
+
+| Param | Default |
+|---|---|
+| `terraform.sg_open_world.dangerous_ports` | [22, 3389] |
+
+**Hints:** Restrict ingress CIDR to specific IP ranges · Use a bastion host or VPN for SSH/RDP access
+
+**Source:** tfsec AVD-AWS-0107, CIS AWS Benchmark
+
+---
+
+#### terraform.s3_public_access
+
+**Intent:** Deny S3 buckets without all four Block Public Access flags enabled.
+
+**Trigger:** `terraform.plan` action with `resource_type: "aws_s3_bucket"` where `s3_public_access_block` is missing or incomplete, without `approved_public` tag.
+
+**Hints:** Enable all four S3 Block Public Access settings · Add risk_tag: approved_public if bucket must be public
+
+**Source:** tfsec AVD-AWS-0086/0087/0091/0093, CIS AWS 2.1.5
+
+---
+
+#### terraform.iam_wildcard_policy
+
+**Intent:** Deny IAM policies with wildcard Action or wildcard Resource in Allow statements.
+
+**Trigger:** `terraform.plan` action with `iam_policy_statements` containing `effect: "Allow"` with `action: "*"` or `resource: "*"`.
+
+**Hints:** Scope IAM Action and Resource to specific services and ARNs · Use least-privilege policies
+
+**Source:** tfsec AVD-AWS-0057, Checkov CKV_AWS_355/CKV_AWS_356
+
+---
+
+### Kubernetes
+
+---
+
+#### k8s.privileged_container
+
+**Intent:** Deny containers with `privileged: true`. A privileged container has full host access — the container boundary ceases to exist.
+
+**Trigger:** `k8s.apply` action where any container or init container has `security_context.privileged == true`.
+
+**Hints:** Remove securityContext.privileged or set it to false · Use specific capabilities instead
+
+**Source:** CIS 5.2.1, kube-bench 5.2.1
+
+---
+
+#### k8s.host_namespace_escape
+
+**Intent:** Deny pods using host namespaces (hostPID, hostIPC, hostNetwork). Each individually enables container-to-host escape.
+
+**Trigger:** `k8s.apply` action where `host_pid`, `host_ipc`, or `host_network` is `true`.
+
+**Hints:** Remove hostPID, hostIPC, and hostNetwork from the pod spec · Use CNI plugins or service meshes
+
+**Source:** CIS 5.2.2/5.2.3/5.2.4, kube-bench 5.2.2/5.2.3/5.2.4
+
+---
+
+#### k8s.run_as_root
+
+**Intent:** Deny containers explicitly running as UID 0. Running as root makes container escape exploits practical.
+
+**Trigger:** `k8s.apply` action where any container has `security_context.run_as_user == 0`.
+
+**Hints:** Set securityContext.runAsUser to a non-zero UID · Add USER directive to Dockerfile
+
+**Source:** CIS 5.2.6, kube-bench 5.2.6
+
+---
+
+#### k8s.hostpath_mount
+
+**Intent:** Deny hostPath volume mounts. A container with `hostPath: /` can read/write the entire host filesystem.
+
+**Trigger:** `k8s.apply` action where any volume has `host_path` defined.
+
+**Hints:** Use PersistentVolumeClaims instead of hostPath · Restrict hostPath to infrastructure DaemonSets
+
+**Source:** CIS 5.2.13, kube-bench 5.2.12
+
+---
+
+#### k8s.dangerous_capabilities
+
+**Intent:** Deny containers adding SYS_ADMIN, SYS_PTRACE, or NET_RAW capabilities.
+
+**Trigger:** `k8s.apply` action where any container has `security_context.capabilities.add` containing a capability from the dangerous list.
+
+| Param | Default |
+|---|---|
+| `k8s.dangerous_capabilities.list` | ["SYS_ADMIN", "SYS_PTRACE", "NET_RAW"] |
+
+**Hints:** Remove dangerous capabilities from capabilities.add · Use capabilities.drop: [ALL] and add back only what is needed
+
+**Source:** CIS 5.2.7/5.2.8/5.2.9, kube-bench 5.2.7/5.2.8/5.2.9
+
+---
+
+#### k8s.mutable_image_tag
+
+**Intent:** Warn on `:latest` or untagged images. Mutable tags enable silent supply-chain attacks and break rollback.
+
+**Trigger:** `k8s.apply` action where any container image ends with `:latest` or has no tag.
+
+**Hints:** Pin images to a specific version tag or SHA digest · Avoid :latest in production manifests
+
+**Source:** kube-score `container-image-tag`
+
+---
+
+#### k8s.no_resource_limits
+
+**Intent:** Warn on containers missing CPU or memory limits. Unbounded containers can OOMKill every co-located pod.
+
+**Trigger:** `k8s.apply` action where any container is missing `resources.limits.cpu` or `resources.limits.memory`.
+
+**Hints:** Set resources.limits.memory and resources.limits.cpu · Memory limits prevent OOMKill cascading
+
+**Source:** kube-score `container-resources`
+
+---
+
+### ArgoCD
+
+---
+
+#### argocd.autosync_prod
+
+**Intent:** Deny automated sync in production. Every Git commit should not immediately deploy without human review.
+
+**Trigger:** `argocd.sync` action with `sync_policy.automated == true` when `argocd.autosync.deny_automated` param is `true`.
+
+| Param | Default | Production |
+|---|---|---|
+| `argocd.autosync.deny_automated` | false | true |
+
+**Hints:** Disable automated sync for production Applications · Use manual sync with approval gates
+
+**Source:** ArgoCD Automated Sync documentation
+
+---
+
+#### argocd.wildcard_destination
+
+**Intent:** Deny wildcard cluster or namespace targets in AppProjects. Wildcards allow any Application to deploy anywhere.
+
+**Trigger:** `argocd.project` action where any destination has `namespace: "*"` or `server: "*"`.
+
+**Hints:** Specify explicit namespace and server targets · Do not use the default AppProject for production
+
+**Source:** ArgoCD Projects documentation
+
+---
+
+#### argocd.dangerous_sync_combo
+
+**Intent:** Deny the combination of automated sync + prune + selfHeal in production. This creates a system that automatically deletes resources AND prevents human intervention.
+
+**Trigger:** `argocd.sync` action with `sync_policy.automated.prune == true` and `sync_policy.automated.self_heal == true` when `argocd.dangerous_sync.deny_combo` param is `true`.
+
+| Param | Default | Production |
+|---|---|---|
+| `argocd.dangerous_sync.deny_combo` | false | true |
+
+**Hints:** Disable selfHeal or prune on production Applications with auto-sync · Use manual sync for production
+
+**Source:** ArgoCD GitHub issue #14090, ArgoCD Sync documentation
+
+---
+
+### S3
+
+---
+
+#### s3.no_encryption
+
+**Intent:** Deny S3 buckets without server-side encryption. SSE-S3 is zero-cost and zero-performance-impact.
+
+**Trigger:** `terraform.plan` action with `resource_type: "aws_s3_bucket"` where `server_side_encryption.enabled` is not `true`.
+
+**Hints:** Enable server-side encryption (SSE-S3 or SSE-KMS) · SSE-S3 is zero-cost and zero-performance-impact
+
+**Source:** tfsec AVD-AWS-0088
+
+---
+
+#### s3.no_versioning_prod
+
+**Intent:** Deny versioning disabled on production S3 buckets. Without versioning, a single delete permanently destroys data.
+
+**Trigger:** `terraform.plan` action with `resource_type: "aws_s3_bucket"` where `versioning.enabled` is not `true`, when `s3.versioning.require` param is `true`.
+
+| Param | Default | Production |
+|---|---|---|
+| `s3.versioning.require` | false | true |
+
+**Hints:** Enable versioning on production S3 buckets · Versioning converts destructive deletes into recoverable soft-deletes
+
+**Source:** tfsec AVD-AWS-0090
+
+---
+
+### IAM
+
+---
+
+#### iam.wildcard_policy
+
+**Intent:** Deny IAM policies with `Action: *` combined with `Resource: *` — functionally root for the AWS account.
+
+**Trigger:** `terraform.plan` action with `iam_policy_statements` containing `effect: "Allow"`, `action: "*"`, and `resource: "*"` simultaneously.
+
+**Hints:** Remove Action:\* and Resource:\* from IAM policy statements · Scope permissions to specific services and ARNs
+
+**Source:** tfsec AVD-AWS-0057, Rhino Security Labs, Bishop Fox iam-vulnerable
+
+---
+
+#### iam.wildcard_principal
+
+**Intent:** Deny IAM trust policies with `Principal: *` or `Principal: {"AWS": "*"}` — allows any AWS account to assume the role.
+
+**Trigger:** `terraform.plan` action with `trust_policy_statements` containing `effect: "Allow"` with wildcard principal.
+
+**Hints:** Replace Principal:\* with specific AWS account IDs or service principals · Add Condition keys to restrict role assumption
+
+**Source:** Datadog Security Labs, Hacking The Cloud
+
+---
+
+## 4. Operational Rules (5)
+
+These rules provide operational guardrails and audit signals.
+
+---
+
+#### k8s.protected_namespace
+
+Deny changes targeting restricted namespaces (default: `kube-system`) without `breakglass` tag.
+
+| Param | Default |
+|---|---|
+| `k8s.namespaces.restricted` | ["kube-system"] |
+
+---
+
+#### ops.unapproved_change
+
+Deny changes targeting protected namespaces (default: `prod`) without `change-approved` tag.
+
+| Param | Default |
+|---|---|
+| `k8s.namespaces.protected` | ["prod"] |
+
+---
+
+#### ops.public_exposure
+
+Deny `terraform.plan` actions where `publicly_exposed == true` without `approved_public` tag.
+
+---
+
+#### ops.autonomous_execution
+
+Warn when an agent request arrives via MCP. Flags for human review.
+
+---
+
+#### ops.breakglass_used
+
+Warn when any action carries the `breakglass` tag. Ensures audit trail.
+
+---
+
+## 5. Params Index
+
+| Param Key | Used By | Type | Default | Env Override |
 |---|---|---|---|---|
-| `k8s.protected_namespace` | k8s | deny | Changes targeting a restricted namespace require a breakglass tag. | `k8s.namespaces.restricted` |
-| `ops.mass_delete` | ops | deny | Bulk-delete actions exceeding a configurable threshold are blocked unless tagged breakglass. | `ops.mass_delete.max_deletes` |
-| `ops.unapproved_change` | ops | deny | Changes targeting a protected namespace require a change-approved tag. | `k8s.namespaces.protected` |
-| `ops.public_exposure` | ops | deny | Terraform plans that expose resources publicly require an approved_public tag. | _(none)_ |
-| `ops.autonomous_execution` | ops | warn | Agent-originated requests via MCP are flagged for human review. | _(none)_ |
-| `ops.breakglass_used` | ops | warn | Any action carrying the breakglass tag triggers a warning for audit purposes. | _(none)_ |
+| `ops.mass_delete.max_deletes` | `ops.mass_delete` | number | 5 | production: 3 |
+| `k8s.namespaces.restricted` | `k8s.protected_namespace` | list | ["kube-system"] | — |
+| `k8s.namespaces.protected` | `ops.unapproved_change` | list | ["prod"] | — |
+| `k8s.dangerous_capabilities.list` | `k8s.dangerous_capabilities` | list | ["SYS_ADMIN", "SYS_PTRACE", "NET_RAW"] | — |
+| `terraform.sg_open_world.dangerous_ports` | `terraform.sg_open_world` | list | [22, 3389] | — |
+| `argocd.autosync.deny_automated` | `argocd.autosync_prod` | boolean | false | production: true |
+| `argocd.dangerous_sync.deny_combo` | `argocd.dangerous_sync_combo` | boolean | false | production: true |
+| `s3.versioning.require` | `s3.no_versioning_prod` | boolean | false | production: true |
 
 ---
 
-## 3. Rule Cards
+## 6. Authoring Guidelines
 
----
+**Rule IDs:** `domain.invariant_name` — lowercase, dot-separated, exactly two segments.
 
-### k8s.protected_namespace
+**Tunable values:** All thresholds and lists in `evidra/data/params/data.json`, never in rule bodies. Every param must define `by_env.default`.
 
-**Intent**
+**Environment in rules:** No environment names as string literals. Use `resolve_param` with `by_env` entries.
 
-Enforces that no action may target a namespace on the restricted list unless the action carries the `breakglass` risk tag. The restricted namespace list is configurable; the default value is `["kube-system"]`. This rule prevents unguarded writes to system-critical Kubernetes namespaces.
-
-**Applies to**
-
-Actions of any kind that carry a `namespace` field in `payload` or `target`. Confirmed in tests with `k8s.apply` actions targeting `kube-system`.
-
-**Trigger**
-
-Fires when at least one action has a namespace matching the restricted list and that action does not carry the `breakglass` risk tag.
-
-**Outputs**
-
-- Adds `"k8s.protected_namespace"` to `hits`.
-- Adds `"Changes in restricted namespace require breakglass"` to `reasons`.
-- Sets `allow` to `false`.
-- Includes hints for `k8s.protected_namespace` in the `hints` array.
-
-**Params**
-
-| Param Key | Type | Default | Environment-aware |
-|---|---|---|---|
-| `k8s.namespaces.restricted` | list of strings | `["kube-system"]` | yes |
-
-**Hints**
-
-- `Add risk_tag: breakglass`
-- `Or apply changes outside kube-system`
-
-**Examples**
-
-Denied — targets `kube-system` without breakglass:
-
-```json
-{
-  "environment": "dev",
-  "actions": [
-    { "kind": "k8s.apply", "risk_tags": [], "payload": { "namespace": "kube-system" } }
-  ]
-}
-```
-
-Allowed — carries `breakglass` tag:
-
-```json
-{
-  "environment": "dev",
-  "actions": [
-    { "kind": "k8s.apply", "risk_tags": ["breakglass"], "payload": { "namespace": "kube-system" } }
-  ]
-}
-```
-
----
-
-### ops.mass_delete
-
-**Intent**
-
-Enforces an upper bound on the number of resources deleted or destroyed in a single operation. The threshold is configurable per environment. `kubectl.delete` actions are checked against `payload.resource_count`; `terraform.plan` actions are checked against `payload.destroy_count`. Any action exceeding the threshold without a `breakglass` tag is denied.
-
-**Applies to**
-
-- `kubectl.delete` — reads `payload.resource_count`.
-- `terraform.plan` — reads `payload.destroy_count` (treated as `0` when absent).
-
-**Trigger**
-
-Fires when at least one action of an applicable kind carries a count that exceeds the configured threshold and does not carry the `breakglass` risk tag.
-
-**Outputs**
-
-- Adds `"ops.mass_delete"` to `hits`.
-- Adds `"Mass delete actions exceed threshold"` to `reasons`.
-- Sets `allow` to `false`.
-- Includes hints for `ops.mass_delete` in the `hints` array.
-
-**Params**
-
-| Param Key | Type | Default | Environment-aware |
-|---|---|---|---|
-| `ops.mass_delete.max_deletes` | number | `5` | yes (`production` → `3`) |
-
-**Hints**
-
-- `Reduce deletion scope`
-- `Or add risk_tag: breakglass`
-
-**Examples**
-
-Denied — 12 resources deleted, default threshold is 5:
-
-```json
-{
-  "environment": "dev",
-  "actions": [
-    { "kind": "kubectl.delete", "risk_tags": [], "payload": { "resource_count": 12 } }
-  ]
-}
-```
-
-Denied — 4 resources in `production` (threshold 3):
-
-```json
-{
-  "environment": "production",
-  "actions": [
-    { "kind": "kubectl.delete", "risk_tags": [], "payload": { "resource_count": 4 } }
-  ]
-}
-```
-
-Allowed — same 4 resources in `dev` (threshold 5):
-
-```json
-{
-  "environment": "dev",
-  "actions": [
-    { "kind": "kubectl.delete", "risk_tags": [], "payload": { "resource_count": 4 } }
-  ]
-}
-```
-
----
-
-### ops.unapproved_change
-
-**Intent**
-
-Enforces that changes targeting a namespace on the protected list carry a `change-approved` risk tag. The protected namespace list is configurable; the default value is `["prod"]`. This rule requires formal change-approval evidence for operations in designated protected environments.
-
-**Applies to**
-
-Actions of any kind that carry a `namespace` field in `payload` or `target`. Confirmed in tests with `k8s.apply` actions targeting the `prod` namespace.
-
-**Trigger**
-
-Fires when at least one action has a namespace matching the protected list and that action does not carry the `change-approved` risk tag.
-
-**Outputs**
-
-- Adds `"ops.unapproved_change"` to `hits`.
-- Adds `"Production changes require change-approved"` to `reasons`.
-- Sets `allow` to `false`.
-- Includes hints for `ops.unapproved_change` in the `hints` array.
-
-**Params**
-
-| Param Key | Type | Default | Environment-aware |
-|---|---|---|---|
-| `k8s.namespaces.protected` | list of strings | `["prod"]` | yes |
-
-**Hints**
-
-- `Add risk_tag: change-approved`
-- `Or run in observe mode`
-
-**Examples**
-
-Denied — targets `prod` without `change-approved`:
-
-```json
-{
-  "environment": "prod",
-  "actions": [
-    { "kind": "k8s.apply", "risk_tags": [], "payload": { "namespace": "prod" } }
-  ]
-}
-```
-
-Allowed — carries `change-approved`:
-
-```json
-{
-  "environment": "prod",
-  "actions": [
-    { "kind": "k8s.apply", "risk_tags": ["change-approved"], "payload": { "namespace": "prod" } }
-  ]
-}
-```
-
----
-
-### ops.public_exposure
-
-**Intent**
-
-Enforces that Terraform plans which expose resources publicly carry the `approved_public` risk tag. This rule prevents unguarded creation of internet-accessible infrastructure.
-
-**Applies to**
-
-Actions of kind `terraform.plan` where `payload.publicly_exposed` is `true`.
-
-**Trigger**
-
-Fires when at least one `terraform.plan` action has `payload.publicly_exposed == true` and does not carry the `approved_public` risk tag.
-
-**Outputs**
-
-- Adds `"ops.public_exposure"` to `hits`.
-- Adds `"Public exposure requires approved_public"` to `reasons`.
-- Sets `allow` to `false`.
-- Includes hints for `ops.public_exposure` in the `hints` array.
-
-**Params**
-
-This rule uses no configurable params. The `publicly_exposed` field is a direct payload attribute.
-
-| Param Key | Type | Default | Environment-aware |
-|---|---|---|---|
-| _(none)_ | — | — | no |
-
-**Hints**
-
-- `Add risk_tag: approved_public`
-- `Or remove public exposure`
-
-**Examples**
-
-Denied — public exposure, no approval tag:
-
-```json
-{
-  "environment": "dev",
-  "actions": [
-    { "kind": "terraform.plan", "risk_tags": [], "payload": { "publicly_exposed": true } }
-  ]
-}
-```
-
-Allowed — carries `approved_public`:
-
-```json
-{
-  "environment": "dev",
-  "actions": [
-    { "kind": "terraform.plan", "risk_tags": ["approved_public"], "payload": { "publicly_exposed": true } }
-  ]
-}
-```
-
----
-
-### ops.autonomous_execution
-
-**Intent**
-
-Flags requests that originate from an autonomous agent via the MCP interface. The rule does not deny; it emits a warning to inform reviewers that the operation was not initiated by a human and warrants manual review.
-
-**Applies to**
-
-Any request where the actor type is `"agent"` and the source is `"mcp"`. Individual action kinds are not inspected.
-
-**Trigger**
-
-Fires when the request actor type is `"agent"` and the request source is `"mcp"`.
-
-**Outputs**
-
-- Adds `"ops.autonomous_execution"` to `hits` (via warn; does not deny).
-- Does not affect `allow` or `reasons`.
-- Includes hints for `ops.autonomous_execution` in the `hints` array.
-
-**Params**
-
-This rule uses no configurable params.
-
-| Param Key | Type | Default | Environment-aware |
-|---|---|---|---|
-| _(none)_ | — | — | no |
-
-**Hints**
-
-- `Review changes manually before apply`
-
-**Examples**
-
-Warn fired — agent request via MCP:
-
-```json
-{
-  "source": "mcp",
-  "actor": { "type": "agent" },
-  "environment": "dev",
-  "actions": [
-    { "kind": "kubectl.apply", "risk_tags": [], "payload": { "namespace": "default" } }
-  ]
-}
-```
-
-Decision: `allow: true`, `hits: ["ops.autonomous_execution"]`, `hints: ["Review changes manually before apply"]`.
-
-No warn — human request:
-
-```json
-{
-  "source": "cli",
-  "actor": { "type": "human" },
-  "environment": "dev",
-  "actions": [
-    { "kind": "kubectl.apply", "risk_tags": [], "payload": { "namespace": "default" } }
-  ]
-}
-```
-
----
-
-### ops.breakglass_used
-
-**Intent**
-
-Emits a warning whenever any action carries the `breakglass` risk tag. This ensures that breakglass usage is always recorded in the decision output for audit, even when the tag legitimately bypasses a deny rule.
-
-**Applies to**
-
-Any action carrying `"breakglass"` in its `risk_tags` list, regardless of kind.
-
-**Trigger**
-
-Fires when at least one action in the request has `"breakglass"` in its `risk_tags` array.
-
-**Outputs**
-
-- Adds `"ops.breakglass_used"` to `hits` (via warn; does not deny).
-- Does not affect `allow` or `reasons`.
-- Includes hints for `ops.breakglass_used` in the `hints` array.
-
-**Params**
-
-This rule uses no configurable params.
-
-| Param Key | Type | Default | Environment-aware |
-|---|---|---|---|
-| _(none)_ | — | — | no |
-
-**Hints**
-
-- `Use breakglass only for emergencies.`
-- `Prefer change-approved tags for non-emergency production changes.`
-
-**Examples**
-
-Warn fired — breakglass tag present (bypasses `k8s.protected_namespace` deny):
-
-```json
-{
-  "environment": "prod",
-  "source": "cli",
-  "actor": { "type": "human" },
-  "actions": [
-    { "kind": "kubectl.apply", "risk_tags": ["breakglass"], "payload": { "namespace": "kube-system" } }
-  ]
-}
-```
-
-Decision: `allow: true`, `hits: ["ops.breakglass_used"]`.
-
-No warn — no breakglass tag:
-
-```json
-{
-  "environment": "dev",
-  "actions": [
-    { "kind": "kubectl.apply", "risk_tags": [], "payload": { "namespace": "default" } }
-  ]
-}
-```
-
----
-
-## 4. Params Index
-
-| Param Key | Used By Rules | Type | Has `by_env.default` | Description |
-|---|---|---|---|---|
-| `ops.mass_delete.max_deletes` | `ops.mass_delete` | number | yes (`5`) | Maximum resource count per delete/destroy operation before denial. Overridden to `3` in `production`. |
-| `k8s.namespaces.restricted` | `k8s.protected_namespace` | list of strings | yes (`["kube-system"]`) | Namespaces requiring a `breakglass` tag for any action. |
-| `k8s.namespaces.protected` | `ops.unapproved_change` | list of strings | yes (`["prod"]`) | Namespaces requiring a `change-approved` tag for any action. |
-
-All three params define a `by_env.default` and are functional without specifying an environment. No params are currently defined but unused.
-
----
-
-## 5. Authoring Guidelines
-
-The following conventions apply to all policy contributions in this bundle. For normative MUST/MUST NOT language and the full rule authoring contract, see [POLICY_TECHNICAL_SPEC.md §7](POLICY_TECHNICAL_SPEC.md).
-
-**Rule IDs**
-
-Format: `domain.invariant_name` — lowercase, dot-separated, exactly two segments. No environment names, severity labels, or ordinal suffixes.
-
-Valid: `ops.mass_delete`, `k8s.protected_namespace`.
-Invalid: `ops.mass_delete.prod`, `ops.high_mass_delete`, `ops.mass_delete_v2`.
-
-**Tunable values**
-
-All configurable thresholds and lists belong in `evidra/data/params/data.json`, not in rule bodies. Every param must define `by_env.default`.
-
-**Environment in rules**
-
-Rules must not reference environment names as string literals. Environment-specific behavior is achieved solely through `resolve_param` / `resolve_list_param` with `by_env` entries in `data.json`.
-
-**Hints**
-
-Hint strings belong in `evidra/data/rule_hints/data.json`, keyed by the same canonical rule ID used in the rule head. Aim for 1–3 actionable strings per rule.
-
----
-
-## 6. Coverage Notes
-
-### Rules lacking hints
-
-No active rules are missing hints. All six rule IDs have entries in `rule_hints/data.json`.
-
-**Note:** `sys.unlabeled_deny` has a hint entry in `rule_hints/data.json` but has no corresponding Rego rule file. It is a reserved rule ID for a meta-enforcement convention (ensuring deny rules emit a label). It is not emitted by any current rule.
-
-### Params lacking `by_env.default`
-
-None. All three params define a `by_env.default`.
-
-### Rules where scope could not be inferred from logic alone
-
-- **`ops.autonomous_execution`** — inspects top-level request fields (`actor.type`, `source`), not individual action kinds. Applies to any request arriving from an agent via MCP. A doc comment in the rule file would make this explicit.
-- **`ops.breakglass_used`** — matches any action with `breakglass` in `risk_tags`, independent of kind. Scope is implicit from the tag check; a doc comment would clarify intent.
+**Hints:** In `evidra/data/rule_hints/data.json`, keyed by canonical rule ID. 1–3 actionable strings per rule.

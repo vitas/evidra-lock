@@ -47,3 +47,9 @@ resolve_param(key) := val if {
 # resolve_list_param returns a list parameter value for the current environment.
 # Same lookup chain as resolve_param, provided for clarity.
 resolve_list_param(key) := resolve_param(key)
+
+# all_containers returns the concatenation of containers and init_containers from a payload.
+all_containers(payload) := array.concat(
+	object.get(payload, "containers", []),
+	object.get(payload, "init_containers", []),
+)

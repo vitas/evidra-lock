@@ -2,173 +2,107 @@
 
 ## Purpose
 
-The `ops-v0.1` profile provides a minimal, high-impact set of guardrails
+The `ops-v0.1` profile provides 18 catastrophic guardrails plus 5 operational rules
 for AI-generated and automated infrastructure changes.
 
 This profile is intentionally small.
 
 It focuses only on catastrophic, high-signal misconfigurations that:
 
-- Cause production outages
-- Expose infrastructure publicly
+- Cause production outages or irreversible data loss
+- Expose infrastructure or data publicly
 - Break GitOps safety guarantees
-- Introduce severe security risks
+- Enable cluster or account compromise
 
 It is designed to be:
 
-- Deterministic
-- Low false-positive
-- Easy to explain
+- Deterministic (no runtime API calls, no probabilistic analysis)
+- Low false-positive (16 of 18 guardrail rules have Low FP risk)
+- Easy to explain (18 rules a security team can audit in 30 minutes)
 - Safe for early adoption
 
 ---
 
-# Terraform Rules
+## What Evidra Is Not
 
-## 1. terraform.mass_delete
+Evidra is **not** a CIS compliance scanner. It does not replace tfsec, trivy, kube-bench, or Checkov.
 
-**Severity:** High  
-**Action:** Deny  
+These tools audit hundreds of controls across entire infrastructure. Evidra evaluates
+AI agent behavior at the point of action — a single tool invocation at a time.
 
-**Condition:**
-- Number of delete actions exceeds threshold (e.g., > 1 in production)
+The 18 guardrail rules were selected because:
 
-**Why it exists:**
-Mass deletion is one of the most common catastrophic mistakes in Terraform plans.
-
----
-
-## 2. terraform.sg_open_world
-
-**Severity:** High  
-**Action:** Deny  
-
-**Condition:**
-- Security group ingress from `0.0.0.0/0`
-- Port 22 (SSH) or 3389 (RDP)
-- Environment is production
-
-**Why it exists:**
-Public SSH/RDP exposure is a major security risk.
+1. Every rule has a specific, named incident or documented attack chain.
+2. Every rule is deterministically evaluable from static configuration.
+3. The rule count is small enough to explain, audit, and defend in one meeting.
+4. Every rule maps to a CIS control, tfsec AVD ID, or kube-score check.
 
 ---
 
-## 3. terraform.s3_public_access
+## Rule Summary
 
-**Severity:** High  
-**Action:** Deny  
+### Deny Rules (18)
 
-**Condition:**
-- S3 bucket ACL is public
-- OR Public Access Block disabled
-- OR bucket policy allows `"Principal": "*"`
+| Rule ID | Domain | Scope | Description |
+|---|---|---|---|
+| `ops.mass_delete` | Terraform/K8s | all | Bulk-delete exceeds threshold |
+| `terraform.sg_open_world` | Terraform | all | SG 0.0.0.0/0 on SSH/RDP |
+| `terraform.s3_public_access` | Terraform | all | S3 missing Block Public Access |
+| `terraform.iam_wildcard_policy` | Terraform | all | IAM wildcard Action or Resource |
+| `k8s.privileged_container` | Kubernetes | all | Container privileged: true |
+| `k8s.host_namespace_escape` | Kubernetes | all | hostPID / hostIPC / hostNetwork |
+| `k8s.run_as_root` | Kubernetes | all | Container runs as UID 0 |
+| `k8s.hostpath_mount` | Kubernetes | all | hostPath volume mount |
+| `k8s.dangerous_capabilities` | Kubernetes | all | SYS_ADMIN / SYS_PTRACE / NET_RAW |
+| `argocd.autosync_prod` | ArgoCD | prod | Automated sync in production |
+| `argocd.wildcard_destination` | ArgoCD | all | Wildcard namespace/server |
+| `argocd.dangerous_sync_combo` | ArgoCD | prod | auto-sync + prune + selfHeal |
+| `s3.no_encryption` | S3 | all | Missing server-side encryption |
+| `s3.no_versioning_prod` | S3 | prod | Versioning disabled in production |
+| `iam.wildcard_policy` | IAM | all | Action:\* + Resource:\* (root) |
+| `iam.wildcard_principal` | IAM | all | Trust policy Principal:\* |
+| `k8s.protected_namespace` | Kubernetes | all | Changes in restricted namespace |
+| `ops.unapproved_change` | Ops | all | Protected ns without approval |
 
-**Why it exists:**
-Public S3 buckets are a common source of data leaks.
+### Warn Rules (2 guardrail + 3 operational)
 
----
-
-# Kubernetes / kubectl Rules
-
-## 4. k8s.privileged_container
-
-**Severity:** High  
-**Action:** Deny  
-
-**Condition:**
-- `securityContext.privileged = true`
-
-**Why it exists:**
-Privileged containers can escape container isolation.
-
----
-
-## 5. k8s.run_as_root
-
-**Severity:** High  
-**Action:** Deny  
-
-**Condition:**
-- `runAsUser = 0`
-- OR `runAsNonRoot` is not explicitly true
-
-**Why it exists:**
-Running as root increases blast radius of compromise.
+| Rule ID | Domain | Description |
+|---|---|---|
+| `k8s.mutable_image_tag` | Kubernetes | :latest or untagged image |
+| `k8s.no_resource_limits` | Kubernetes | Missing CPU/memory limits |
+| `ops.autonomous_execution` | Ops | Agent via MCP (audit) |
+| `ops.breakglass_used` | Ops | Breakglass tag present (audit) |
+| `ops.public_exposure` | Ops | Terraform public exposure |
 
 ---
 
-## 6. k8s.mutable_image_tag
+## Coverage Map
 
-**Severity:** Medium  
-**Action:** Deny (or Warn, depending on policy strictness)
-
-**Condition:**
-- Image tag is `latest`
-- OR no explicit tag specified
-
-**Why it exists:**
-Mutable tags break reproducibility and GitOps guarantees.
-
----
-
-# ArgoCD Rules
-
-## 7. argocd.autosync_prod
-
-**Severity:** High  
-**Action:** Deny  
-
-**Condition:**
-- `spec.syncPolicy.automated` enabled
-- AND destination environment is production
-
-**Why it exists:**
-Automatic sync in production removes human safety checks.
+| Attack Surface | Rules |
+|---|---|
+| Container escape → host | `k8s.privileged_container`, `k8s.host_namespace_escape`, `k8s.run_as_root`, `k8s.hostpath_mount`, `k8s.dangerous_capabilities` |
+| Mass data exposure | `terraform.s3_public_access`, `s3.no_encryption`, `iam.wildcard_policy`, `iam.wildcard_principal` |
+| Irreversible destruction | `ops.mass_delete`, `argocd.dangerous_sync_combo`, `s3.no_versioning_prod` |
+| Account/cluster takeover | `terraform.iam_wildcard_policy`, `k8s.privileged_container`, `iam.wildcard_policy`, `iam.wildcard_principal` |
+| Network exposure | `terraform.sg_open_world`, `ops.public_exposure` |
+| GitOps operational safety | `argocd.autosync_prod`, `argocd.wildcard_destination`, `argocd.dangerous_sync_combo` |
+| Supply chain / integrity | `k8s.mutable_image_tag` |
+| Availability / DoS | `k8s.no_resource_limits` |
 
 ---
 
-## 8. argocd.wildcard_destination
-
-**Severity:** High  
-**Action:** Deny  
-
-**Condition:**
-- Destination namespace = `*`
-- OR destination cluster = `*`
-
-**Why it exists:**
-Wildcard destinations allow uncontrolled deployment scope.
-
----
-
-# S3 Standalone Rules (if evaluated outside Terraform)
-
-## 9. s3.no_encryption
-
-**Severity:** High  
-**Action:** Deny  
-
-**Condition:**
-- Server-side encryption not configured
-
-**Why it exists:**
-Unencrypted storage increases data exposure risk.
-
----
-
-# Profile Design Principles
-
-The `ops-v0.1` profile follows these principles:
+## Profile Design Principles
 
 1. High signal only — no noise.
 2. No compliance checklist sprawl.
 3. Focus on catastrophic impact.
 4. Deterministic evaluation.
 5. Environment-aware where applicable.
+6. Every rule has a documented real-world incident or attack chain.
 
 ---
 
-# Non-Goals (v0.1)
+## Non-Goals (v0.1)
 
 This profile does NOT aim to:
 
@@ -176,28 +110,4 @@ This profile does NOT aim to:
 - Replace dedicated security scanners
 - Cover every Kubernetes best practice
 - Enforce organization-specific policies
-
----
-
-# Future Expansion (Optional)
-
-Future versions may include:
-
-- Helm-rendered manifest evaluation
-- Kustomize transformation validation
-- Terraform drift detection safeguards
-- Policy pack modularization
-- Environment-based severity overrides
-
----
-
-# Summary
-
-The `ops-v0.1` profile provides a practical and production-oriented
-baseline guardrail set for AI-driven infrastructure changes.
-
-It is intentionally small.
-
-It is intentionally strict.
-
-It is intentionally deterministic.
+- Perform runtime or network-based detection

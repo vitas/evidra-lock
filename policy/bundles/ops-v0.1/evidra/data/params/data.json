@@ -7,5 +7,20 @@
   },
   "k8s.namespaces.protected": {
     "by_env": { "default": ["prod"] }
+  },
+  "k8s.dangerous_capabilities.list": {
+    "by_env": { "default": ["SYS_ADMIN", "SYS_PTRACE", "NET_RAW"] }
+  },
+  "terraform.sg_open_world.dangerous_ports": {
+    "by_env": { "default": [22, 3389] }
+  },
+  "argocd.autosync.deny_automated": {
+    "by_env": { "default": false, "production": true }
+  },
+  "argocd.dangerous_sync.deny_combo": {
+    "by_env": { "default": false, "production": true }
+  },
+  "s3.versioning.require": {
+    "by_env": { "default": false, "production": true }
   }
 }

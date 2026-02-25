@@ -3,8 +3,9 @@
 Evidra is a policy guardrail backend for AI agents that touch real infrastructure.
 
 - Validates AI-driven infrastructure actions before execution
-- Enforces OPA policies with structured rule hints
+- Enforces 23 OPA policy rules (18 catastrophic guardrails + 5 operational) with structured hints
 - Records tamper-evident evidence for every decision
+- Covers Kubernetes, Terraform, ArgoCD, S3, and IAM attack surfaces
 
 ---
 
@@ -64,6 +65,8 @@ Add to `~/.claude/settings.json`:
 
 No extra flags required — the binary ships with the ops-v0.1 policy bundle built in.
 For other MCP clients, use the same `command` / `args` shape in their respective config.
+
+See [docs/POLICY_CATALOG.md](docs/POLICY_CATALOG.md) for the full rule catalog.
 
 ---
 
