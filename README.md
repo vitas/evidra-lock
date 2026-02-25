@@ -129,4 +129,4 @@ OPA evaluates policy. Evidra evaluates AI agent behavior.
 
 ## License
 
-MIT
+Apache License 2.0

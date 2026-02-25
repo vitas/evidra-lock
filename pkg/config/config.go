@@ -18,6 +18,16 @@ var (
 	repoPolicyFallbackOnce sync.Once
 )
 
+// ResolveBundlePath resolves the OPA bundle directory path.
+// Precedence: explicit flag > EVIDRA_BUNDLE_PATH env var.
+// Returns "" if neither is set (caller should fall back to embedded bundle).
+func ResolveBundlePath(flagValue string) string {
+	if v := strings.TrimSpace(flagValue); v != "" {
+		return v
+	}
+	return strings.TrimSpace(os.Getenv("EVIDRA_BUNDLE_PATH"))
+}
+
 func ResolvePolicyData(policyFlag, dataFlag string) (string, string, error) {
 	policyFlag = strings.TrimSpace(policyFlag)
 	dataFlag = strings.TrimSpace(dataFlag)

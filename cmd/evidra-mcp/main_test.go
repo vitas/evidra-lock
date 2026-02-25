@@ -219,6 +219,42 @@ func TestResolveEvidencePathPrecedence(t *testing.T) {
 	}
 }
 
+func TestRunUsesEmbeddedBundleWhenNoPolicyConfigured(t *testing.T) {
+	old := newServerFunc
+	defer func() { newServerFunc = old }()
+
+	stub := &fakeServer{}
+	var capturedOpts mcpserver.Options
+	newServerFunc = func(opts mcpserver.Options) serverRunner {
+		capturedOpts = opts
+		return stub
+	}
+
+	t.Setenv("EVIDRA_BUNDLE_PATH", "")
+	t.Setenv("EVIDRA_POLICY_PATH", "")
+	t.Setenv("EVIDRA_DATA_PATH", "")
+	t.Setenv("EVIDRA_EVIDENCE_PATH", t.TempDir())
+
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	code := run([]string{}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
+	}
+	if !stub.called {
+		t.Fatalf("expected server to start with embedded bundle")
+	}
+	if !strings.Contains(errOut.String(), "using built-in ops-v0.1 bundle") {
+		t.Fatalf("expected embedded bundle notice in stderr, got: %s", errOut.String())
+	}
+	if capturedOpts.BundlePath == "" {
+		t.Fatalf("expected BundlePath to be set (extracted temp dir)")
+	}
+	if capturedOpts.PolicyRef == "" {
+		t.Fatalf("expected PolicyRef from embedded bundle")
+	}
+}
+
 type fakeServer struct {
 	called bool
 }
