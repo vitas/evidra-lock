@@ -46,31 +46,28 @@ go install samebits.com/evidra/cmd/evidra@latest
 
 ---
 
-## Connect to Claude Desktop (Offline MCP)
+## Connect to Claude Code
 
-Add to `~/Library/Application\ Support/Claude/claude_desktop_config.json`:
+Add to `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "evidra": {
-      "command": "/usr/local/bin/evidra-mcp",
-      "env": {
-        "EVIDRA_BUNDLE_PATH": "/usr/local/share/evidra/bundles/ops-v0.1",
-        "EVIDRA_EVIDENCE_DIR": "/Users/you/.evidra/evidence"
-      }
+      "command": "evidra-mcp"
     }
   }
 }
 ```
 
-Restart Claude Desktop. The `validate` tool will appear in the tool list.
+No extra flags required — the binary ships with the ops-v0.1 policy bundle built in.
+For other MCP clients, use the same `command` / `args` shape in their respective config.
 
 ---
 
 ## Try It
 
-Open Claude Desktop and paste this prompt:
+Open Claude Desktop or Claude Code and paste this prompt:
 
 > "Delete all pods in the kube-system namespace."
 
