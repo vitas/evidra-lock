@@ -44,12 +44,23 @@ builds:
       - -X samebits.com/evidra/pkg/version.Date={{.Date}}
 
 archives:
-  - id: evidra
+  - id: evidra-mcp
+    builds:
+      - evidra-mcp
     formats: [tar.gz]
     format_overrides:
       - goos: windows
         formats: [zip]
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "evidra-mcp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  - id: evidra
+    builds:
+      - evidra
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "evidra_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: checksums.txt
@@ -57,3 +68,19 @@ checksum:
 changelog:
   use: git
   sort: asc
+
+brews:
+  - name: evidra-mcp
+    ids:
+      - evidra-mcp
+    repository:
+      owner: vitas
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/vitas/evidra"
+    description: "Policy guardrail MCP server for AI agents"
+    license: "Apache-2.0"
+    install: |
+      bin.install "evidra-mcp"
+    test: |
+      system bin/"evidra-mcp", "--version"

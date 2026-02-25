@@ -24,24 +24,26 @@ The agent stops. Nothing is deleted. The audit trail exists.
 
 ## Install
 
-**Homebrew**
+**Homebrew** (macOS / Linux)
 
 ```bash
-brew install evidra-io/tap/evidra-mcp
+brew install vitas/tap/evidra-mcp
 ```
 
 **Docker**
 
 ```bash
-docker run --rm -v ~/.evidra:/root/.evidra \
-  ghcr.io/evidra-io/evidra-mcp:latest
+docker run --rm -i ghcr.io/vitas/evidra-mcp:latest
 ```
+
+**Binary download**
+
+Grab the latest release from [GitHub Releases](https://github.com/vitas/evidra/releases) and place `evidra-mcp` on your `PATH`.
 
 **Go install**
 
 ```bash
 go install samebits.com/evidra/cmd/evidra-mcp@latest
-go install samebits.com/evidra/cmd/evidra@latest
 ```
 
 ---

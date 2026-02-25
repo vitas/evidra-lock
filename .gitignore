@@ -19,7 +19,7 @@ coverage.out
 # Build artifacts
 bin/
 dist/
-release/
+/release/
 
 # IDE/editor
 .vscode/
