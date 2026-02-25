@@ -15,7 +15,7 @@ fail() { FAIL=$((FAIL + 1)); printf "  \033[31mFAIL\033[0m %s\n" "$1"; }
 send() {
     # Concatenate init handshake + test payload, then hold stdin open
     # long enough for the server to process all messages before EOF.
-    { cat "$DIR/testdata/init.jsonl" "$1"; sleep 1; } \
+    { cat "$DIR/../testdata/init.jsonl" "$1"; sleep 1; } \
       | docker run --rm -i "$IMAGE" 2>"$STDERR"
 }
 
@@ -25,7 +25,7 @@ trap 'rm -f "$STDERR" "$STDOUT"' EXIT
 
 # --- 1. Startup + stderr ---
 printf "1. Startup\n"
-send "$DIR/testdata/validate_pass.jsonl" >"$STDOUT"
+send "$DIR/../testdata/validate_pass.jsonl" >"$STDOUT"
 
 if grep -q "using built-in ops-v0.1 bundle" "$STDERR"; then
     pass "stderr: embedded bundle notice"
@@ -48,7 +48,7 @@ EVENT=$(echo "$RESULT" | jq -r '.event_id')
 
 # --- 3. DENY case ---
 printf "3. DENY case (kubectl delete kube-system)\n"
-send "$DIR/testdata/validate_deny.jsonl" >"$STDOUT" 2>"$STDERR"
+send "$DIR/../testdata/validate_deny.jsonl" >"$STDOUT" 2>"$STDERR"
 RESULT=$(grep '"id":2' "$STDOUT" | jq -r '.result.structuredContent')
 ALLOW=$(echo "$RESULT" | jq -r '.policy.allow')
 OK=$(echo "$RESULT" | jq -r '.ok')

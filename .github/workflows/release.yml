@@ -74,8 +74,8 @@ jobs:
 
       - name: Smoke test
         run: |
-          { cat cmd/evidra-mcp/test/docker/testdata/init.jsonl \
-               cmd/evidra-mcp/test/docker/testdata/validate_pass.jsonl; sleep 2; } \
+          { cat cmd/evidra-mcp/test/testdata/init.jsonl \
+               cmd/evidra-mcp/test/testdata/validate_pass.jsonl; sleep 2; } \
             | timeout 10 docker run --rm -i ghcr.io/vitas/evidra-mcp:latest \
               >stdout.log 2>stderr.log || true
 
