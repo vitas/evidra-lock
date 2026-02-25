@@ -1,0 +1,29 @@
+{
+  "k8s.protected_namespace": [
+    "Add risk_tag: breakglass",
+    "Or apply changes outside kube-system"
+  ],
+  "ops.unapproved_change": [
+    "Add risk_tag: change-approved",
+    "Or run in --observe mode"
+  ],
+  "ops.public_exposure": [
+    "Add risk_tag: approved_public",
+    "Or remove public exposure"
+  ],
+  "ops.mass_delete": [
+    "Reduce deletion scope",
+    "Or add risk_tag: breakglass"
+  ],
+  "ops.autonomous_execution": [
+    "Review changes manually before apply"
+  ],
+  "sys.unlabeled_deny": [
+    "Add stable rule labels to deny rules.",
+    "Ensure each deny rule emits a label and message."
+  ],
+  "ops.breakglass_used": [
+    "Use breakglass only for emergencies.",
+    "Prefer change-approved tags for non-emergency production changes."
+  ]
+}

@@ -28,7 +28,7 @@ release/
 
 # Local Evidra state
 .evidra/
-data/
+/data/
 audit-pack.tar.gz
 **/data/evidence/
 **/.evidra.lock

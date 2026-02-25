@@ -1,0 +1,11 @@
+{
+  "ops.mass_delete.max_deletes": {
+    "by_env": { "default": 5, "production": 3 }
+  },
+  "k8s.namespaces.restricted": {
+    "by_env": { "default": ["kube-system"] }
+  },
+  "k8s.namespaces.protected": {
+    "by_env": { "default": ["prod"] }
+  }
+}
