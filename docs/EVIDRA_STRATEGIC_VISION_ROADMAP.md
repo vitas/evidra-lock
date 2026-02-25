@@ -37,10 +37,17 @@ Focus:
 -   Immutable evidence chain
 -   Clean CLI UX
 -   Clear AI-readable structured output
+-   **Serious Baseline Policy Pack (23 rules)** — 18 must-have guardrails
+    sourced from CIS Kubernetes Benchmark (5.2.x), tfsec/trivy (AVD-AWS-*),
+    kube-score, AWS S3 best practices, and ArgoCD operational safety patterns.
+    Covers: container escape, mass data exposure, irreversible destruction,
+    account/cluster compromise, and GitOps safety.
+    Research: `docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md`
 
 Deliverable:
 
-> A sharp, reliable tool DevOps engineers trust.
+> A sharp, reliable tool DevOps engineers trust — with enough policy depth
+> to be taken seriously on day one.
 
 No enterprise features. No compliance marketing. No workflow automation.
 

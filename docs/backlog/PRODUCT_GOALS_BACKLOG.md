@@ -16,6 +16,15 @@
 - Human-readable policy profile (`policy/bundles/ops-v0.1`): split into decision aggregator + focused rule files.
   - Polished hints stored in `data.rule_hints`.
   - Rule IDs follow canonical `domain.invariant_name` format (e.g., `k8s.protected_namespace`, `ops.mass_delete`).
+- **Serious Baseline Policy Pack — expand from 6 to 23 rules.**
+  Research: [`OPS_V0_SERIOUS_BASELINE_RESEARCH.md`](./OPS_V0_SERIOUS_BASELINE_RESEARCH.md)
+  - Kubernetes (7 new): `k8s.privileged_container`, `k8s.host_namespace_escape`, `k8s.run_as_root`, `k8s.hostpath_mount`, `k8s.dangerous_capabilities`, `k8s.mutable_image_tag`, `k8s.no_resource_limits`
+  - Terraform (3 new): `terraform.sg_open_world`, `terraform.s3_public_access`, `terraform.iam_wildcard_policy`
+  - S3 (2 new): `s3.no_encryption`, `s3.no_versioning_prod`
+  - IAM (2 new): `iam.wildcard_policy`, `iam.wildcard_principal`
+  - ArgoCD (3 new): `argocd.autosync_prod`, `argocd.wildcard_destination`, `argocd.dangerous_sync_combo`
+  - Each rule sourced from CIS Kubernetes (5.2.x), tfsec/trivy (AVD-AWS-*), kube-score, AWS S3 best practices, or ArgoCD docs.
+  - Every rule deterministic, low FP, backed by real-world incident or documented attack chain.
 - Policy contract documentation for contributors: describe input schema, decision schema, hint conventions, testing strategy.
 - Add data-driven rule hints so policy output stays stable even when messages change.
 - Add policy smoke tests validating hits/hints/reasons.

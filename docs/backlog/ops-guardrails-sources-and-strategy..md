@@ -193,6 +193,24 @@ Helm and Kustomize should be evaluated post-render using the same Kubernetes rul
 
 ---
 
+## Full Research (18 Rules)
+
+The structured research across all sources above is in:
+[`OPS_V0_SERIOUS_BASELINE_RESEARCH.md`](./OPS_V0_SERIOUS_BASELINE_RESEARCH.md)
+
+That document expands the baseline below to 18 rules (17 new + 1 existing),
+adding: `k8s.privileged_container`, `k8s.host_namespace_escape`, `k8s.run_as_root`,
+`k8s.hostpath_mount`, `k8s.dangerous_capabilities`, `k8s.mutable_image_tag`,
+`k8s.no_resource_limits`, `terraform.sg_open_world`, `terraform.s3_public_access`,
+`terraform.iam_wildcard_policy`, `s3.no_encryption`, `s3.no_versioning_prod`,
+`iam.wildcard_policy`, `iam.wildcard_principal`, `argocd.autosync_prod`,
+`argocd.wildcard_destination`, `argocd.dangerous_sync_combo`.
+
+Each rule includes: source inspiration (CIS/AVD/kube-score IDs), deterministic evaluation
+strategy, expected FP risk, and production-scope condition.
+
+---
+
 # Why This Set Is Enough
 
 This baseline:

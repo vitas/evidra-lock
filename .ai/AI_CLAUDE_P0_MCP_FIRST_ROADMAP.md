@@ -15,7 +15,9 @@ If not — it's P0. If it does not directly reduce time-to-first-block, it does 
 
 **P0 scope:** zero-config `evidra-mcp` startup, install path for the MCP binary, MCP-first README + demo, 3-minute quickstart.
 
-**Explicitly excluded from P0:** policy library expansion, GitHub Action, coverage tooling, enterprise signals, HTTP transport (→ P1), evidence export polish, `list_rules`/`simulate` tools, compliance or SaaS features, CI hardening, binary size verification, release pipeline hardening (→ P0.1).
+**Explicitly excluded from P0:** GitHub Action, coverage tooling, enterprise signals, HTTP transport (→ P1), evidence export polish, `list_rules`/`simulate` tools, compliance or SaaS features, CI hardening, binary size verification, release pipeline hardening (→ P0.1).
+
+**Policy library expansion (→ P1 item #0):** The [Serious Baseline Research](../docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md) identified 17 new rules to bring the bundle from 6 to 23 rules across Kubernetes (CIS 5.2.x), Terraform (tfsec AVD-AWS-*), S3, IAM, and ArgoCD. This is scheduled as the first P1 item and the Quick Wins sprint (days 9-12). The policy pack is what makes the zero-config experience meaningful — without it, a developer who installs and runs Evidra sees a demo skeleton.
 
 ---
 

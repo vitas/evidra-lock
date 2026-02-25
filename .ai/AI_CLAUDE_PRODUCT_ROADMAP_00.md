@@ -7,7 +7,7 @@ Generated: 2026-02-25
 
 - **Core is sound, periphery is missing.** The evaluation pipeline (scenario → OPA → evidence) is correctly designed and deterministic. The architecture is clean. What's missing is everything that makes a developer *trust* and *install* a tool: installability, observability, examples that work out of the box, and a README that converts in 90 seconds.
 - **The MCP integration is the genuine differentiator** — no other open-source tool positions itself as a safety layer between an AI agent and infrastructure execution. This angle is underexploited in current docs and positioning.
-- **Six OPA rules is not a product.** The policy engine is excellent; the policy *library* is a stub. Developers who clone and see six rules for `kube-system` and `prod` namespace will assume the project is a demo skeleton.
+- **Six OPA rules is not a product — but 23 is.** The policy engine is excellent; the policy *library* was a stub. The [Serious Baseline Research](../docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md) identified 18 must-have guardrails (1 already implemented) across Terraform, Kubernetes, ArgoCD, S3, and IAM — each backed by CIS controls, tfsec/trivy AVD IDs, or kube-score checks. Adding the remaining 17 brings the bundle to 23 rules covering container escape, mass data exposure, irreversible destruction, account/cluster takeover, and GitOps safety. This is the minimum viable policy library that makes Evidra look serious on day one.
 - **The evidence chain is buried.** Hash-linked append-only evidence with chain validation is a strong trust primitive. It is currently mentioned in passing. It should be the headline for every security-conscious DevOps audience.
 - **Stdio-only MCP is a real constraint.** Stdio-only MCP limits broader integrations. Offline MCP is sufficient for initial adoption and local agent workflows, but HTTP transport will unlock Copilot/Cursor/Windsurf and remote API-level integrations. This is the next major expansion milestone after P0.
 - **Zero discoverability.** No Homebrew formula, no Docker image on GHCR, no GitHub Action, no badge for "installable in 30 seconds." Right now a developer must clone, build, and figure out the bundle path manually.
@@ -60,6 +60,58 @@ Deferred from P0. Full detail in [AI_CLAUDE_P0_MCP_FIRST_ROADMAP.md](./AI_CLAUDE
 ---
 
 ## P1 — High Value (Adoption accelerators)
+
+### 0. Serious Baseline Policy Pack — ops-v0.1 expansion to 23 rules
+
+**Why it matters:** Six rules signals a demo skeleton. Twenty-three rules — covering Kubernetes container escape (CIS 5.2.x), Terraform public exposure (tfsec AVD-AWS-*), IAM wildcard policies, S3 encryption/versioning, and ArgoCD operational safety — signals a production-grade tool. Every rule is sourced from industry-standard tools and maps to a documented real-world incident or attack chain.
+
+**Complexity:** Medium (17 new Rego files, params, hints, OPA tests)
+**Adoption impact:** **Critical** — policy depth is what makes a security tool credible
+
+**Research document:** [`docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md`](../docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md)
+
+**Rule inventory (17 new + 6 existing = 23 total):**
+
+| # | Rule ID | Category | Disposition | Source |
+|---|---|---|---|---|
+| | *Existing rules* | | | |
+| 1 | `k8s.protected_namespace` | Kubernetes | DENY | Original |
+| 2 | `ops.mass_delete` | Terraform | DENY | Original |
+| 3 | `ops.public_exposure` | Terraform | DENY | Original |
+| 4 | `ops.unapproved_change` | Ops | DENY | Original |
+| 5 | `ops.autonomous_execution` | Ops | WARN | Original |
+| 6 | `ops.breakglass_used` | Ops | WARN | Original |
+| | *New Kubernetes rules* | | | |
+| 7 | `k8s.privileged_container` | Kubernetes | DENY | CIS 5.2.1 |
+| 8 | `k8s.host_namespace_escape` | Kubernetes | DENY | CIS 5.2.2/5.2.3/5.2.4 |
+| 9 | `k8s.run_as_root` | Kubernetes | DENY | CIS 5.2.6 |
+| 10 | `k8s.hostpath_mount` | Kubernetes | DENY | CIS 5.2.13 |
+| 11 | `k8s.dangerous_capabilities` | Kubernetes | DENY | CIS 5.2.7/5.2.8 |
+| 12 | `k8s.mutable_image_tag` | Kubernetes | WARN | kube-score |
+| 13 | `k8s.no_resource_limits` | Kubernetes | WARN | kube-score |
+| | *New Terraform rules* | | | |
+| 14 | `terraform.sg_open_world` | Terraform | DENY | AVD-AWS-0107 |
+| 15 | `terraform.s3_public_access` | Terraform | DENY | AVD-AWS-0086/87/91/93 |
+| 16 | `terraform.iam_wildcard_policy` | Terraform | DENY | AVD-AWS-0057 |
+| | *New S3 rules* | | | |
+| 17 | `s3.no_encryption` | S3 | DENY | AVD-AWS-0088 |
+| 18 | `s3.no_versioning_prod` | S3 | DENY | AVD-AWS-0090 |
+| | *New IAM rules* | | | |
+| 19 | `iam.wildcard_policy` | IAM | DENY | AVD-AWS-0057 |
+| 20 | `iam.wildcard_principal` | IAM | DENY | Datadog/Token Security |
+| | *New ArgoCD rules* | | | |
+| 21 | `argocd.autosync_prod` | ArgoCD | DENY | ArgoCD docs |
+| 22 | `argocd.wildcard_destination` | ArgoCD | DENY | ArgoCD docs |
+| 23 | `argocd.dangerous_sync_combo` | ArgoCD | DENY | ArgoCD docs |
+
+**Per-rule deliverables:**
+- Rego file in `policy/bundles/ops-v0.1/evidra/policy/rules/`
+- Params entries in `evidra/data/params/data.json` (with `by_env` for prod-scoped rules)
+- Hints entries in `evidra/data/rule_hints/data.json`
+- Minimum 2 OPA tests per rule in `policy/bundles/ops-v0.1/tests/`
+- `opa test policy/bundles/ops-v0.1/ -v` all green after each wave
+
+---
 
 ### 1. Add HTTP transport to the MCP server
 
@@ -357,7 +409,7 @@ Record as asciinema or screen recording. Lead the README with this.
 
 ---
 
-# Quick Wins — 2-Week Sprint
+# Quick Wins — 3-Week Sprint
 
 Ordered by dependency and impact.
 
@@ -386,26 +438,53 @@ Ordered by dependency and impact.
 - Create `homebrew-evidra` tap repo and wire GoReleaser `brews` block.
 - Test with `goreleaser release --snapshot --clean`.
 
-**Days 9–10: Five new OPA rules**
-- `k8s.rbac_cluster_admin`, `k8s.privileged_container`, `tf.iam_wildcard_policy`, `ops.no_dry_run`, `tf.destroy_production`.
-- Each rule: Rego file, params/hints entries, two OPA tests, POLICY_CATALOG rule card.
-- `opa test policy/bundles/ops-v0.1/ -v` — all green.
+**Days 9–12: Serious Baseline Policy Pack (17 new rules)**
 
-**Day 11: `evidra evidence report`**
+Full research and rationale: [`docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md`](../docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md)
+
+The current bundle has 6 rules. The research identified 18 must-have guardrails (1 already implemented). Adding the remaining 17 brings the total to 23 — enough to be taken seriously on day one.
+
+*Wave 1 — Kubernetes (days 9–10):*
+- `k8s.privileged_container` — deny `privileged: true` (CIS 5.2.1)
+- `k8s.host_namespace_escape` — deny hostPID/hostIPC/hostNetwork (CIS 5.2.2/5.2.3/5.2.4)
+- `k8s.run_as_root` — deny containers running as UID 0 (CIS 5.2.6)
+- `k8s.hostpath_mount` — deny hostPath volume mounts (CIS 5.2.13)
+- `k8s.dangerous_capabilities` — deny SYS_ADMIN/SYS_PTRACE/NET_RAW (CIS 5.2.7/5.2.8)
+- `k8s.mutable_image_tag` — warn on `:latest` or missing tag (kube-score)
+- `k8s.no_resource_limits` — warn on missing CPU/memory limits (kube-score)
+
+*Wave 2 — Terraform / IAM / S3 (days 10–11):*
+- `terraform.sg_open_world` — deny 0.0.0.0/0 on SSH/RDP (AVD-AWS-0107)
+- `terraform.s3_public_access` — deny missing Block Public Access (AVD-AWS-0086/0087/0091/0093)
+- `terraform.iam_wildcard_policy` — deny Action:\*/Resource:\* (AVD-AWS-0057)
+- `s3.no_encryption` — deny unencrypted buckets (AVD-AWS-0088)
+- `s3.no_versioning_prod` — deny versioning disabled in prod (AVD-AWS-0090)
+- `iam.wildcard_policy` — deny IAM Action:\*/Resource:\* standalone eval (AVD-AWS-0057)
+- `iam.wildcard_principal` — deny Principal:\* in trust policies (Datadog/Token Security research)
+
+*Wave 3 — ArgoCD (days 11–12):*
+- `argocd.autosync_prod` — deny automated sync in production
+- `argocd.wildcard_destination` — deny wildcard cluster/namespace in AppProjects
+- `argocd.dangerous_sync_combo` — deny auto + prune + selfHeal in production
+
+Each rule: Rego file, params entries (with `by_env`), hints entries, two OPA tests minimum.
+`opa test policy/bundles/ops-v0.1/ -v` — all green after each wave.
+
+**Day 13: `evidra evidence report`**
 - Add `evidra evidence report --format markdown` CLI command.
 - Sections: event count, risk distribution, top denied rule IDs, chain status.
 
-**Day 12: HTTP transport on `evidra-mcp`**
+**Day 14: HTTP transport on `evidra-mcp`**
 - Add `--http-port` flag. Wire `go-sdk`'s HTTP handler.
 - Add `--auth-token` bearer auth.
 - Document in `docs/mcp-clients-setup.md`.
 
-**Day 13: GitHub Action scaffold**
+**Day 15: GitHub Action scaffold**
 - Create `evidra-action` repo with `action.yml` and `README.md`.
 - Inputs: `input-file`, `bundle-path`, `environment`, `fail-on-deny`.
 - Downloads correct binary from GitHub Releases for runner OS/arch.
 
-**Day 14: Release v0.1.0**
+**Day 16: Release v0.1.0**
 - Cut `v0.1.0` git tag.
 - GoReleaser publishes binaries, Docker image, Homebrew formula.
 - Announce: Go Discord `#show-and-tell`, HN "Show HN", r/devops — lead with the demo GIF.

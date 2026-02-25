@@ -147,6 +147,8 @@ Risk of feature creep: High
 Before release:
 
 -   [ ] Policy simplified into small deny/warn rules
+-   [ ] Serious Baseline Policy Pack: 23 rules across K8s, Terraform, S3, IAM, ArgoCD
+        (see `docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md`)
 -   [ ] Registry cleaned and fully tested
 -   [ ] Observe vs Enforce semantics tested
 -   [ ] README simplified to 1 clear workflow

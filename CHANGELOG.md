@@ -4,17 +4,14 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog.
 
-## [Unreleased]
+## [0.1.0] 
 
 - Added GitHub templates and CI workflows.
 - Added GoReleaser configuration and release workflow.
 - Added `evidra version` command with build metadata fields (`version`, `commit`, `date`).
-
-## [0.1.0] 
-
 - MCP gateway for ops tools with `validate` and `get_event`.
 - OPA/Rego policy enforcement with structured decisions (`allow`, `risk_level`, `reason`).
-- Ops-first runtime profile and official ops packs (`kubectl`, `helm`, `argocd`, `terraform`).
+- Ops-first runtime profile and official ops packs (`kubectl`, `helm`, `argocd`, `terraform`). //FIXME
 - Segmented append-only evidence store with sealing and hash-chain validation.
 - Evidence utilities: `verify`, `violations`, `export` (audit pack).
 - Local forwarder cursor state for tracking forwarding/export position.
