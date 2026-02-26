@@ -1122,6 +1122,196 @@ Risk tags are set at skill registration time by the skill registrar (the API key
 
 ---
 
+## 4b. Input Adapters — Extraction Layer
+
+### Design Principle: Evidra Does Not Parse Raw Artifacts
+
+Evidra skills accept **business parameters** (`namespace`, `destroy_count`, `image_tag`), not raw tool output (`plan.json`, `manifest.yaml`). Parsing terraform plans, kubectl manifests, ArgoCD specs, and AWS API responses is a maintenance nightmare — each tool has its own schema, versioning, and breaking changes. Evidra deliberately excludes this from its scope.
+
+The question is: **who extracts business parameters from raw artifacts?**
+
+| Caller type | Who parses | How |
+|---|---|---|
+| **AI agent** (Claude Code, Cursor, MCP) | The LLM itself | LLM reads `terraform plan -json`, understands "5 resources will be destroyed", sends `{"destroy_count": 5}` to skill. Parsing is free — it's what LLMs do. |
+| **CI pipeline** (GitHub Actions, GitLab CI) | An **input adapter** | A thin script/binary that reads tool-specific output and emits Evidra skill input. Shipped as part of the integration, not Evidra core. |
+| **Platform** (Backstage, Slack bot) | The platform itself | Backstage already knows the service name, namespace, environment. It is the source of data, not a consumer of raw artifacts. |
+
+For AI agents, no adapter is needed — the LLM is the universal parser. For CI and automation, Evidra provides an **adapter interface** and a set of **reference adapters** for common tools.
+
+### Adapter Interface
+
+An input adapter is any function (Go, shell, Python) that conforms to:
+
+```
+Input:  raw artifact bytes + adapter-specific config
+Output: JSON object matching the skill's input_schema
+```
+
+In Go:
+
+```go
+// Package adapter defines the interface for converting tool-specific
+// output into Evidra skill input parameters.
+package adapter
+
+import "context"
+
+// Result is the output of an adapter: a JSON-serializable map
+// matching the target skill's input_schema.
+type Result struct {
+    // Input is the extracted business parameters.
+    Input map[string]any `json:"input"`
+    // Metadata is optional provenance info (source file, tool version, etc.)
+    // It is NOT sent to the skill — it is for audit/logging only.
+    Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// Adapter converts raw tool output into skill input parameters.
+type Adapter interface {
+    // Name returns the adapter identifier, e.g. "terraform-plan", "k8s-manifest".
+    Name() string
+    // Convert reads raw artifact bytes and extracts business parameters.
+    // The config map allows adapter-specific settings (e.g. target environment,
+    // resource type filters).
+    Convert(ctx context.Context, raw []byte, config map[string]string) (*Result, error)
+}
+```
+
+Key properties:
+
+- **Adapters live outside Evidra core.** They are in a separate Go module (`github.com/evidra/adapters`) or distributed as standalone binaries. Evidra server never imports adapter code.
+- **Adapters are optional.** Direct API calls with pre-assembled input work without any adapter. Adapters are a convenience for CI integrations.
+- **Adapters are composable.** A GitHub Action can shell out to `evidra-adapter-terraform`, pipe the result to `curl`, and be done. No Go SDK required.
+- **Adapters are versioned independently.** When terraform changes its JSON schema, only the terraform adapter updates. Evidra core is unaffected.
+
+### Reference Adapter: `terraform-plan`
+
+Uses HashiCorp's official `github.com/hashicorp/terraform-json` library — the stable, de-coupled representation of `terraform show -json` output. This library explicitly supports external consumers and follows terraform's 1.x compatibility promises.
+
+```go
+package terraform
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+
+    tfjson "github.com/hashicorp/terraform-json"
+    "github.com/evidra/adapters/adapter"
+)
+
+type PlanAdapter struct{}
+
+func (a *PlanAdapter) Name() string { return "terraform-plan" }
+
+func (a *PlanAdapter) Convert(
+    ctx context.Context, raw []byte, config map[string]string,
+) (*adapter.Result, error) {
+    var plan tfjson.Plan
+    if err := json.Unmarshal(raw, &plan); err != nil {
+        return nil, fmt.Errorf("parse terraform plan: %w", err)
+    }
+
+    var creates, updates, deletes, replaces int
+    resourceTypes := map[string]bool{}
+    for _, rc := range plan.ResourceChanges {
+        if rc.Change == nil {
+            continue
+        }
+        resourceTypes[rc.Type] = true
+        for _, action := range rc.Change.Actions {
+            switch action {
+            case tfjson.ActionCreate:
+                creates++
+            case tfjson.ActionUpdate:
+                updates++
+            case tfjson.ActionDelete:
+                deletes++
+            }
+        }
+        if rc.Change.Actions.Replace() {
+            replaces++
+        }
+    }
+
+    types := make([]string, 0, len(resourceTypes))
+    for t := range resourceTypes {
+        types = append(types, t)
+    }
+
+    return &adapter.Result{
+        Input: map[string]any{
+            "create_count":   creates,
+            "update_count":   updates,
+            "destroy_count":  deletes,
+            "replace_count":  replaces,
+            "resource_types": types,
+            "total_changes":  creates + updates + deletes + replaces,
+        },
+        Metadata: map[string]any{
+            "terraform_version": plan.TerraformVersion,
+            "format_version":    plan.FormatVersion,
+            "resource_count":    len(plan.ResourceChanges),
+        },
+    }, nil
+}
+```
+
+Usage in a GitHub Action:
+
+```bash
+# 1. Generate plan JSON (standard terraform workflow)
+terraform plan -out=tfplan.bin
+terraform show -json tfplan.bin > tfplan.json
+
+# 2. Adapter extracts business parameters
+SKILL_INPUT=$(evidra-adapter-terraform < tfplan.json)
+# → {"create_count":2,"destroy_count":0,"update_count":1,...}
+
+# 3. Call Evidra skill
+curl -X POST https://api.evidra.dev/v1/skills/terraform-apply:execute \
+  -H "Authorization: Bearer $EVIDRA_API_KEY" \
+  -d "{\"actor\":{\"type\":\"pipeline\",\"id\":\"$GITHUB_RUN_ID\"},\"input\":$SKILL_INPUT}"
+```
+
+### Planned Adapters
+
+| Adapter | Source artifact | Library / approach | Status |
+|---|---|---|---|
+| `terraform-plan` | `terraform show -json` output | `hashicorp/terraform-json` (Go) — official, stable | Reference impl |
+| `k8s-manifest` | YAML/JSON manifest | `k8s.io/apimachinery` unmarshalling | Planned |
+| `k8s-admission` | AdmissionReview JSON | `k8s.io/api/admission/v1` | Planned |
+| `argocd-app` | ArgoCD Application spec | JSON path extraction | Planned |
+| `aws-cloudtrail` | CloudTrail event JSON | JSON path extraction | Planned |
+| `generic-json` | Any JSON | JSONPath / jq expressions via config | Planned |
+
+The `generic-json` adapter uses configurable JSONPath expressions — no code required. For tool-specific needs, a custom adapter is ~50 lines of Go.
+
+### AI Agents as Universal Adapters
+
+For AI-driven workflows (MCP, Claude Code, Cursor, Windsurf), **the LLM replaces all adapters**. The agent:
+
+1. Runs `terraform plan -json` (or kubectl, or aws cli)
+2. Reads the output natively — LLMs parse JSON/YAML without libraries
+3. Extracts the relevant parameters in natural language reasoning
+4. Calls the Evidra skill with clean business input
+
+This is not a workaround — it is the **primary use case**. AI agents are better at parsing heterogeneous, versioned, semi-structured output than static code. They handle schema changes, new resource types, and edge cases without adapter updates.
+
+For CI pipelines (no LLM in the loop), static adapters fill the same role. Both paths produce identical skill input — the policy engine sees no difference.
+
+### Adapter Distribution
+
+Adapters are distributed as:
+
+- **Go module** (`github.com/evidra/adapters`) — importable for Go integrations
+- **Standalone binaries** — `evidra-adapter-terraform`, `evidra-adapter-k8s` — stdin/stdout, usable from any language or shell
+- **Container images** — for CI steps that prefer `docker run evidra/adapter-terraform < plan.json`
+
+All adapters are optional, external to Evidra core, and versioned independently. Breaking changes in a tool's output format are fixed in the adapter, not in Evidra.
+
+---
+
 ## 5. Security Design
 
 ### API Key Format
@@ -1630,10 +1820,26 @@ internal/
     limiter.go               # Token bucket per key/IP, cleanup goroutine
 
   migrate/
+
     migrations/
       001_initial.up.sql     # CREATE TABLE tenants, api_keys, usage_counters,
                              #   skills, executions
       001_initial.down.sql
+
+# Separate module: github.com/evidra/adapters (NOT imported by server)
+adapters/
+  adapter/
+    adapter.go               # Adapter interface, Result type
+  terraform/
+    plan.go                  # PlanAdapter: terraform show -json → skill input
+  k8s/
+    manifest.go              # ManifestAdapter: k8s YAML/JSON → skill input  [Planned]
+    admission.go             # AdmissionAdapter: AdmissionReview → skill input  [Planned]
+  generic/
+    jsonpath.go              # Generic JSONPath adapter via config  [Planned]
+  cmd/
+    evidra-adapter-terraform/ # Standalone binary: stdin → stdout
+      main.go
 ```
 
 ### Dependency Direction
@@ -1675,6 +1881,10 @@ internal/storage
 
 pkg/*
   → (no internal/ imports — engine is unaware of HTTP or Postgres)
+
+adapters/*
+  → (NO dependency on internal/ or pkg/ — entirely separate Go module)
+  → external libs only (hashicorp/terraform-json, k8s.io/apimachinery, etc.)
 ```
 
 **Key boundary:** `internal/engine` and `internal/evidence` are the only
@@ -1880,6 +2090,7 @@ DATABASE_URL="postgres://postgres:dev@localhost:5432/evidra?sslmode=disable" \
 - **No billing.** Usage counters exist but no metering, invoicing, or payment integration.
 - **No complex org/teams model.** One tenant = one API key = one skill namespace. No roles, no RBAC beyond key-level access.
 - **No remote policy editing UI.** Tenants use the bundled `ops-v0.1` profile. Custom bundles require backend configuration.
+- **No raw artifact parsing in core.** Evidra server never parses terraform plans, k8s manifests, or cloud API responses. Input adapters (§4b) exist as a separate module for CI integrations. AI agents need no adapters — the LLM is the parser.
 - **No agent framework lock-in.** The API is HTTP + JSON. No SDK required. No MCP-specific protocol in the HTTP layer.
 - **No skill versioning.** Skills can be updated in place. No version history or rollback in MVP.
 - **No async execution.** All policy evaluation is synchronous.
