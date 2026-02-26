@@ -4,6 +4,7 @@ go 1.24.6
 
 require (
 	github.com/modelcontextprotocol/go-sdk v1.3.1
+	github.com/oklog/ulid/v2 v2.1.1
 	github.com/open-policy-agent/opa v1.13.2
 	go.yaml.in/yaml/v3 v3.0.4
 )
@@ -27,7 +28,6 @@ require (
 	github.com/lestrrat-go/jwx/v3 v3.0.13 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect

@@ -35,6 +35,7 @@ type EvidenceRecord struct {
 	ProfileName      string                 `json:"profile_name,omitempty"`
 	EnvironmentLabel string                 `json:"environment_label,omitempty"`
 	InputHash        string                 `json:"input_hash,omitempty"`
+	Source           string                 `json:"source,omitempty"`
 	Actor            invocation.Actor       `json:"actor"`
 	Tool             string                 `json:"tool"`
 	Operation        string                 `json:"operation"`
@@ -53,6 +54,7 @@ type canonicalEvidenceRecord struct {
 	ProfileName      string                 `json:"profile_name,omitempty"`
 	EnvironmentLabel string                 `json:"environment_label,omitempty"`
 	InputHash        string                 `json:"input_hash,omitempty"`
+	Source           string                 `json:"source,omitempty"`
 	Actor            invocation.Actor       `json:"actor"`
 	Tool             string                 `json:"tool"`
 	Operation        string                 `json:"operation"`

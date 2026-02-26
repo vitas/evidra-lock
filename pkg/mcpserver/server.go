@@ -8,6 +8,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"samebits.com/evidra/pkg/client"
 	"samebits.com/evidra/pkg/config"
 	"samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/invocation"
@@ -23,12 +24,13 @@ const (
 
 // Error codes used in ErrorSummary.Code.
 const (
-	ErrCodeInvalidInput  = "invalid_input"
-	ErrCodePolicyFailure = "policy_failure"
-	ErrCodeEvidenceWrite = "evidence_write_failed"
-	ErrCodeChainInvalid  = "evidence_chain_invalid"
-	ErrCodeNotFound      = "not_found"
-	ErrCodeInternalError = "internal_error"
+	ErrCodeInvalidInput   = "invalid_input"
+	ErrCodePolicyFailure  = "policy_failure"
+	ErrCodeEvidenceWrite  = "evidence_write_failed"
+	ErrCodeChainInvalid   = "evidence_chain_invalid"
+	ErrCodeNotFound       = "not_found"
+	ErrCodeInternalError  = "internal_error"
+	ErrCodeAPIUnreachable = "api_unreachable"
 )
 
 type Options struct {
@@ -42,6 +44,9 @@ type Options struct {
 	Environment              string
 	EvidencePath             string
 	IncludeFileResourceLinks bool
+	APIClient                *client.Client
+	FallbackPolicy           string
+	IsOnline                 bool
 }
 
 type PolicySummary struct {
@@ -61,6 +66,7 @@ type ErrorSummary struct {
 type ValidateOutput struct {
 	OK        bool                    `json:"ok"`
 	EventID   string                  `json:"event_id,omitempty"`
+	Source    string                  `json:"source"`
 	Policy    PolicySummary           `json:"policy"`
 	RuleIDs   []string                `json:"rule_ids,omitempty"`
 	Hints     []string                `json:"hints,omitempty"`
@@ -210,6 +216,9 @@ func newValidateService(opts Options) *ValidateService {
 		policyRef:                opts.PolicyRef,
 		mode:                     opts.Mode,
 		includeFileResourceLinks: opts.IncludeFileResourceLinks,
+		apiClient:                opts.APIClient,
+		fallbackPolicy:           opts.FallbackPolicy,
+		isOnline:                 opts.IsOnline,
 	}
 }
 
@@ -222,6 +231,9 @@ type ValidateService struct {
 	policyRef                string
 	mode                     Mode
 	includeFileResourceLinks bool
+	apiClient                *client.Client
+	fallbackPolicy           string
+	isOnline                 bool
 }
 
 type GetEventOutput struct {
@@ -232,6 +244,59 @@ type GetEventOutput struct {
 }
 
 func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvocation) ValidateOutput {
+	// ONLINE: try API first
+	if s.isOnline && s.apiClient != nil {
+		result, _, err := s.apiClient.Validate(ctx, inv)
+		if err == nil {
+			ok := result.Pass
+			if s.mode == ModeObserve {
+				ok = true
+			}
+			return ValidateOutput{
+				OK:      ok,
+				EventID: result.EvidenceID,
+				Source:  "api",
+				Policy: PolicySummary{
+					Allow:     result.Pass,
+					RiskLevel: result.RiskLevel,
+					Reason:    firstReason(result.Reasons),
+					PolicyRef: result.PolicyRef,
+				},
+				RuleIDs: result.RuleIDs,
+				Hints:   result.Hints,
+				Reasons: result.Reasons,
+			}
+		}
+
+		// Reachability error → check fallback policy
+		if client.IsReachabilityError(err) && s.fallbackPolicy == "offline" {
+			// Fall through to local evaluation below
+		} else {
+			// Non-recoverable: auth/validation/rate-limit, or fallback=closed
+			code := ErrCodeAPIUnreachable
+			if errors.Is(err, client.ErrUnauthorized) {
+				code = "unauthorized"
+			} else if errors.Is(err, client.ErrForbidden) {
+				code = "forbidden"
+			} else if errors.Is(err, client.ErrRateLimited) {
+				code = "rate_limited"
+			} else if errors.Is(err, client.ErrInvalidInput) {
+				code = ErrCodeInvalidInput
+			}
+			return ValidateOutput{
+				OK:     false,
+				Source: "none",
+				Policy: PolicySummary{
+					Allow:     false,
+					RiskLevel: "high",
+					Reason:    code,
+				},
+				Error: &ErrorSummary{Code: code, Message: err.Error()},
+			}
+		}
+	}
+
+	// OFFLINE or FALLBACK: local evaluation
 	res, err := validate.EvaluateInvocation(ctx, inv, validate.Options{
 		PolicyPath:  s.policyPath,
 		DataPath:    s.dataPath,
@@ -242,7 +307,8 @@ func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvoc
 	if err != nil {
 		code, msg := validateErrCode(err)
 		return ValidateOutput{
-			OK: false,
+			OK:     false,
+			Source: "none",
 			Policy: PolicySummary{
 				Allow:     false,
 				RiskLevel: "high",
@@ -253,6 +319,11 @@ func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvoc
 		}
 	}
 
+	source := "local"
+	if s.isOnline {
+		source = "local-fallback"
+	}
+
 	ok := res.Pass
 	if s.mode == ModeObserve {
 		ok = true
@@ -261,6 +332,7 @@ func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvoc
 	return ValidateOutput{
 		OK:      ok,
 		EventID: res.EvidenceID,
+		Source:  source,
 		Policy: PolicySummary{
 			Allow:     res.Pass,
 			RiskLevel: res.RiskLevel,

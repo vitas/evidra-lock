@@ -4,7 +4,7 @@ on:
     paths: ['terraform/**']
 
 env:
-  # Pin adapter version — update manually when upgrading
+  # Pin adapter version — update manually when upgrading //TODO
   ADAPTER_VERSION: v0.0.2
 
 jobs:

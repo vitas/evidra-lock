@@ -39,12 +39,16 @@ type Options struct {
 }
 
 type Result struct {
-	Pass       bool
-	RiskLevel  string
-	EvidenceID string
-	Reasons    []string
-	RuleIDs    []string
-	Hints      []string
+	Pass        bool
+	RiskLevel   string
+	EvidenceID  string   // Single-action shortcut (most common case)
+	EvidenceIDs []string // All evidence IDs for multi-action scenarios
+	RequestIDs  []string // X-Request-ID per API call (online only, empty in offline)
+	Reasons     []string
+	RuleIDs     []string
+	Hints       []string
+	Source      string // "api", "local", "local-fallback"
+	PolicyRef   string // Policy bundle ref (from server or local)
 }
 
 type scenarioEvaluation struct {
@@ -125,6 +129,7 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		ProfileName:      runtimeEval.ProfileName(),
 		EnvironmentLabel: environment,
 		InputHash:        scenarioHash(sc),
+		Source:           "local",
 		Actor: invocation.Actor{
 			Type:   sc.Actor.Type,
 			ID:     actorID(sc.ScenarioID, sc.Actor.ID),
@@ -166,6 +171,8 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 		Reasons:    sortedDedupeStrings(finalReasons),
 		RuleIDs:    finalRuleIDs,
 		Hints:      finalHints,
+		Source:     "local",
+		PolicyRef:  evalResult.PolicyRef,
 	}, nil
 }
 

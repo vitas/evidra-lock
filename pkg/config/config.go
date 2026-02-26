@@ -48,6 +48,23 @@ func ResolvePolicyData(policyFlag, dataFlag string) (string, string, error) {
 	return "", "", fmt.Errorf("missing policy/data paths; provide --policy/--data or set EVIDRA_POLICY_PATH/EVIDRA_DATA_PATH")
 }
 
+// NormalizeEnvironment canonicalizes environment names to prevent
+// silent policy mismatches (e.g. "prod" matching no by_env rules).
+func NormalizeEnvironment(env string) string {
+	v := strings.ToLower(strings.TrimSpace(env))
+	switch v {
+	case "prod", "prd":
+		return "production"
+	case "stg", "stage":
+		return "staging"
+	// NOTE: "dev" is NOT expanded to "development" — existing by_env overrides
+	// commonly use "dev" as the canonical name. Expanding would silently disable
+	// overrides unless data.json also lists "development".
+	default:
+		return v // unknown values (including "dev") pass through unchanged
+	}
+}
+
 func fileExists(path string) bool {
 	if _, err := os.Stat(path); err == nil {
 		return true
