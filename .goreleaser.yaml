@@ -43,6 +43,24 @@ builds:
       - -X samebits.com/evidra/pkg/version.Commit={{.Commit}}
       - -X samebits.com/evidra/pkg/version.Date={{.Date}}
 
+  - id: evidra-api
+    main: ./cmd/evidra-api
+    binary: evidra-api
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X samebits.com/evidra/pkg/version.Version={{.Version}}
+      - -X samebits.com/evidra/pkg/version.Commit={{.Commit}}
+      - -X samebits.com/evidra/pkg/version.Date={{.Date}}
+
 archives:
   - id: evidra-mcp
     builds:
@@ -61,6 +79,15 @@ archives:
       - goos: windows
         formats: [zip]
     name_template: "evidra_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  - id: evidra-api
+    builds:
+      - evidra-api
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "evidra-api_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: checksums.txt

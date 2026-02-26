@@ -1,0 +1,11 @@
+services:
+  evidra-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8080:8080"
+    environment:
+      EVIDRA_ENV: development
+      EVIDRA_API_KEY: ${EVIDRA_API_KEY:-test-key-at-least-32-characters-long}
+      LOG_FORMAT: text

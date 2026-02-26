@@ -1,0 +1,18 @@
+# Stage 1: Build static binary with embedded OPA bundle.
+# The go:embed directive in bundleembed.go bakes policy/bundles/ops-v0.1
+# into the binary at compile time — no bundle copy needed in the final image.
+FROM golang:1.24.6-alpine AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
+    -o /evidra-api ./cmd/evidra-api
+
+# Stage 2: Distroless — no shell, no package manager, no debug tools.
+# nonroot tag runs as uid 65534; satisfies non-root requirement without
+# needing adduser or any OS package.
+FROM gcr.io/distroless/static:nonroot
+COPY --from=builder /evidra-api /usr/local/bin/evidra-api
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/evidra-api"]

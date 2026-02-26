@@ -1,0 +1,11 @@
+bin/
+.git/
+.github/
+docs/
+examples/
+__internal/
+*.md
+!go.mod
+!go.sum
+.env
+.claude/
