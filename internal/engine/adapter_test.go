@@ -44,9 +44,9 @@ decision := {
 }
 
 func (d *denyAllSource) LoadData() ([]byte, error)  { return []byte(`{}`), nil }
-func (d *denyAllSource) PolicyRef() (string, error)  { return "sha256:test-deny-all", nil }
-func (d *denyAllSource) BundleRevision() string      { return "test-rev" }
-func (d *denyAllSource) ProfileName() string          { return "test-profile" }
+func (d *denyAllSource) PolicyRef() (string, error) { return "sha256:test-deny-all", nil }
+func (d *denyAllSource) BundleRevision() string     { return "test-rev" }
+func (d *denyAllSource) ProfileName() string        { return "test-profile" }
 
 func testDenyAdapter(t *testing.T) *Adapter {
 	t.Helper()
