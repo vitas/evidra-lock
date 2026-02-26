@@ -69,20 +69,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          load: true
+          tags: evidra-mcp:smoke
 
       - name: Smoke test
         run: |
           { cat cmd/evidra-mcp/test/testdata/init.jsonl \
                cmd/evidra-mcp/test/testdata/validate_pass.jsonl; sleep 2; } \
-            | timeout 10 docker run --rm -i ghcr.io/vitas/evidra-mcp:latest \
+            | timeout 10 docker run --rm -i evidra-mcp:smoke \
               >stdout.log 2>stderr.log || true
 
           echo "--- stderr ---"
@@ -95,6 +93,15 @@ jobs:
             || { echo "FAIL: response missing allow field"; cat stdout.log; exit 1; }
 
           echo "PASS: smoke test ok"
+
+      - name: Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   # ── Docker image (evidra-api) ──────────────────────────────────
   docker-api:
@@ -124,15 +131,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.api
-          push: true
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          load: true
+          tags: evidra-api:smoke
 
       - name: Smoke test
         run: |
@@ -143,7 +148,7 @@ jobs:
             -e EVIDRA_ENV=development \
             -e EVIDRA_API_KEY="$API_KEY" \
             -e LOG_FORMAT=text \
-            ghcr.io/vitas/evidra-api:latest
+            evidra-api:smoke
 
           # Wait for server to be ready
           for _ in $(seq 1 10); do
@@ -177,6 +182,16 @@ jobs:
 
           docker stop evidra-api-smoke
           docker rm evidra-api-smoke
+
+      - name: Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.api
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   # ── GoReleaser (GitHub Release + Homebrew formula) ─────────────
   goreleaser:
