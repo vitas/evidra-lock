@@ -274,13 +274,6 @@ func primaryReason(reasons []string) string {
 	return reasons[0]
 }
 
-func passDecision(pass bool) string {
-	if pass {
-		return "PASS"
-	}
-	return "FAIL"
-}
-
 func dedupeStrings(in []string) []string {
 	out := make([]string, 0, len(in))
 	seen := map[string]struct{}{}

@@ -160,13 +160,6 @@ func printExplanation(result validate.Result, stdout io.Writer) {
 	}
 }
 
-func shortList(items []string, limit int) string {
-	if len(items) <= limit {
-		return strings.Join(items, ", ")
-	}
-	return strings.Join(items[:limit], ", ") + ", ..."
-}
-
 func printListWithCap(title string, items []string, limit int, stdout io.Writer) {
 	if len(items) == 0 {
 		return

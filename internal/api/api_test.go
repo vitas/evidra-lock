@@ -542,7 +542,9 @@ func TestStatusWriter_WriteDefaultsTo200(t *testing.T) {
 
 	inner := httptest.NewRecorder()
 	sw := &statusWriter{ResponseWriter: inner, status: http.StatusOK}
-	sw.Write([]byte("hello"))
+	if _, err := sw.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
 
 	if sw.status != http.StatusOK {
 		t.Errorf("status = %d, want %d", sw.status, http.StatusOK)

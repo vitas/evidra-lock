@@ -18,6 +18,6 @@ func handlePubkey(signer *evidence.Signer) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/x-pem-file")
 		w.WriteHeader(http.StatusOK)
-		w.Write(pem)
+		_, _ = w.Write(pem)
 	}
 }

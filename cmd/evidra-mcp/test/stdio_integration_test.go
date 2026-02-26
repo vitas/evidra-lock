@@ -101,7 +101,7 @@ func TestStdioZeroConfig(t *testing.T) {
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second):
-			cmd.Process.Kill()
+			_ = cmd.Process.Kill()
 		}
 	}()
 	defer close(done)
