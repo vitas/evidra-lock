@@ -21,6 +21,9 @@ bin/
 dist/
 /release/
 
+# Node
+node_modules/
+
 # IDE/editor
 .vscode/
 .idea/

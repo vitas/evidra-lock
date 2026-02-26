@@ -1,0 +1,68 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Console } from "../../src/pages/Console";
+
+describe("Console", () => {
+  beforeEach(() => {
+    global.fetch = vi.fn();
+  });
+
+  it("shows key after successful creation", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          ok: true,
+          key: "ev1_testkey123456789012345678901234567890",
+          prefix: "ev1_testkey1",
+          tenant_id: "01J...",
+        }),
+    });
+
+    render(<Console onKeyCreated={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /get key/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/ev1_testkey/).length).toBeGreaterThan(0);
+    });
+  });
+
+  it("shows error on rate limit", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: "Too Many Requests",
+      json: () =>
+        Promise.resolve({
+          ok: false,
+          error: { code: "rate_limited", message: "Too many requests" },
+        }),
+    });
+
+    render(<Console onKeyCreated={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /get key/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/too many/i)).toBeInTheDocument();
+    });
+  });
+
+  it("does not store key anywhere after showing", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          ok: true,
+          key: "ev1_secret",
+          prefix: "ev1_secr",
+          tenant_id: "t1",
+        }),
+    });
+
+    render(<Console onKeyCreated={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /get key/i }));
+
+    expect(localStorage.getItem("evidra_api_key")).toBeNull();
+  });
+});

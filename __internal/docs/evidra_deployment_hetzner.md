@@ -1,7 +1,7 @@
 # Evidra API — Production Deployment on Hetzner Cloud
 
 **Date:** 2026-02-26
-**Stack:** Traefik v3 (reverse proxy + SSL) → evidra-api (Go) + PostgreSQL
+**Stack:** Terraform (IaC) → Hetzner Cloud → Traefik v3 (reverse proxy + SSL) → evidra-api (Go) + PostgreSQL
 **Target:** Dedicated Hetzner Cloud VM (separate from samebits.com VM)
 
 ---
@@ -21,7 +21,7 @@
 
 **Two-VM architecture:**
 ```
-VM1 (ARM CAX11, existing)   VM2 (CX22, new)
+VM1 (ARM, existing)          VM2 (CX22, new)
 ├── Caddy                    ├── Traefik v3
 ├── samebits.com site        ├── evidra-api
 └── (not touched)            ├── PostgreSQL 17
@@ -35,14 +35,20 @@ These are fully independent. Different VMs, different IPs, different domains, di
 ```
 evidra-infra/
 ├── README.md                           # Setup instructions
-├── .gitignore                          # .env, acme.json
-├── .env.example                        # Template (no secrets)
+├── .gitignore                          # .env, acme.json, *.tfstate, .terraform/
+├── terraform/
+│   ├── main.tf                         # Hetzner resources: server, volume, firewall, SSH key
+│   ├── variables.tf                    # Input variables (location, server_type, domain)
+│   ├── outputs.tf                      # Server IP, volume ID
+│   ├── terraform.tfvars.example        # Example values (no secrets)
+│   └── versions.tf                     # Provider requirements
 ├── docker-compose.prod.yml             # Traefik + evidra-api + PostgreSQL
+├── .env.example                        # Docker Compose env template (no secrets)
 ├── db/
 │   └── migrations/
 │       └── 001_init.sql                # Initial schema: api_keys, evaluations
 ├── scripts/
-│   ├── bootstrap-hetzner.sh            # First-time VM setup
+│   ├── bootstrap-hetzner.sh            # First-time VM setup (post-terraform)
 │   ├── deploy.sh                       # Pull & restart evidra-api
 │   └── health-check.sh                 # Cron health check
 └── .github/
@@ -93,14 +99,16 @@ Volume is mounted at `/mnt/data` on the host. All persistent data lives there:
 
 ## 2. DNS
 
-Assuming the domain `api.evidra.rest`.
+Single domain — UI and API served from the same origin. No CORS, one TLS cert.
 
 ```
-A     api.evidra.rest       → <VM_PUBLIC_IP>
-A     traefik.evidra.rest   → <VM_PUBLIC_IP>    # optional: dashboard
+A     evidra.rest       → <VM_PUBLIC_IP>
+CNAME www.evidra.rest   → evidra.rest
 ```
 
-DNS is configured at the domain registrar. Traefik uses HTTP challenge — no DNS provider API token needed (no Cloudflare setup required).
+Traefik routes both `evidra.rest` and `www.evidra.rest` to the same container. The Go binary serves the SPA on `/` and API on `/v1/*` — no path-based splitting needed in Traefik.
+
+No `api.` subdomain needed. Curl examples use `https://evidra.rest/v1/validate`.
 
 ---
 
@@ -152,7 +160,7 @@ services:
       # Dashboard — controlled by TRAEFIK_DASHBOARD_ENABLED in .env
       # P0: enabled with BasicAuth. Later: disable and use SSH port-forward only.
       - traefik.enable=${TRAEFIK_DASHBOARD_ENABLED:-false}
-      - traefik.http.routers.traefik-dashboard.rule=Host(`${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)
       - traefik.http.routers.traefik-dashboard.entrypoints=websecure
       - traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt
       - traefik.http.routers.traefik-dashboard.service=api@internal
@@ -190,10 +198,12 @@ services:
       - evidra-net
     labels:
       - traefik.enable=true
-      # Main API + UI
-      - traefik.http.routers.evidra.rule=Host(`${API_DOMAIN}`)
+      # Main router: evidra.rest + www.evidra.rest → evidra-api:8080
+      - traefik.http.routers.evidra.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)
       - traefik.http.routers.evidra.entrypoints=websecure
       - traefik.http.routers.evidra.tls.certresolver=letsencrypt
+      - traefik.http.routers.evidra.tls.domains[0].main=${DOMAIN}
+      - traefik.http.routers.evidra.tls.domains[0].sans=www.${DOMAIN}
       - traefik.http.services.evidra.loadbalancer.server.port=8080
       # Middlewares (single declaration — headers + rate limit)
       - traefik.http.routers.evidra.middlewares=evidra-headers,evidra-ratelimit
@@ -205,14 +215,15 @@ services:
       - traefik.http.middlewares.evidra-headers.headers.referrerPolicy=strict-origin-when-cross-origin
       - traefik.http.middlewares.evidra-headers.headers.permissionsPolicy=camera=(), microphone=(), geolocation=()
       - traefik.http.middlewares.evidra-headers.headers.customResponseHeaders.Content-Security-Policy=default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
-      # Rate limiting
-      - traefik.http.middlewares.evidra-ratelimit.ratelimit.average=100
+      # Rate limiting: 10 req/s sustained (average/period = 10/1s), burst up to 50 concurrent
+      # Traefik formula: rate = average ÷ period. Default period = 1s.
+      # 10 req/s is generous for P0; tighten per-key in application layer later.
+      - traefik.http.middlewares.evidra-ratelimit.ratelimit.average=10
       - traefik.http.middlewares.evidra-ratelimit.ratelimit.burst=50
-      - traefik.http.middlewares.evidra-ratelimit.ratelimit.period=1m
     # NOTE: No container-level healthcheck — distroless has no wget/curl.
     # Health is verified externally:
     #   - Traefik checks backend via loadbalancer health (TCP connect to :8080)
-    #   - Deploy script checks https://api.evidra.rest/healthz after restart
+    #   - Deploy script checks https://evidra.rest/healthz after restart
     #   - Cron health-check.sh checks every 5 min
 
   # ─── PostgreSQL ─────────────────────────────────────────
@@ -298,8 +309,7 @@ CREATE INDEX idx_evaluations_key_time ON evaluations (api_key_id, created_at DES
 # NEVER commit this file. It's in .gitignore.
 
 # ─── Domain ───────────────────────
-API_DOMAIN=api.evidra.rest
-TRAEFIK_DOMAIN=traefik.evidra.rest
+DOMAIN=evidra.rest
 
 # ─── Let's Encrypt ────────────────
 ACME_EMAIL=admin@evidra.rest
@@ -308,7 +318,7 @@ ACME_EMAIL=admin@evidra.rest
 # Generate: echo $(htpasswd -nB admin) | sed -e s/\\$/\\$\\$/g
 TRAEFIK_AUTH=admin:$$2y$$10$$...hashedpassword...
 # Set to "true" to expose dashboard on TRAEFIK_DOMAIN with BasicAuth.
-# Set to "false" to disable. Access via SSH port-forward: ssh -L 8080:localhost:8080 root@<VM2-IP>
+# Set to "false" to disable. Access via SSH port-forward: ssh -L 8080:localhost:8080 deploy@<VM2-IP>
 TRAEFIK_DASHBOARD_ENABLED=true
 
 # ─── Data directory ───────────────
@@ -318,6 +328,14 @@ DATA_DIR=/mnt/data
 EVIDRA_VERSION=latest
 EVIDRA_SIGNING_KEY=base64-encoded-ed25519-private-key
 
+# ─── Key Self-Service ────────────
+# false = POST /v1/keys disabled (manual issuance only)
+# true  = POST /v1/keys enabled (with rate limit + optional invite)
+EVIDRA_SELF_SERVE_KEYS=false
+# When set, POST /v1/keys requires X-Invite-Token header.
+# Leave empty to allow open key creation (with rate limit).
+EVIDRA_INVITE_SECRET=
+
 # ─── PostgreSQL ──────────────────
 PG_PASSWORD=change-me-to-random-64-chars
 ```
@@ -326,101 +344,121 @@ PG_PASSWORD=change-me-to-random-64-chars
 
 ## 6. Server Bootstrap Script
 
-Run once on first VM boot:
+Run once after `terraform apply`. Cloud-init already handles OS hardening (SSH, deploy user, fail2ban, unattended-upgrades). This script only sets up the application layer:
 
 ```bash
 #!/bin/bash
 # scripts/bootstrap-hetzner.sh
-# Run as root on fresh CX22 with docker-ce image.
+# Run as deploy user after terraform provisions the VM.
+# Cloud-init has already: created deploy user, hardened SSH, installed packages.
+#
+# Usage (from local machine):
+#   VOLUME_DEVICE=$(cd terraform && terraform output -raw volume_linux_device)
+#   ssh deploy@<IP> "VOLUME_DEVICE=$VOLUME_DEVICE bash -s" < scripts/bootstrap-hetzner.sh
 
 set -euo pipefail
 
-echo "=== Evidra API — Hetzner Bootstrap ==="
+echo "=== Evidra API — Post-Terraform Bootstrap ==="
 
-# ─── 1. Mount Volume ────────────────────────────────
-# Hetzner volume auto-mounted if selected "automatic" during creation.
-# Verify it's mounted:
+# ─── 1. Volume Mount (fstab, not symlink) ─────────
+# Terraform output provides the deterministic device path:
+#   /dev/disk/by-id/scsi-0HC_Volume_<ID>
+# We mount it at /mnt/data via fstab for a stable, reboot-safe path.
 MOUNT_POINT="/mnt/data"
-if ! mountpoint -q "$MOUNT_POINT"; then
-    echo "ERROR: Volume not mounted at $MOUNT_POINT"
-    echo "Mount manually:"
-    echo "  mkfs.ext4 /dev/disk/by-id/scsi-0HC_Volume_<ID>"
-    echo "  mkdir -p $MOUNT_POINT"
-    echo "  mount -o discard,defaults /dev/disk/by-id/scsi-0HC_Volume_<ID> $MOUNT_POINT"
-    echo "  echo '/dev/disk/by-id/scsi-0HC_Volume_<ID> $MOUNT_POINT ext4 discard,nofail,defaults 0 0' >> /etc/fstab"
+VOLUME_DEVICE="${VOLUME_DEVICE:-}"
+
+if [ -z "$VOLUME_DEVICE" ]; then
+    # Fallback: detect Hetzner volume device automatically
+    VOLUME_DEVICE=$(ls /dev/disk/by-id/scsi-0HC_Volume_* 2>/dev/null | head -1)
+fi
+
+if [ -z "$VOLUME_DEVICE" ]; then
+    echo "ERROR: No volume device found."
+    echo "Pass VOLUME_DEVICE env var from: terraform output -raw volume_linux_device"
     exit 1
 fi
-echo "✓ Volume mounted at $MOUNT_POINT"
 
-# ─── 2. Create directory structure ──────────────────
-mkdir -p "$MOUNT_POINT/traefik"
-mkdir -p "$MOUNT_POINT/postgres/data"
-mkdir -p "$MOUNT_POINT/evidra/logs"
+# Remove any Hetzner automount entries (they use /mnt/HC_Volume_* paths)
+sudo sed -i '/HC_Volume/d' /etc/fstab
+
+# Add stable fstab entry
+if ! grep -q "$MOUNT_POINT" /etc/fstab; then
+    echo "$VOLUME_DEVICE $MOUNT_POINT ext4 discard,nofail,defaults 0 0" | sudo tee -a /etc/fstab
+fi
+
+sudo mkdir -p "$MOUNT_POINT"
+sudo mount -a
+echo "✓ Volume: $VOLUME_DEVICE → $MOUNT_POINT (fstab)"
+
+# ─── 2. Directory Structure ──────────────────────
+sudo mkdir -p "$MOUNT_POINT/traefik"
+sudo mkdir -p "$MOUNT_POINT/postgres/data"
+sudo mkdir -p "$MOUNT_POINT/evidra/logs"
 
 # acme.json needs strict permissions
-touch "$MOUNT_POINT/traefik/acme.json"
-chmod 600 "$MOUNT_POINT/traefik/acme.json"
+sudo touch "$MOUNT_POINT/traefik/acme.json"
+sudo chmod 600 "$MOUNT_POINT/traefik/acme.json"
 
 echo "✓ Directory structure created"
 
-# ─── 3. Firewall reminder ──────────────────────────
-echo ""
-echo "IMPORTANT: Configure Hetzner Firewall in console:"
-echo "  Inbound rules:"
-echo "    TCP 22   — SSH (restrict to your IP if possible)"
-echo "    TCP 80   — HTTP (Traefik / Let's Encrypt challenge)"
-echo "    TCP 443  — HTTPS (Traefik)"
-echo "  Drop all other inbound traffic."
-echo ""
-
-# ─── 4. Docker check ───────────────────────────────
+# ─── 3. Docker Check ─────────────────────────────
+# docker-ce image should have Docker pre-installed
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."
-    curl -fsSL https://get.docker.com | sh
+    curl -fsSL https://get.docker.com | sudo sh
+    sudo usermod -aG docker deploy
+    echo "Re-login required for docker group. Run: newgrp docker"
 fi
 echo "✓ Docker $(docker --version | awk '{print $3}')"
 
-# ─── 5. Docker Compose check ───────────────────────
 if ! docker compose version &> /dev/null; then
     echo "ERROR: Docker Compose plugin not found."
-    echo "  apt-get install docker-compose-plugin"
+    echo "  sudo apt-get install docker-compose-plugin"
     exit 1
 fi
 echo "✓ Docker Compose $(docker compose version --short)"
 
-# ─── 6. Create app directory ───────────────────────
+# ─── 4. App Directory ────────────────────────────
 APP_DIR="/opt/evidra"
-mkdir -p "$APP_DIR"
+sudo mkdir -p "$APP_DIR"
+sudo chown deploy:deploy "$APP_DIR"
 echo "✓ App directory: $APP_DIR"
+
 echo ""
 echo "Next steps:"
-echo "  1. Copy docker-compose.prod.yml and .env to $APP_DIR"
-echo "  2. Edit .env with your domains, keys, passwords"
+echo "  1. scp docker-compose.prod.yml .env db/ deploy@<IP>:$APP_DIR/"
+echo "  2. Edit .env with domains, signing key, DB password"
 echo "  3. cd $APP_DIR && docker compose -f docker-compose.prod.yml up -d"
-echo "  4. Verify: curl https://api.evidra.rest/healthz"
+echo "  4. curl https://evidra.rest/healthz"
 echo ""
 echo "=== Bootstrap complete ==="
 ```
 
----
 
 ## 7. Deployment Workflow
 
 ### First Deploy (manual)
 
 ```bash
-# On local machine:
-ssh root@<VM_IP>
+# After terraform apply — cloud-init has already:
+#   ✓ Created deploy user with docker group
+#   ✓ Hardened SSH (key-only, no root password)
+#   ✓ Installed unattended-upgrades, jq, fail2ban
 
-# On VM:
-bash /path/to/bootstrap-hetzner.sh
+# SSH in (use output from terraform)
+ssh deploy@$(cd terraform && terraform output -raw server_ip)
 
-# Copy files
-cd /opt/evidra
-# (scp docker-compose.prod.yml and .env from local)
+# On VM — run bootstrap script (mounts volume via fstab, creates directories):
+# From local machine:
+VOLUME_DEVICE=$(cd terraform && terraform output -raw volume_linux_device)
+IP=$(cd terraform && terraform output -raw server_ip)
+ssh deploy@$IP "VOLUME_DEVICE=$VOLUME_DEVICE bash -s" < scripts/bootstrap-hetzner.sh
+
+# Copy files from local machine:
+# scp docker-compose.prod.yml .env db/ deploy@<IP>:/opt/evidra/
 
 # Generate Traefik dashboard password
-apt-get install -y apache2-utils
+sudo apt-get install -y apache2-utils
 echo $(htpasswd -nB admin) | sed -e 's/\$/\$\$/g'
 # → paste into .env as TRAEFIK_AUTH
 
@@ -433,12 +471,13 @@ openssl rand -base64 48
 # → paste into .env as PG_PASSWORD
 
 # Start (PostgreSQL starts first, API waits for healthy check)
+cd /opt/evidra
 docker compose -f docker-compose.prod.yml up -d
 
 # Verify
 docker compose -f docker-compose.prod.yml ps
 # Should show: traefik (running), evidra-postgres (healthy), evidra-api (running)
-curl -I https://api.evidra.rest/healthz
+curl -I https://evidra.rest/healthz
 # Should return 200 with HSTS header
 ```
 
@@ -451,7 +490,7 @@ CI pushes new image to GHCR → SSH into VM → pull & restart:
 #!/bin/bash
 set -euo pipefail
 
-ssh root@<VM_IP> << 'EOF'
+ssh deploy@<VM_IP> << 'EOF'
 cd /opt/evidra
 docker compose -f docker-compose.prod.yml pull evidra-api
 docker compose -f docker-compose.prod.yml up -d evidra-api
@@ -487,7 +526,7 @@ jobs:
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.HETZNER_HOST }}
-          username: root
+          username: deploy
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             cd /opt/evidra
@@ -496,7 +535,7 @@ jobs:
             docker image prune -f
             # Health check
             sleep 5
-            curl -sf https://api.evidra.rest/healthz || exit 1
+            curl -sf https://evidra.rest/healthz || exit 1
 ```
 
 **Cross-repo trigger (optional):** Add to `vitas/evidra` CI after image push:
@@ -518,7 +557,7 @@ jobs:
 
 **Required secrets in evidra-infra:**
 - `HETZNER_HOST` — VM2 public IP
-- `HETZNER_SSH_KEY` — SSH private key (Ed25519)
+- `HETZNER_SSH_KEY` — SSH private key (Ed25519) for `deploy` user
 
 **Required secret in vitas/evidra (for cross-repo dispatch):**
 - `INFRA_DISPATCH_PAT` — GitHub PAT with `repo` scope on `vitas/evidra-infra`
@@ -540,7 +579,7 @@ TRAEFIK_DASHBOARD_ENABLED=false  # Later: disabled, SSH port-forward only
 **When disabled (`false`):** Labels are ignored by Traefik. Access dashboard via SSH port-forward:
 
 ```bash
-ssh -L 8080:localhost:8080 root@<VM2-IP>
+ssh -L 8080:localhost:8080 deploy@<VM2-IP>
 # Open http://localhost:8080/dashboard/
 ```
 
@@ -558,18 +597,19 @@ For this to work with `--api.insecure=false` (default), temporarily add `--api.i
 - [x] Content-Security-Policy (default-src 'self', frame-ancestors 'none')
 - [x] Referrer-Policy: strict-origin-when-cross-origin
 - [x] Permissions-Policy: camera=(), microphone=(), geolocation=()
-- [x] Rate limiting (100 req/min, burst 50)
+- [x] Rate limiting (10 req/s per source IP, burst 50)
 - [x] Dashboard toggleable via env var (P0: enabled + BasicAuth, later: disabled)
 - [x] Docker socket mounted read-only
 - [x] no-new-privileges security opt
 - [x] acme.json permissions 600
 
-### Hetzner
-- [ ] Firewall: only 22, 80, 443 inbound
-- [ ] SSH: key-only auth (`PasswordAuthentication no` in sshd_config)
-- [ ] SSH: disable root login, create `deploy` user with docker group
-- [ ] SSH: restrict to specific IP in Hetzner Firewall if possible
-- [ ] Automatic security updates: `apt install unattended-upgrades`
+### Hetzner (via Terraform)
+- [x] Firewall: only 22, 80, 443 inbound (hcloud_firewall resource)
+- [x] SSH: key-only auth (cloud-init 99-hardening.conf)
+- [x] SSH: `deploy` user with docker group (cloud-init)
+- [x] SSH: restrict to specific IP in Hetzner Firewall if possible (edit firewall rule source_ips)
+- [x] Automatic security updates: unattended-upgrades (cloud-init)
+- [x] fail2ban installed and enabled (cloud-init)
 - [ ] Volume snapshots scheduled (weekly)
 
 ### Evidra API
@@ -580,6 +620,66 @@ For this to work with `--api.insecure=false` (default), temporarily add `--api.i
 - [x] Signing key in env var, never on disk
 - [x] Multiple API key hashes for zero-downtime rotation
 - [x] No in-container healthcheck (distroless — verified externally)
+- [x] `/v1/keys` endpoint abuse protection (see §9.1)
+
+### 9.1 `/v1/keys` Abuse Protection
+
+`POST /v1/keys` is the most attractive endpoint for bots — it mints credentials with no authentication. Traefik's blanket rate limit (100 req/min) is not enough; a single IP can create 100 keys/minute, or a botnet can use thousands of IPs.
+
+**Three layers of defense, all in application code:**
+
+**Layer 1: Feature gate (P0, immediate)**
+
+```bash
+# .env
+EVIDRA_SELF_SERVE_KEYS=false   # P0 default: endpoint disabled
+```
+
+When `false`, `POST /v1/keys` returns `403 {"error": "Key self-service is disabled", "hint": "Contact admin@evidra.rest"}`. Keys are issued manually via CLI or direct DB insert. This is the safest option for private beta — zero attack surface.
+
+When `true`, layers 2 and 3 activate.
+
+**Layer 2: Per-IP rate limit on `/v1/keys` only (P0)**
+
+Application-level rate limiter, separate from Traefik's blanket limit:
+
+```
+Limit: 3 keys per IP per hour (token bucket, burst 1)
+Storage: in-memory map[ip]bucket with cleanup goroutine
+Response: 429 {"error": "Too many key requests", "retry_after": 1800}
+```
+
+This is stricter than Traefik's global limit. Implementation lives in `internal/ratelimit/limiter.go` — the same rate limiter used for `/v1/validate`, but with a separate bucket config for `/v1/keys`.
+
+**Layer 3: Invite secret for private beta (P0, optional)**
+
+```bash
+# .env
+EVIDRA_INVITE_SECRET=change-me-random-token   # set to enable
+# Leave empty to disable invite requirement
+```
+
+When set, `POST /v1/keys` requires an `X-Invite-Token` header matching the secret. Without it → `403 {"error": "Invite token required"}`. This transforms `/v1/keys` from a public endpoint into a gated one — share the invite token with early users, rotate when needed.
+
+```bash
+# User creates key with invite token:
+curl -X POST https://evidra.rest/v1/keys \
+  -H "X-Invite-Token: $INVITE_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"label": "my-project"}'
+```
+
+UI Console checks: if invite is required, shows an "Invite token" input field before the API key form.
+
+**Phase 2 (later):** CAPTCHA (hCaptcha/Turnstile), email verification, or GitHub OAuth as the key creation gate. These replace the invite secret when going public.
+
+**Decision matrix:**
+
+| Phase | `SELF_SERVE_KEYS` | `INVITE_SECRET` | Behavior |
+|---|---|---|---|
+| P0 private | `false` | — | Endpoint disabled. Manual key issuance only. |
+| P0 beta | `true` | set | Endpoint active, requires invite token + IP rate limit. |
+| P1 public | `true` | empty | Endpoint open, IP rate limit only. Add CAPTCHA. |
 
 ---
 
@@ -590,7 +690,7 @@ Phase 0 — no Prometheus, no Grafana. Just:
 ```bash
 # scripts/health-check.sh — cron every 5 min
 #!/bin/bash
-if ! curl -sf --max-time 10 https://api.evidra.rest/healthz > /dev/null; then
+if ! curl -sf --max-time 10 https://evidra.rest/healthz > /dev/null; then
     echo "$(date): evidra-api DOWN" >> /mnt/data/evidra/logs/health.log
     # Optional: send notification
     # curl -X POST https://hooks.slack.com/... -d '{"text":"⚠️ evidra-api is DOWN"}'
@@ -650,52 +750,399 @@ Domain cost varies by registrar (~€10-15/year for `.dev`).
 
 ---
 
-## 13. Hetzner Setup — Step by Step
+## 13. Infrastructure as Code — Terraform
 
+All Hetzner infrastructure is provisioned via Terraform. No manual clicks in Console.
+
+**Dogfooding opportunity:** once Evidra API is live, wire `terraform plan -json` output through `POST /v1/validate` in a CI step — Evidra validates its own infrastructure changes.
+
+### 13.1 Prerequisites
+
+```bash
+# Install Terraform (or OpenTofu)
+brew install terraform    # macOS
+# or: sudo apt install terraform
+
+# Hetzner API token
+# Console → Project → Security → API Tokens → Generate (Read+Write)
+export HCLOUD_TOKEN="your-token-here"
+
+# Your SSH public key (will be uploaded to Hetzner)
+cat ~/.ssh/id_ed25519.pub
 ```
-1. Hetzner Console → existing Project (or new: "evidra")
 
-2. Create Server (VM2 — separate from samebits.com ARM VM):
-   - Location: Nuremberg (nbg1)
-   - Image: Apps → Docker CE (Ubuntu 24.04)
-   - Type: Shared vCPU → CX22 (Intel)
-   - SSH Key: add your public key
-   - Firewall: create "evidra-fw"
-     - Inbound: TCP 22, TCP 80, TCP 443
-   - Name: evidra-api-01
+### 13.2 terraform/versions.tf
 
-3. Create Volume:
-   - Size: 20 GB
-   - Location: same as server (nbg1)
-   - Server: evidra-api-01
-   - Mount: Automatic
-   - Filesystem: ext4
-   - Name: evidra-data
+```hcl
+terraform {
+  required_version = ">= 1.5"
 
-4. DNS: add A record → api.evidra.rest → <VM2 IP>
-   (optional: traefik.evidra.rest → same IP)
+  required_providers {
+    hcloud = {
+      source  = "hetznercloud/hcloud"
+      version = "~> 1.49"
+    }
+  }
+}
 
-5. Get evidra-infra on VM2:
-   ssh root@<VM2-IP>
-   # Option A: clone with deploy key
-   git clone git@github.com:vitas/evidra-infra.git /opt/evidra
-   # Option B: scp from local
-   scp -r ./evidra-infra root@<VM2-IP>:/opt/evidra
-
-6. Run bootstrap:
-   cd /opt/evidra
-   bash scripts/bootstrap-hetzner.sh
-
-7. Configure:
-   cp .env.example .env
-   # Edit .env: domains, signing key, API key hash, ACME email
-
-8. Deploy:
-   docker compose -f docker-compose.prod.yml up -d
-   
-9. Verify:
-   curl https://api.evidra.rest/healthz
+provider "hcloud" {
+  token = var.hcloud_token
+}
 ```
+
+### 13.3 terraform/variables.tf
+
+```hcl
+variable "hcloud_token" {
+  description = "Hetzner Cloud API token"
+  type        = string
+  sensitive   = true
+}
+
+variable "server_name" {
+  description = "Server hostname"
+  type        = string
+  default     = "evidra-api-01"
+}
+
+variable "server_type" {
+  description = "Hetzner server type"
+  type        = string
+  default     = "cx22"   # 2 vCPU Intel, 4 GB RAM, 40 GB NVMe — ~€3.79/mo
+}
+
+variable "location" {
+  description = "Hetzner location"
+  type        = string
+  default     = "nbg1"   # Nuremberg — closest to Munich
+}
+
+variable "image" {
+  description = "OS image (Docker CE pre-installed)"
+  type        = string
+  default     = "docker-ce"   # Ubuntu 24.04 + Docker
+}
+
+variable "ssh_public_key_path" {
+  description = "Path to SSH public key"
+  type        = string
+  default     = "~/.ssh/id_ed25519.pub"
+}
+
+variable "volume_size" {
+  description = "Block storage volume size in GB"
+  type        = number
+  default     = 20
+}
+
+variable "domain" {
+  description = "Primary domain for the API"
+  type        = string
+  default     = "evidra.rest"
+}
+```
+
+### 13.4 terraform/main.tf
+
+```hcl
+# --- SSH Key ---
+
+resource "hcloud_ssh_key" "default" {
+  name       = "evidra-deploy"
+  public_key = file(var.ssh_public_key_path)
+}
+
+# --- Firewall ---
+
+resource "hcloud_firewall" "evidra" {
+  name = "evidra-fw"
+
+  # SSH
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "22"
+    source_ips = ["0.0.0.0/0", "::/0"]
+    description = "SSH"
+  }
+
+  # HTTP (redirect to HTTPS + Let's Encrypt challenge)
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "80"
+    source_ips = ["0.0.0.0/0", "::/0"]
+    description = "HTTP"
+  }
+
+  # HTTPS
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "443"
+    source_ips = ["0.0.0.0/0", "::/0"]
+    description = "HTTPS"
+  }
+}
+
+# --- Server ---
+
+resource "hcloud_server" "evidra" {
+  name        = var.server_name
+  server_type = var.server_type
+  location    = var.location
+  image       = var.image
+  ssh_keys    = [hcloud_ssh_key.default.id]
+  firewall_ids = [hcloud_firewall.evidra.id]
+
+  labels = {
+    project = "evidra"
+    role    = "api"
+  }
+
+  # cloud-init: create deploy user, harden SSH, install basics, prepare volume mount
+  user_data = <<-CLOUDINIT
+    #cloud-config
+    users:
+      - name: deploy
+        groups: docker, sudo
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        shell: /bin/bash
+        ssh_authorized_keys:
+          - ${file(var.ssh_public_key_path)}
+
+    package_update: true
+    package_upgrade: true
+    packages:
+      - unattended-upgrades
+      - jq
+      - fail2ban
+
+    write_files:
+      - path: /etc/ssh/sshd_config.d/99-hardening.conf
+        content: |
+          PasswordAuthentication no
+          PermitRootLogin no
+          MaxAuthTries 3
+
+    runcmd:
+      - systemctl restart sshd
+      - systemctl enable fail2ban
+      - systemctl start fail2ban
+      - mkdir -p /opt/evidra
+      # Mount volume at /mnt/data via fstab (Hetzner automount creates /mnt/HC_Volume_*).
+      # We add our own fstab entry for a stable /mnt/data path using the volume's
+      # device ID. The device path is deterministic: /dev/disk/by-id/scsi-0HC_Volume_<ID>.
+      # After terraform apply, run: scripts/bootstrap-hetzner.sh to finalize.
+      - mkdir -p /mnt/data
+  CLOUDINIT
+}
+
+# --- Volume ---
+
+resource "hcloud_volume" "data" {
+  name      = "evidra-data"
+  size      = var.volume_size
+  location  = var.location
+  format    = "ext4"
+  labels = {
+    project = "evidra"
+  }
+}
+
+resource "hcloud_volume_attachment" "data" {
+  volume_id = hcloud_volume.data.id
+  server_id = hcloud_server.evidra.id
+  automount = true
+}
+```
+
+### 13.5 terraform/outputs.tf
+
+```hcl
+output "server_ip" {
+  description = "Public IPv4 of evidra-api-01"
+  value       = hcloud_server.evidra.ipv4_address
+}
+
+output "server_ipv6" {
+  description = "Public IPv6 of evidra-api-01"
+  value       = hcloud_server.evidra.ipv6_address
+}
+
+output "volume_id" {
+  description = "Hetzner Volume ID (for snapshots)"
+  value       = hcloud_volume.data.id
+}
+
+output "volume_linux_device" {
+  description = "Linux device path for the volume"
+  value       = hcloud_volume.data.linux_device
+}
+
+output "volume_fstab_entry" {
+  description = "fstab line for mounting volume at /mnt/data"
+  value       = "${hcloud_volume.data.linux_device} /mnt/data ext4 discard,nofail,defaults 0 0"
+}
+
+output "ssh_command" {
+  description = "SSH into the server"
+  value       = "ssh deploy@${hcloud_server.evidra.ipv4_address}"
+}
+
+output "dns_records" {
+  description = "DNS records to create at your registrar"
+  value       = <<-DNS
+    A     ${var.domain}         → ${hcloud_server.evidra.ipv4_address}
+    CNAME www.${var.domain}     → ${var.domain}
+    AAAA  ${var.domain}         → ${hcloud_server.evidra.ipv6_address}
+  DNS
+}
+```
+
+### 13.6 terraform/terraform.tfvars.example
+
+```hcl
+# Copy to terraform.tfvars and fill in:
+hcloud_token        = ""                        # Hetzner API token
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"   # Your SSH key
+server_type         = "cx22"                     # cx22 for Phase 0, cx32 for Phase 1
+volume_size         = 20                         # 20 GB Phase 0, 50 GB Phase 1
+location            = "nbg1"                     # Nuremberg
+domain              = "evidra.rest"
+```
+
+### 13.7 Provisioning workflow
+
+```bash
+cd evidra-infra/terraform
+
+# 1. Init (one-time)
+terraform init
+
+# 2. Plan — review before apply
+terraform plan -out=tfplan
+
+# 3. Apply
+terraform apply tfplan
+
+# Outputs:
+#   server_ip    = "49.13.x.x"
+#   ssh_command  = "ssh deploy@49.13.x.x"
+#   dns_records  = "A evidra.rest → 49.13.x.x ..."
+#   volume_linux_device = "/dev/disk/by-id/scsi-0HC_Volume_12345678"
+#   volume_fstab_entry  = "/dev/disk/by-id/scsi-0HC_Volume_... /mnt/data ext4 ..."
+
+# 4. Set DNS records at your registrar (from dns_records output)
+
+# 5. Bootstrap (from local machine — runs script on server)
+cd ..  # back to evidra-infra root
+VOLUME_DEVICE=$(cd terraform && terraform output -raw volume_linux_device)
+IP=$(cd terraform && terraform output -raw server_ip)
+ssh deploy@$IP "VOLUME_DEVICE=$VOLUME_DEVICE bash -s" < scripts/bootstrap-hetzner.sh
+
+# 6. Copy docker-compose + .env
+scp docker-compose.prod.yml .env deploy@$IP:/opt/evidra/
+scp -r db/ deploy@$IP:/opt/evidra/
+
+# 7. Start services
+ssh deploy@$IP "cd /opt/evidra && docker compose -f docker-compose.prod.yml up -d"
+
+# 8. Verify
+curl https://evidra.rest/healthz
+```
+
+### 13.8 State management
+
+For Phase 0 (single developer), local state is fine:
+
+```gitignore
+# In .gitignore
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform.tfvars     # contains HCLOUD_TOKEN
+```
+
+Phase 2 migration to remote state (optional):
+
+```hcl
+# Add to versions.tf when needed
+terraform {
+  backend "s3" {
+    bucket   = "evidra-tfstate"
+    key      = "prod/terraform.tfstate"
+    region   = "eu-central-1"
+    encrypt  = true
+  }
+}
+```
+
+### 13.9 Lifecycle operations
+
+```bash
+# Scale up (Phase 1): edit terraform.tfvars
+server_type = "cx32"
+volume_size = 50
+terraform apply    # Server recreated, volume resized in-place
+
+# Destroy everything (careful!)
+terraform destroy
+
+# Import existing resource (if created manually before)
+terraform import hcloud_server.evidra <server-id>
+terraform import hcloud_volume.data <volume-id>
+terraform import hcloud_firewall.evidra <firewall-id>
+```
+
+### 13.10 Dogfooding — Evidra validates Evidra (Phase 2)
+
+Once the API is live, add to CI:
+
+```yaml
+# .github/workflows/infra-validate.yml (in evidra-infra)
+name: Validate Infrastructure Change
+on:
+  pull_request:
+    paths: ['terraform/**']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform init
+          terraform plan -out=tfplan
+          terraform show -json tfplan > plan.json
+
+      - name: Evidra Policy Check
+        run: |
+          # Extract resource changes and validate each
+          jq -c '.resource_changes[]' plan.json | while read change; do
+            TOOL=$(echo "$change" | jq -r '.type')
+            ACTION=$(echo "$change" | jq -r '.change.actions[0]')
+            
+            curl -s -X POST https://evidra.rest/v1/evaluate \
+              -H "Authorization: Bearer ${{ secrets.EVIDRA_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"tool\": \"terraform.${TOOL}\",
+                \"operation\": \"${ACTION}\",
+                \"resource\": $(echo "$change" | jq '.change.after // {}'),
+                \"actor\": {
+                  \"id\": \"github-actions\",
+                  \"origin\": \"evidra-infra\"
+                }
+              }" | jq .
+          done
+```
+
+This validates infrastructure changes through Evidra's own policy engine before apply — true dogfooding.
 
 ---
 

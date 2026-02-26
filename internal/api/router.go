@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io/fs"
 	"net/http"
 
 	"samebits.com/evidra/internal/auth"
@@ -14,6 +15,7 @@ type RouterConfig struct {
 	Signer   *evidence.Signer
 	APIKey   string
 	ServerID string
+	UIFS     fs.FS // Embedded UI filesystem; nil disables UI serving.
 }
 
 // NewRouter builds the HTTP handler with all routes and middleware.
@@ -35,6 +37,11 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	mux.Handle("POST /v1/validate", authMW(
 		handleValidate(cfg.Engine, cfg.Signer, builderCfg),
 	))
+
+	// Embedded UI (SPA fallback).
+	if cfg.UIFS != nil {
+		mux.Handle("/", uiHandler(cfg.UIFS))
+	}
 
 	// Middleware stack: recovery → logging → body limit → router.
 	var handler http.Handler = mux

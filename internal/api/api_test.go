@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"samebits.com/evidra/internal/engine"
 	"samebits.com/evidra/internal/evidence"
@@ -600,6 +601,117 @@ func TestBodyLimitMiddleware_UnderLimit(t *testing.T) {
 
 	if readBytes != 10 {
 		t.Errorf("read %d bytes, want 10", readBytes)
+	}
+}
+
+// --- UI handler ---
+
+func TestUIHandler_ServesIndexHTML(t *testing.T) {
+	t.Parallel()
+
+	handler := uiHandler(testUIFS())
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "<html>") {
+		t.Error("expected HTML response for /")
+	}
+}
+
+func TestUIHandler_ServesStaticAsset(t *testing.T) {
+	t.Parallel()
+
+	handler := uiHandler(testUIFS())
+	req := httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "console.log") {
+		t.Error("expected JS content for /assets/app.js")
+	}
+}
+
+func TestUIHandler_SPAFallback(t *testing.T) {
+	t.Parallel()
+
+	handler := uiHandler(testUIFS())
+	req := httptest.NewRequest(http.MethodGet, "/unknown/path", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d (SPA fallback)", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "<html>") {
+		t.Error("expected index.html for unknown path (SPA fallback)")
+	}
+}
+
+func TestRouter_UINotServedWhenNil(t *testing.T) {
+	t.Parallel()
+
+	handler := testRouter(t)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	// Without UIFS, root path should 404.
+	if rec.Code == http.StatusOK {
+		t.Error("expected non-200 when UIFS is nil")
+	}
+}
+
+func TestRouter_APITakesPrecedenceOverUI(t *testing.T) {
+	t.Parallel()
+
+	bs, err := bundlesource.NewBundleSource(bundleDir)
+	if err != nil {
+		t.Fatalf("NewBundleSource: %v", err)
+	}
+	eng, err := engine.NewAdapter(bs)
+	if err != nil {
+		t.Fatalf("NewAdapter: %v", err)
+	}
+	signer := testSigner(t)
+	handler := NewRouter(RouterConfig{
+		Engine:   eng,
+		Signer:   signer,
+		APIKey:   testAPIKey,
+		ServerID: "ui-test",
+		UIFS:     testUIFS(),
+	})
+
+	// /healthz should still return API response, not UI.
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	var body map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["status"] != "ok" {
+		t.Errorf("expected healthz API response, got %q", rec.Body.String())
+	}
+}
+
+// testUIFS creates an in-memory filesystem for UI handler tests.
+func testUIFS() fstest.MapFS {
+	return fstest.MapFS{
+		"index.html":    {Data: []byte("<html><body>Evidra UI</body></html>")},
+		"assets/app.js": {Data: []byte("console.log('evidra');")},
+		"favicon.svg":   {Data: []byte("<svg></svg>")},
 	}
 }
 

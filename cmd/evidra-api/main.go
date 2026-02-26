@@ -80,6 +80,7 @@ func run() int {
 		Signer:   signer,
 		APIKey:   apiKey,
 		ServerID: serverID,
+		UIFS:     evidra.UIDistFS,
 	})
 
 	// --- Server ---
