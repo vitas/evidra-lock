@@ -1,158 +1,118 @@
-# Evidra --- Strategic Vision & 6--12 Month Roadmap
+# Evidra — Strategic Vision and Roadmap
 
-Generated on: 2026-02-22T19:47:21.535015 UTC
+**Updated:** 2026-02-26
 
-------------------------------------------------------------------------
+---
 
-# 🌍 Long-Term Vision
+## Current State (v0.1 — shipped)
 
-Evidra becomes the **deterministic safety layer for AI-driven
-infrastructure operations**.
+- CLI (`evidra validate`) — OPA evaluation against scenario files, online and offline modes
+- MCP server (`evidra-mcp`) — `validate` tool + `get_event` resource for AI agents, enforce/observe modes
+- Policy engine: OPA with `ops-v0.1` bundle (23 rules, embedded), environment-aware `by_env` parameters
+- Evidence: hash-linked JSONL chain, append-only, local storage
+- Install: Homebrew, Docker (GHCR), goreleaser cross-compilation
+- Docs: architecture, security model, policy catalog, quickstart
 
-Where AI is probabilistic, Evidra is deterministic.
+---
 
-Over time, Evidra should evolve from:
+## P0 — API + Hybrid (current focus)
 
-> A validator for AI-generated infra changes
+**Goal:** Working hosted API at `evidra.rest`. CLI and MCP talk to it or work offline.
 
-Into:
+### API Phase 0 (stateless, no database)
 
-> The trusted control plane that ensures AI cannot perform unsafe
-> infrastructure actions.
+- `POST /v1/validate` — policy evaluation with Ed25519-signed evidence
+- `GET /v1/evidence/pubkey` — public key for offline verification
+- `GET /healthz` — liveness probe
+- Static API key from env var, constant-time compare, timing jitter on auth failure
+- Single binary, zero dependencies beyond OPA
+- Design: `__internal/docs/implemented/evidra_sysdesign-api-mvp.md`
 
-But this evolution must be staged carefully.
+### Hybrid mode
 
-------------------------------------------------------------------------
+- CLI and MCP become API-first when `EVIDRA_URL` is set
+- Local OPA fallback with `EVIDRA_FALLBACK=offline`
+- Fail closed by default — API unreachable + `fallback=closed` = error
+- New packages: `pkg/client` (HTTP client), `pkg/mode` (mode resolution)
+- Design: `__internal/docs/implemented/evidra_cli_hybrid_mode_design.md`
 
-# 🎯 Strategic Phases
+### Deployment
 
-## Phase 1 --- Sharp Validator (0--3 Months)
+- Hetzner CX22, Traefik v3, Let's Encrypt TLS
+- Domain: `evidra.rest`
+- GitHub Actions: build → push GHCR → deploy
 
-**Goal:** Nail product clarity and usability.
+### Input adapters
 
-Focus:
+- `evidra/adapters` — separate Go module, zero import coupling with main repo
+- `evidra-adapter-terraform` — reads `terraform show -json`, produces structured ToolInvocation params
+- Design: `__internal/docs/implemented/evidra_adapter_system_design.md`
 
--   Validate plan and manifest artifacts
--   Deterministic policy (deny/warn)
--   Immutable evidence chain
--   Clean CLI UX
--   Clear AI-readable structured output
--   **Serious Baseline Policy Pack (23 rules)** — 18 must-have guardrails
-    sourced from CIS Kubernetes Benchmark (5.2.x), tfsec/trivy (AVD-AWS-*),
-    kube-score, AWS S3 best practices, and ArgoCD operational safety patterns.
-    Covers: container escape, mass data exposure, irreversible destruction,
-    account/cluster compromise, and GitOps safety.
-    Research: `docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md`
+### Dogfooding CI
 
-Deliverable:
+- Infrastructure PRs: `terraform plan` → adapter → `POST /v1/validate`
 
-> A sharp, reliable tool DevOps engineers trust — with enough policy depth
-> to be taken seriously on day one.
+### Exit criteria
 
-No enterprise features. No compliance marketing. No workflow automation.
+- `curl POST https://evidra.rest/v1/validate` returns signed evidence
+- `evidra validate --url https://evidra.rest` works
+- `evidra-mcp` with `EVIDRA_URL` delegates to API
+- `evidra-adapter-terraform | evidra validate -` works end-to-end
+- Infrastructure PRs validated by Evidra
 
-------------------------------------------------------------------------
+**P0 is the stopping point.** Everything below is designed but not scheduled.
 
-## Phase 2 --- Policy Intelligence (3--6 Months)
+---
 
-**Goal:** Improve decision quality without increasing complexity.
+## P1 — Multi-tenant + Landing (unscheduled)
 
-Focus:
+Gate: `DATABASE_URL` set → enables Phase 1 features.
 
--   Improve outcome parsers for plan and manifest data
--   Smarter risk classification (based on change type, resource
-    criticality)
--   Policy modularization (small deny/warn rules)
--   Structured rule labels (stable identifiers)
--   Better AI-readable remediation guidance
+- PostgreSQL-backed key management (`POST /v1/keys`, `GET /readyz`)
+- Tenant isolation, usage tracking, rate limiting per key/IP
+- Landing page with "Get API Key" form
+- Design: `__internal/docs/implemented/evidra_sysdesign-api-mvp.md` Phase 1 tasks
 
-Optional (lightweight):
+---
 
--   Policy simulation mode (what would happen)
--   Local developer feedback loop improvements
+## P2 — Skills + Integrations (unscheduled)
 
-Still no compliance suite.
+Gate: `EVIDRA_SKILLS_ENABLED=true`
 
-------------------------------------------------------------------------
+- Skills API: `POST /v1/skills`, `POST /v1/skills/{id}:execute`, `:simulate`
+- MCP dynamic tools (one tool per registered skill)
+- GitHub Action (`evidra/action@v1`)
+- Design: same doc, Phase 2 tasks
 
-## Phase 3 --- Trust & Attestation Layer (6--12 Months)
+---
 
-**Goal:** Strengthen evidence and enterprise credibility.
+## P3 — Scale + Enterprise (unscheduled)
 
-Focus:
+- Evidence sync (local → API)
+- Kubernetes-native deployment
+- SSO / OIDC
+- Audit dashboard
 
--   Cryptographic signing of evidence records
--   External verification CLI (verify evidence chain integrity)
--   Tamper detection improvements
--   Exportable machine-readable evidence format
+---
 
-Optional expansion:
+## Avoid These Traps
 
--   Basic CI integration mode
--   Simple GitHub Action
--   Simple API wrapper (minimal)
-
-Not:
-
--   Full compliance automation
--   Approval workflow engines
--   Governance dashboards
-
-------------------------------------------------------------------------
-
-# 🧠 Product Expansion Principles
-
-Future features must pass this filter:
-
-Does it strengthen deterministic validation of infrastructure outcomes?
-
-If no → reject or postpone.
-
-------------------------------------------------------------------------
-
-# 📊 Strategic Positioning Evolution
-
-### v1 Positioning
-
-> Validate infrastructure changes proposed by AI before they run.
-
-### v2 Positioning
-
-> Deterministic guardrail for AI-driven infrastructure operations.
-
-### v3 Positioning
-
-> Cryptographically verifiable control layer for AI infrastructure
-> agents.
-
-------------------------------------------------------------------------
-
-# ⚖️ Avoid These Strategic Traps
-
--   Becoming a generic DevSecOps platform
--   Building compliance-first messaging too early
--   Creating approval workflow engines
--   Expanding into policy-as-a-service complexity
--   Supporting too many execution modes simultaneously
+- Becoming a generic DevSecOps platform
+- Building compliance-first messaging before the API is proven
+- Creating approval workflow engines
+- Expanding into policy-as-a-service complexity
+- Supporting too many execution modes simultaneously
+- Adding an ORM or web framework — stdlib `net/http` + `database/sql` + `pgx`
+- Building a dashboard before the API is live and dogfooded
 
 Complexity is the main long-term risk.
 
-------------------------------------------------------------------------
+---
 
-# 🏁 Long-Term Success Criteria
+## Positioning
 
-Evidra succeeds if:
+> Policy guardrails for AI infrastructure agents — with signed evidence.
 
--   DevOps engineers run it locally by default before applying
-    AI-generated changes
--   It becomes part of AI-assisted workflows
--   It is trusted for deterministic decisions
--   Its evidence chain becomes a differentiator
+Product filter (unchanged):
 
-------------------------------------------------------------------------
-
-# 🚀 Final Strategic Principle
-
-Keep it sharp. Keep it deterministic. Keep it simple.
-
-Expand only after v1 is trusted and adopted.
+> Does it strengthen deterministic validation of infrastructure outcomes? If no — reject or postpone.

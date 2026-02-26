@@ -1,163 +1,66 @@
-# Evidra v1 --- Product Direction (DevOps-Focused)
+# Evidra — Product Direction
 
-Generated on: 2026-02-22T19:41:40.591465 UTC
+**Updated:** 2026-02-26
 
-------------------------------------------------------------------------
+---
 
-## 🎯 Product Focus
+## What Evidra Is
 
-**Evidra v1 is a deterministic outcome validator for AI-generated
-infrastructure changes.**
+Evidra is a policy evaluation and evidence signing system for AI agent infrastructure operations. Before an AI agent executes `kubectl apply` or `terraform apply`, it calls Evidra. Evidra evaluates OPA policy, returns allow/deny with risk level and remediation hints, and produces a cryptographically verifiable evidence record.
 
-Target user: **DevOps engineer using AI tools** (Copilot, ChatGPT,
-internal LLM agents).
+Target user: DevOps engineer using AI coding assistants (Claude Code, Cursor, Copilot) for infrastructure work.
 
-Not: - A compliance platform - A SOC2 automation suite - A generic AI
-gateway - A DevSecOps mega-framework
+---
 
-------------------------------------------------------------------------
+## What Changed Since v0.1
 
-## 🧠 Core Problem
+The project shifted from "local CLI tool" to "API-first with offline fallback":
 
-AI agents can propose infrastructure changes.\
-AI is probabilistic. Infrastructure is not.
+- **Ed25519 signing** — designed for P0, not Phase 3. Every API response includes a signed evidence record verifiable offline with the public key.
+- **Hosted API** — the primary interface, not an optional expansion. CLI and MCP are now API clients with local OPA fallback.
+- **Input adapters** — external binaries in a separate repo (`evidra/adapters`), not built into core. Transform raw tool artifacts into structured ToolInvocation params.
+- **Hybrid mode** — CLI and MCP resolve online/offline at startup, test reachability at call time. Configurable fallback policy.
+- **23 rules** — the policy library expanded from 6 to 23 rules covering Kubernetes (CIS 5.2.x), Terraform, S3, IAM, and ArgoCD.
 
-Without a deterministic safety layer: - AI may hallucinate destructive
-commands - AI may open public access - AI may delete production
-resources - Logs are not proof of control
+---
 
-------------------------------------------------------------------------
+## Core Value Proposition
 
-## ✅ Core Value Proposition
+Evidra validates the outcome of infrastructure changes before they run.
 
-Evidra validates the *outcome* of infrastructure changes before they
-run.
+It does not filter command strings. It evaluates structured plan/diff descriptions of intended changes, applies deterministic policy, and returns:
 
-It does not filter command strings.
+- Allow / Deny
+- Risk level (low / medium / high)
+- Rule IDs and human-readable reasons
+- Actionable remediation hints
+- Signed evidence record (online) or hash-linked evidence (offline)
 
-It evaluates structured plan/diff descriptions of the intended changes. (for example: Terraform plan JSON - Kubernetes diff)
+---
 
-Then applies deterministic policy and returns:
+## Not in Scope
 
--   PASS / FAIL
--   Risk level
--   Human-readable reason
--   Immutable evidence record
+- Compliance automation (SOC2, HIPAA, PCI)
+- Approval workflow engines
+- Governance dashboards (until API is proven)
+- Generic DevSecOps platform features
+- Runtime security or live infrastructure inspection
 
-------------------------------------------------------------------------
+---
 
-## 📦 MVP Scope (Must Have Before Release)
+## Product Filter
 
-### 1️⃣ Outcome-Based Validation
+> Does it strengthen deterministic validation of infrastructure outcomes?
 
--   Evaluate structured plan/diff artifacts (for example Evaluate Terraform plan JSON and Kubernetes diff)
--   Decision based on resulting changes, not commands
+If no — reject or postpone.
 
-### 2️⃣ Deterministic Decision Output
+---
 
-Each validation returns: - PASS / FAIL - risk_level - reason
-(human-readable) - structured AI-readable error
+## Release Readiness (P0-API)
 
-### 3️⃣ Immutable Evidence
-
-Every decision produces: - Append-only record - Hash-linked chain -
-Machine-readable JSON
-
-### 4️⃣ AI-Readable Structured Error
-
-Instead of generic errors, return structured output like:
-
-``` json
-{
-  "blocked_by": "ops.unapproved_change",
-  "reason": "Production changes require approval",
-  "required_changes": [
-    "Add tag change-approved=true"
-  ]
-}
-```
-
-------------------------------------------------------------------------
-
-## ❌ Out of Scope for v1
-
-The following features are intentionally excluded from v1:
-
--   SOC2/HIPAA marketing narratives
--   CI passive training mode
--   JSON-LD export
--   Jira integrations
--   Splunk integrations
--   Signed export artifacts
--   Approval workflow systems
--   Compliance dashboards
--   Enterprise governance layers
-
-------------------------------------------------------------------------
-
-## 🧱 Simplified Architecture (v1)
-
-Keep: - Engine (pipeline) - Policy (small deny/warn rules) - Registry
-(clean, declarative) - Validators (facts only) - Evidence store
-
-Remove or de-emphasize: - Dev/demo tools - Multi-profile complexity -
-Compliance-first messaging
-
-------------------------------------------------------------------------
-
-## 🧪 Example UX
-
-``` bash
-terraform plan -out plan.tfplan
-terraform show -json plan.tfplan > plan.json
-
-evidra validate plan.json
-```
-
-Output:
-
-    FAIL
-    Reason: This change deletes 3 RDS instances.
-    Risk: high
-    Evidence: ev-2026-...
-
-------------------------------------------------------------------------
-
-## 🧭 Strategic Principle
-
-If a feature does not strengthen:
-
-> Deterministic validation of infrastructure outcomes
-
-It does not belong in v1.
-
-------------------------------------------------------------------------
-
-## 📊 Honest Assessment
-
-Technical maturity: High\
-Product clarity: Needs sharpening\
-MVP focus: Must tighten\
-Risk of feature creep: High
-
-------------------------------------------------------------------------
-
-## 🚀 Release Readiness Checklist
-
-Before release:
-
--   [ ] Policy simplified into small deny/warn rules
--   [ ] Serious Baseline Policy Pack: 23 rules across K8s, Terraform, S3, IAM, ArgoCD
-        (see `docs/backlog/OPS_V0_SERIOUS_BASELINE_RESEARCH.md`)
--   [ ] Registry cleaned and fully tested
--   [ ] Observe vs Enforce semantics tested
--   [ ] README simplified to 1 clear workflow
--   [ ] Remove non-core features from messaging
-
-------------------------------------------------------------------------
-
-## 🏁 Final Positioning Statement
-
-> Validate infrastructure changes proposed by AI before they run.
-
-Short. Clear. Deterministic.
+- [ ] API Phase 0 deployed and accessible at `evidra.rest`
+- [ ] Hybrid mode in CLI + MCP
+- [ ] Terraform adapter v0.1.0 released
+- [ ] Architecture docs up to date
+- [ ] README updated to show both online and offline workflows
+- [ ] Dogfooding CI validates infrastructure PRs
