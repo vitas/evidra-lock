@@ -119,3 +119,77 @@ The pattern: **register once, call from everywhere.**
 - Terraform Cloud sends plan → skill parses it
 
 Without skills, each integration needs its own ToolInvocation builder. With skills, each integration is a thin adapter over the same `POST /v1/skills/{id}:execute` endpoint.
+
+---
+
+## Input Adapters — Who Parses What
+
+### The Problem
+
+Making parsers and converters for every tool is a maintenance nightmare. Terraform changes its plan JSON schema between versions. Kubernetes has hundreds of resource types. ArgoCD, Helm, AWS — each with its own format. Building and maintaining these inside Evidra core is unsustainable.
+
+### The Solution: Evidra Does Not Parse
+
+Evidra skills accept **business parameters** (`namespace`, `destroy_count`, `image_tag`), not raw artifacts (`plan.json`, `manifest.yaml`). The extraction of business parameters from raw tool output is **always the caller's responsibility**.
+
+Three extraction patterns:
+
+| Caller | Parser | Cost |
+|---|---|---|
+| AI agent (MCP, Claude Code) | The LLM itself — reads JSON/YAML natively | Zero. LLMs are universal parsers. |
+| CI pipeline (GitHub Actions) | An **input adapter** — separate binary | ~50 lines of Go per tool. |
+| Platform (Backstage, Slack) | The platform already has the data | Zero — it is the source, not a consumer. |
+
+### Adapter Interface
+
+```go
+// Adapter converts raw tool output into Evidra skill input.
+type Adapter interface {
+    Name() string
+    Convert(ctx context.Context, raw []byte, config map[string]string) (*Result, error)
+}
+
+type Result struct {
+    Input    map[string]any  // matches skill's input_schema
+    Metadata map[string]any  // provenance info, not sent to skill
+}
+```
+
+Properties: adapters live **outside Evidra core** (separate Go module), are optional, composable, and versioned independently. When terraform changes its schema, only the terraform adapter updates.
+
+### Reference Adapter: terraform-plan
+
+Uses `hashicorp/terraform-json` — HashiCorp's official, stable library for parsing `terraform show -json` output. The adapter extracts counts of creates/updates/deletes/replaces, resource types, and terraform version. ~60 lines of Go.
+
+Usage in GitHub Actions:
+
+```bash
+terraform show -json tfplan.bin > tfplan.json
+SKILL_INPUT=$(evidra-adapter-terraform < tfplan.json)
+curl -X POST .../v1/skills/terraform-apply:execute \
+  -d "{\"actor\":{...},\"input\":$SKILL_INPUT}"
+```
+
+### Planned Adapters
+
+| Adapter | Source | Library | Status |
+|---|---|---|---|
+| `terraform-plan` | `terraform show -json` | `hashicorp/terraform-json` | Reference impl |
+| `k8s-manifest` | YAML/JSON manifest | `k8s.io/apimachinery` | Planned |
+| `k8s-admission` | AdmissionReview | `k8s.io/api/admission/v1` | Planned |
+| `argocd-app` | Application spec | JSON path extraction | Planned |
+| `generic-json` | Any JSON | Configurable JSONPath | Planned |
+
+### AI Agents as Universal Adapters
+
+For AI-driven workflows, **the LLM replaces all static adapters**. The agent runs `terraform plan -json`, reads the output, extracts parameters through reasoning, and calls the skill with clean input. This handles schema changes, new resource types, and edge cases without any adapter code. It is the primary use case — static adapters serve CI pipelines where no LLM is in the loop.
+
+### Ecosystem Libraries
+
+Existing libraries that adapters build on:
+
+- **hashicorp/terraform-json** — official Go types for `terraform show -json`, stable, follows 1.x compatibility. The canonical way to parse terraform plans externally.
+- **hashicorp/terraform-exec** — runs terraform CLI from Go, returns structured types via terraform-json.
+- **k8s.io/apimachinery** — Go types for all Kubernetes resources, the standard for parsing manifests.
+- **open-policy-agent/conftest** — not a library per se, but demonstrates the same pattern: read structured config, check policy. Evidra adapters are analogous to conftest's input parsers, but output skill parameters instead of OPA input.
+- **kagent-dev/kagent** — Kubernetes-native AI agent framework with MCP tool servers for kubectl, Helm, Argo, Istio. Demonstrates the pattern of wrapping k8s operations as agent-callable tools — exactly what Evidra skills do, but with policy enforcement and evidence.
