@@ -10,6 +10,7 @@ env:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    environment: hetzner-cloud
     steps:
       - uses: actions/checkout@v4
 

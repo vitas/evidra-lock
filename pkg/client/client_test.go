@@ -37,7 +37,7 @@ func TestValidate_Success(t *testing.T) {
 			t.Error("expected X-Request-ID header")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"allow":       true,
 			"risk_level":  "low",
 			"evidence_id": "evt-123",
@@ -72,7 +72,7 @@ func TestValidate_Denied(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"allow":      false,
 			"risk_level": "high",
 			"reasons":    []string{"namespace is kube-system"},
@@ -210,7 +210,7 @@ func TestValidate_UnknownFields(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"allow":         true,
 			"risk_level":    "low",
 			"evidence_id":   "evt-456",

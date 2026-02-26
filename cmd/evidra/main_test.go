@@ -152,7 +152,7 @@ func TestValidate_OnlineMode(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"allow":       true,
 			"risk_level":  "low",
 			"evidence_id": "evt-online-1",
@@ -328,7 +328,7 @@ func TestValidate_RateLimit_NoFallback(t *testing.T) {
 func TestValidate_Denied_ExitCode2(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"allow":      false,
 			"risk_level": "high",
 			"reasons":    []string{"protected namespace"},
@@ -385,10 +385,10 @@ func TestValidate_EnvNormalization(t *testing.T) {
 		var inv struct {
 			Environment string `json:"environment"`
 		}
-		json.NewDecoder(r.Body).Decode(&inv)
+		_ = json.NewDecoder(r.Body).Decode(&inv)
 		receivedEnv = inv.Environment
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"allow":      true,
 			"risk_level": "low",
 		})
