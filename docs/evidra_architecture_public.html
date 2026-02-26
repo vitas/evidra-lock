@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evidra — System Architecture</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2129;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-dim: #1f6feb;
+    --green: #3fb950;
+    --orange: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 56px 0 20px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    background: var(--accent-dim);
+    color: #fff;
+    font-size: 0.8rem;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-weight: 700;
+  }
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 32px 0 12px;
+    color: var(--text);
+  }
+  p { margin: 0 0 16px; color: var(--text); }
+  .diagram-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 24px;
+    margin: 24px 0 32px;
+    overflow-x: auto;
+  }
+  .diagram-container .mermaid {
+    display: flex;
+    justify-content: center;
+  }
+  .diagram-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 0.92rem;
+  }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    color: var(--accent);
+    font-weight: 600;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  tr:hover td { background: var(--surface); }
+  code {
+    background: var(--surface-2);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.88em;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--orange);
+  }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: var(--text);
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-orange { background: rgba(210,153,34,0.15); color: var(--orange); }
+  .badge-red { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-blue { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .badge-purple { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .note {
+    background: rgba(88,166,255,0.08);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0 24px;
+    font-size: 0.92rem;
+  }
+  .note strong { color: var(--accent); }
+  .warn {
+    background: rgba(210,153,34,0.08);
+    border-left: 3px solid var(--orange);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0 24px;
+    font-size: 0.92rem;
+  }
+  .warn strong { color: var(--orange); }
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 24px 0 40px;
+  }
+  .toc-title {
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .toc a {
+    color: var(--text);
+    text-decoration: none;
+    display: block;
+    padding: 4px 0;
+    transition: color 0.15s;
+  }
+  .toc a:hover { color: var(--accent); }
+  .toc .indent { padding-left: 20px; color: var(--text-muted); font-size: 0.9rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card-title { font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .card p { font-size: 0.9rem; color: var(--text-muted); margin: 0; }
+  @media (max-width: 700px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    body { padding: 20px 16px 60px; }
+    h1 { font-size: 1.7rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Evidra — System Architecture</h1>
+<p class="subtitle">Public architecture reference &bull; Version 0.1.0 &bull; February 2026</p>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <a href="#overview">1. System Overview</a>
+  <a href="#components" class="indent">1.1 Component Map</a>
+  <a href="#runtime" class="indent">1.2 Runtime Architecture</a>
+  <a href="#flows">2. Interaction Flows</a>
+  <a href="#flow-mcp" class="indent">2.1 AI Agent → MCP → Validate</a>
+  <a href="#flow-ci" class="indent">2.2 CI Pipeline → Adapter → API</a>
+  <a href="#flow-api" class="indent">2.3 Direct API Call</a>
+  <a href="#flow-evidence" class="indent">2.4 Evidence Signing & Verification</a>
+  <a href="#api">3. API Surface</a>
+  <a href="#adapters">4. Adapter System</a>
+  <a href="#adapter-arch" class="indent">4.1 Architecture</a>
+  <a href="#adapter-tf" class="indent">4.2 Terraform Adapter Data Flow</a>
+  <a href="#policy">5. Policy Engine</a>
+  <a href="#policy-bundle" class="indent">5.1 Bundle Structure</a>
+  <a href="#policy-rules" class="indent">5.2 Rule Examples</a>
+  <a href="#deployment">6. Deployment Models</a>
+  <a href="#deploy-ref" class="indent">6.1 Reference Architecture</a>
+  <a href="#deploy-single" class="indent">6.2 Single-Server (VPS / On-Prem)</a>
+  <a href="#deploy-k8s" class="indent">6.3 Kubernetes</a>
+  <a href="#deploy-cloud" class="indent">6.4 Cloud-Native (AWS / GCP / Azure)</a>
+  <a href="#deploy-airgap" class="indent">6.5 Air-Gapped / Offline</a>
+  <a href="#deploy-requirements" class="indent">6.6 Requirements & Sizing</a>
+  <a href="#ci-cd">7. CI/CD & Release</a>
+  <a href="#ci-adapters" class="indent">7.1 Adapters Release</a>
+  <a href="#ci-api" class="indent">7.2 API Server Release</a>
+  <a href="#security">8. Security Model</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="overview"><span class="num">1</span> System Overview</h2>
+
+<p>Evidra is a policy-as-code guardrail engine for AI agents and CI pipelines. It evaluates whether a tool invocation — Terraform apply, Kubernetes deploy, database migration, API call — should be allowed, denied, or flagged, then produces a cryptographically signed evidence record proving what was decided and why.</p>
+
+<h3 id="components">1.1 Component Map</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">System Components & Boundaries</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "Callers"
+    AGENT["AI Agent<br/><i>Claude Code, Cursor, etc.</i>"]
+    CI["CI Pipeline<br/><i>GitHub Actions, GitLab CI</i>"]
+    PLAT["Platform<br/><i>Backstage, Slack, custom</i>"]
+  end
+
+  subgraph "Evidra"
+    MCP["MCP Server<br/><i>stdio transport</i>"]
+    API["HTTP API<br/><i>/v1/validate</i>"]
+    ENGINE["Policy Engine<br/><i>OPA + Rego rules</i>"]
+    EV["Evidence Store<br/><i>JSONL + Ed25519</i>"]
+    PG["PostgreSQL<br/><i>Tenants, keys, skills</i>"]
+  end
+
+  subgraph "Adapters  (separate module)"
+    TF["Terraform Adapter"]
+    K8S["K8s Adapter<br/><i>planned</i>"]
+    MORE["..."]
+  end
+
+  AGENT -- "MCP (stdio)" --> MCP
+  CI -- "stdin/stdout" --> TF
+  TF -- "HTTP JSON" --> API
+  CI -- "HTTP JSON" --> API
+  PLAT -- "HTTP JSON" --> API
+
+  MCP --> ENGINE
+  API --> ENGINE
+  ENGINE --> EV
+  API --> PG
+
+  style ENGINE fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style EV fill:#238636,stroke:#3fb950,color:#fff
+  style TF fill:#d29922,stroke:#e3b341,color:#000
+  </pre>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">evidra/evidra <span class="badge badge-blue">Core</span></div>
+    <p>API server, MCP server, offline CLI, OPA policy engine, evidence store. Single Go module. Stateless API — all state lives in PostgreSQL and the evidence log.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">evidra/adapters <span class="badge badge-green">Separate Module</span></div>
+    <p>Adapter interface + tool-specific implementations (Terraform first). Pure functions: bytes in, JSON out. No network, no state. Independent release cycle.</p>
+  </div>
+</div>
+
+<div class="note"><strong>Zero coupling:</strong> The server never imports adapter code. The adapter never imports server code. They communicate solely via the <code>/v1/validate</code> HTTP API with a shared JSON contract (skill input_schema).</div>
+
+<h3 id="runtime">1.2 Runtime Architecture</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">Evidra Core — Three Binaries, One Evaluation Engine</div>
+  <pre class="mermaid">
+graph TB
+  subgraph "Binaries"
+    MCP["cmd/evidra-mcp<br/><i>MCP Server (stdio)</i>"]
+    CLI["cmd/evidra<br/><i>Offline CLI</i>"]
+    API["cmd/evidra-api<br/><i>HTTP API Server</i>"]
+  end
+
+  subgraph "Core Packages"
+    V["pkg/validate<br/><i>EvaluateScenario()</i>"]
+    S["pkg/scenario<br/><i>Load & normalize</i>"]
+    R["pkg/runtime<br/><i>OPA evaluator</i>"]
+    P["pkg/policy<br/><i>Decision struct</i>"]
+    EV["pkg/evidence<br/><i>JSONL + signing</i>"]
+  end
+
+  subgraph "Support"
+    MC["pkg/mcpserver<br/><i>MCP ↔ validate bridge</i>"]
+    INV["pkg/invocation<br/><i>ToolInvocation schema</i>"]
+    BS["pkg/bundlesource<br/><i>OPA bundle loader</i>"]
+  end
+
+  MCP --> MC --> V
+  CLI --> V
+  API --> V
+  V --> S --> R --> P
+  V --> EV
+  R --> BS
+
+  style V fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style MCP fill:#238636,stroke:#3fb950,color:#fff
+  style CLI fill:#238636,stroke:#3fb950,color:#fff
+  style API fill:#238636,stroke:#3fb950,color:#fff
+  </pre>
+</div>
+
+<p>All three binaries share <code>pkg/validate.EvaluateScenario()</code> — the single entry point. The pipeline is deterministic: same input always produces the same policy decision. This makes the MCP server, API, and CLI all interchangeable for policy evaluation — they differ only in transport.</p>
+
+<table>
+  <tr><th>Binary</th><th>Transport</th><th>Use Case</th></tr>
+  <tr><td><code>evidra-mcp</code></td><td>MCP stdio</td><td>AI agent guardrail (Claude Code, Cursor, etc.)</td></tr>
+  <tr><td><code>evidra-api</code></td><td>HTTP REST</td><td>CI pipelines, platform integrations, hosted service</td></tr>
+  <tr><td><code>evidra</code></td><td>CLI (local files)</td><td>Offline validation, policy simulation, evidence inspection</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="flows"><span class="num">2</span> Interaction Flows</h2>
+
+<h3 id="flow-mcp">2.1 AI Agent → MCP → Validate</h3>
+
+<p>When an MCP-compatible agent wants to execute a tool, it first asks Evidra for permission. The MCP server evaluates the policy and records a signed evidence entry before responding.</p>
+
+<div class="diagram-container">
+  <div class="diagram-label">MCP Validation Flow — AI Agent Guardrail</div>
+  <pre class="mermaid">
+sequenceDiagram
+  participant Agent as AI Agent<br/>(Claude Code)
+  participant MCP as evidra-mcp<br/>(stdio)
+  participant V as pkg/validate
+  participant OPA as OPA Engine
+  participant EV as Evidence Store
+
+  Agent->>MCP: tools/call "validate"<br/>{tool, operation, params}
+  MCP->>V: EvaluateScenario()
+  V->>OPA: Evaluate policy
+  OPA-->>V: Decision{allow, risk_level, reasons}
+  V->>EV: Append evidence record (signed)
+  EV-->>V: event_id
+  V-->>MCP: {allow: true/false, evidence_id}
+  MCP-->>Agent: MCP result
+
+  alt Allowed
+    Agent->>Agent: Execute tool
+  else Denied
+    Agent->>Agent: Abort + explain to user
+  end
+  </pre>
+</div>
+
+<div class="note"><strong>Modes:</strong> <code>enforce</code> (default) — deny blocks execution. <code>observe</code> (<code>--observe</code> flag) — policy is evaluated and recorded but never blocks. Useful for gradual rollout and shadow monitoring.</div>
+
+<h3 id="flow-ci">2.2 CI Pipeline → Adapter → API</h3>
+
+<p>CI pipelines use adapter binaries to transform raw tool output into structured parameters, then POST to the API for policy evaluation.</p>
+
+<div class="diagram-container">
+  <div class="diagram-label">CI Pipeline Flow — Terraform Plan Validation</div>
+  <pre class="mermaid">
+sequenceDiagram
+  participant GH as CI Runner
+  participant TF as terraform
+  participant AD as evidra-adapter-terraform
+  participant API as Evidra API
+  participant OPA as Policy Engine
+
+  GH->>TF: terraform plan -out=tfplan.bin
+  TF-->>GH: tfplan.bin
+  GH->>TF: terraform show -json tfplan.bin
+  TF-->>GH: plan.json (raw)
+
+  GH->>AD: stdin: plan.json
+  AD->>AD: Parse, extract counts,<br/>filter, truncate
+  AD-->>GH: stdout: {input, metadata}
+
+  GH->>API: POST /v1/validate<br/>Bearer token + input payload
+  API->>OPA: Evaluate policy rules
+  OPA-->>API: Decision
+  API-->>GH: {allow, risk_level, reason}
+
+  alt Allowed
+    GH->>GH: Continue to apply
+  else Denied
+    GH->>GH: Fail CI step
+  end
+  </pre>
+</div>
+
+<div class="warn"><strong>Purity boundary:</strong> The adapter binary has NO network access. It only transforms data (stdin → stdout). The CI workflow is responsible for the API call. This means adapters work offline, in air-gapped environments, and in test pipelines.</div>
+
+<h3 id="flow-api">2.3 Direct API Call</h3>
+
+<p>Platforms with structured data can POST directly to the API — no adapter needed. Two patterns are supported: raw validation and skill-based execution.</p>
+
+<div class="diagram-container">
+  <div class="diagram-label">Direct API — Two Validation Patterns</div>
+  <pre class="mermaid">
+sequenceDiagram
+  participant P as Platform<br/>(Backstage / Slack)
+  participant V as POST /v1/validate
+  participant SK as POST /v1/skills/{id}:execute
+
+  Note over P,V: Pattern A: Raw validation
+  P->>V: {tool, operation, params, context}
+  V-->>P: {allow, risk_level, evidence_id}
+
+  Note over P,SK: Pattern B: Skill execution
+  P->>SK: {input: {destroy_count: 5, ...}}
+  SK-->>P: {status, decision, evidence_id}
+  </pre>
+</div>
+
+<p>Pattern A is flexible — any tool, any operation. Pattern B uses pre-registered skill definitions with typed input schemas, input validation, and default parameters. Skills are registered via <code>POST /v1/skills</code>.</p>
+
+<h3 id="flow-evidence">2.4 Evidence Signing & Verification</h3>
+
+<p>Every evaluation produces a signed evidence record. Records form a hash-linked chain (each record includes the hash of the previous), providing tamper-evident audit logs. Verification requires no authentication.</p>
+
+<div class="diagram-container">
+  <div class="diagram-label">Evidence Lifecycle — Sign, Record, Verify</div>
+  <pre class="mermaid">
+sequenceDiagram
+  participant API as Evidra
+  participant EV as Evidence Store
+  participant AUD as Auditor
+
+  Note over API: On every evaluation:
+  API->>API: Create evidence record<br/>(input, decision, timestamp)
+  API->>API: Ed25519 sign record
+  API->>EV: Append to JSONL<br/>(hash-linked chain)
+
+  Note over AUD: Verification (no auth required):
+  AUD->>API: GET /v1/evidence/pubkey
+  API-->>AUD: Ed25519 public key (cache this)
+  AUD->>API: POST /v1/evidence/verify<br/>{record}
+  API-->>AUD: {valid: true/false}
+
+  Note over AUD: Or verify fully offline:<br/>pubkey + record → Ed25519.Verify()
+  </pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="api"><span class="num">3</span> API Surface</h2>
+
+<table>
+  <tr><th>Endpoint</th><th>Auth</th><th>Purpose</th></tr>
+  <tr><td><code>POST /v1/keys</code></td><td>None <span class="badge badge-red">rate-limited</span></td><td>Issue API key (feature-gated + invite secret)</td></tr>
+  <tr><td><code>POST /v1/validate</code></td><td>Bearer</td><td>Evaluate a ToolInvocation against policies</td></tr>
+  <tr><td><code>POST /v1/skills</code></td><td>Bearer</td><td>Register a skill definition</td></tr>
+  <tr><td><code>GET /v1/skills</code></td><td>Bearer</td><td>List skills for tenant</td></tr>
+  <tr><td><code>GET /v1/skills/{id}</code></td><td>Bearer</td><td>Get skill definition</td></tr>
+  <tr><td><code>PUT /v1/skills/{id}</code></td><td>Bearer</td><td>Update skill definition</td></tr>
+  <tr><td><code>DELETE /v1/skills/{id}</code></td><td>Bearer</td><td>Delete skill</td></tr>
+  <tr><td><code>POST /v1/skills/{id}:execute</code></td><td>Bearer</td><td>Execute skill (validate + record evidence)</td></tr>
+  <tr><td><code>POST /v1/skills/{id}:simulate</code></td><td>Bearer</td><td>Dry-run skill (no evidence recorded)</td></tr>
+  <tr><td><code>GET /v1/executions/{id}</code></td><td>Bearer</td><td>Get execution result by ID</td></tr>
+  <tr><td><code>GET /v1/evidence/pubkey</code></td><td>None</td><td>Ed25519 public key for signature verification</td></tr>
+  <tr><td><code>POST /v1/evidence/verify</code></td><td>None <span class="badge badge-red">rate-limited</span></td><td>Verify evidence record authenticity</td></tr>
+</table>
+
+<div class="note"><strong>Tenant model:</strong> Identity derived entirely from the API key. Each key belongs to one tenant. Keys are hashed (SHA-256) at rest — the server never stores plaintext keys. Key format: <code>ev1_</code> + 32 crypto/rand bytes (base62), 48 chars total.</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="adapters"><span class="num">4</span> Adapter System</h2>
+
+<h3 id="adapter-arch">4.1 Architecture</h3>
+
+<p>Adapters are pure functions: raw bytes in, structured JSON out. No network, no state, no side effects. They exist for CI pipelines where no LLM is available to parse tool output. Three actors handle the translation depending on context:</p>
+
+<div class="diagram-container">
+  <div class="diagram-label">Three Callers — Three Translation Strategies</div>
+  <pre class="mermaid">
+graph TB
+  subgraph "Who parses tool output?"
+    AI["AI Agent<br/><i>LLM parses natively</i><br/><i>No adapter needed</i>"]
+    CI["CI Pipeline<br/><i>Static adapter binary</i><br/><i>stdin → stdout</i>"]
+    PL["Platform<br/><i>Already has structured data</i><br/><i>No adapter needed</i>"]
+  end
+
+  subgraph "Evidra API"
+    V["/v1/validate"]
+  end
+
+  AI -- "Direct JSON" --> V
+  CI -- "Adapter output → JSON" --> V
+  PL -- "Direct JSON" --> V
+
+  style AI fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style CI fill:#238636,stroke:#3fb950,color:#fff
+  style PL fill:#6e40c9,stroke:#bc8cff,color:#fff
+  style V fill:#d29922,stroke:#e3b341,color:#000
+  </pre>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">Adapter Binary <span class="badge badge-green">Pure</span></div>
+    <p><code>evidra-adapter-terraform</code> — transform only. No network. Testable offline. Cacheable (same input → same output). Exit codes: 0 success, 1 parse error, 2 usage error.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Future: <code>evidra</code> CLI <span class="badge badge-orange">Planned</span></div>
+    <p>Composes adapter + API call in one command: <code>evidra ci terraform --plan tfplan.bin</code>. Imports adapter as Go library, handles auth, prints summary.</p>
+  </div>
+</div>
+
+<table>
+  <tr><th>Binary</th><th>Scope</th><th>Network</th><th>Testable Offline</th></tr>
+  <tr><td><code>evidra-adapter-terraform</code></td><td>Transform only</td><td>No</td><td>Yes</td></tr>
+  <tr><td><code>evidra</code> CLI (future)</td><td>Transform + API call + summary</td><td>Yes</td><td>Needs mock server</td></tr>
+</table>
+
+<h3 id="adapter-tf">4.2 Terraform Adapter Data Flow</h3>
+
+<p>The Terraform adapter reads <code>terraform show -json</code> output and produces a structured three-tier result. Counts are always accurate within scope; truncation only affects detail arrays.</p>
+
+<div class="diagram-container">
+  <div class="diagram-label">Terraform Plan → Structured Parameters (Three Tiers)</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "Input"
+    RAW["terraform show -json<br/><i>Raw plan JSON</i><br/><i>(can be megabytes)</i>"]
+  end
+
+  subgraph "evidra-adapter-terraform"
+    PARSE["Parse<br/><i>hashicorp/terraform-json</i>"]
+    FILTER["Filter<br/><i>resource_types (scope)</i><br/><i>actions (detail only)</i>"]
+    TRUNC["Truncate<br/><i>max_resource_changes</i><br/><i>drop_tail | summary_only</i>"]
+  end
+
+  subgraph "Output: 3 Tiers"
+    T1["Tier 1: Counts<br/><i>destroy_count, total_changes</i><br/><i>Never truncated</i>"]
+    T2["Tier 2: Risk Shortcuts<br/><i>delete_types, replace_types</i><br/><i>delete_addresses</i>"]
+    T3["Tier 3: Per-Resource Detail<br/><i>resource_changes array</i><br/><i>Truncated if needed</i>"]
+  end
+
+  RAW --> PARSE --> FILTER --> TRUNC
+  TRUNC --> T1
+  TRUNC --> T2
+  TRUNC --> T3
+
+  style T1 fill:#f85149,stroke:#ff7b72,color:#fff
+  style T2 fill:#d29922,stroke:#e3b341,color:#000
+  style T3 fill:#238636,stroke:#3fb950,color:#fff
+  </pre>
+</div>
+
+<table>
+  <tr><th>Tier</th><th>Fields</th><th>Filter Behavior</th><th>Truncation</th></tr>
+  <tr>
+    <td><span class="badge badge-red">1 — Counts</span></td>
+    <td><code>create_count</code>, <code>update_count</code>, <code>destroy_count</code>, <code>replace_count</code>, <code>total_changes</code></td>
+    <td>Scope-filtered only. <strong>Never</strong> affected by <code>filter_actions</code></td>
+    <td>Never</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-orange">2 — Risk</span></td>
+    <td><code>delete_types</code>, <code>replace_types</code>, <code>delete_addresses</code>, <code>replace_addresses</code></td>
+    <td>Scope-filtered. Independently truncated per array</td>
+    <td>Own <code>_total</code> + <code>_truncated</code></td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-green">3 — Detail</span></td>
+    <td><code>resource_changes[]</code> (address, type, action, provider)</td>
+    <td>Scope + action filtered</td>
+    <td><code>max_resource_changes</code> (default 200)</td>
+  </tr>
+</table>
+
+<div class="warn"><strong>Critical semantic rule:</strong> <code>filter_resource_types</code> narrows <strong>scope</strong> (affects counts, types, everything). <code>filter_actions</code> narrows <strong>detail only</strong> (affects ONLY <code>resource_changes</code> array, never counts). Policy rules should prefer counts over iterating arrays.</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="policy"><span class="num">5</span> Policy Engine</h2>
+
+<h3 id="policy-bundle">5.1 Bundle Structure</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">OPA Policy Evaluation Pipeline</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "Input"
+    TI["ToolInvocation<br/><i>{tool, operation,</i><br/><i>params, context}</i>"]
+  end
+
+  subgraph "OPA Bundle  (ops-v0.1)"
+    SHIM["policy.rego<br/><i>Shim: exports decision</i>"]
+    DEC["decision.rego<br/><i>Aggregator: deny + warn</i>"]
+    RULES["rules/*.rego<br/><i>One file per rule</i>"]
+    DATA["data.json<br/><i>Params with by_env model</i>"]
+  end
+
+  subgraph "Output"
+    D["Decision<br/><i>{allow, risk_level,</i><br/><i>reason, reasons, hints}</i>"]
+  end
+
+  TI --> SHIM --> DEC
+  RULES --> DEC
+  DATA --> RULES
+  DEC --> D
+
+  style TI fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style D fill:#238636,stroke:#3fb950,color:#fff
+  </pre>
+</div>
+
+<p>The policy bundle is embedded in the binary at build time (zero-config mode). When <code>--bundle</code> is not specified, the server extracts the built-in <code>ops-v0.1</code> bundle to a temp directory at startup. Custom bundles can be loaded from any directory.</p>
+
+<p>Decision output contract: <code>{allow, risk_level, reason, reasons, hits, hints}</code>. Risk is <code>"high"</code> when any deny rule fires, <code>"medium"</code> for breakglass-tagged allowed flows, <code>"low"</code> otherwise.</p>
+
+<h3 id="policy-rules">5.2 Rule Examples</h3>
+
+<pre><code># Block more than 10 deletions
+deny[msg] {
+    input.params.payload.destroy_count > 10
+    msg := sprintf("Plan deletes %d resources — requires manual approval",
+        [input.params.payload.destroy_count])
+}
+
+# Block deletion of volume types (uses risk shortcut — no iteration needed)
+deny[msg] {
+    "hcloud_volume" == input.params.payload.delete_types[_]
+    msg := "Deleting volumes is blocked — data loss risk"
+}
+
+# Require manual review for truncated plans
+deny[msg] {
+    input.params.payload.resource_changes_truncated == true
+    msg := sprintf("Plan has %d changes (truncated) — requires manual review",
+        [input.params.payload.resource_changes_count])
+}</code></pre>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="deployment"><span class="num">6</span> Deployment Models</h2>
+
+<h3 id="deploy-ref">6.1 Reference Architecture</h3>
+
+<p>Evidra's deployment is simple by design: a stateless Go binary, a PostgreSQL database, and a reverse proxy for TLS. This reference architecture applies to all deployment targets.</p>
+
+<div class="diagram-container">
+  <div class="diagram-label">Reference Architecture — Cloud-Agnostic</div>
+  <pre class="mermaid">
+graph TB
+  subgraph "Internet"
+    CLIENTS["Agents / CI / Platforms"]
+  end
+
+  subgraph "Edge"
+    LB["Load Balancer / Reverse Proxy<br/><i>TLS termination</i><br/><i>Rate limiting, HSTS</i>"]
+  end
+
+  subgraph "Compute"
+    API1["evidra-api<br/><i>Stateless, horizontally scalable</i>"]
+    API2["evidra-api<br/><i>(optional replica)</i>"]
+  end
+
+  subgraph "Data"
+    PG["PostgreSQL<br/><i>Tenants, keys, skills,</i><br/><i>executions, usage</i>"]
+    EV["Evidence Volume<br/><i>JSONL append-only log</i><br/><i>Block storage or NFS</i>"]
+  end
+
+  CLIENTS -- "HTTPS :443" --> LB
+  LB --> API1
+  LB --> API2
+  API1 --> PG
+  API2 --> PG
+  API1 --> EV
+  API2 --> EV
+
+  style LB fill:#d29922,stroke:#e3b341,color:#000
+  style API1 fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style API2 fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style PG fill:#238636,stroke:#3fb950,color:#fff
+  style EV fill:#6e40c9,stroke:#bc8cff,color:#fff
+  </pre>
+</div>
+
+<table>
+  <tr><th>Component</th><th>Requirements</th><th>Notes</th></tr>
+  <tr><td>Reverse Proxy</td><td>TLS termination, HTTP→HTTPS redirect</td><td>Traefik, Nginx, Caddy, AWS ALB, GCP LB, etc.</td></tr>
+  <tr><td>evidra-api</td><td>Go binary, ~30 MB. Port 8080 (configurable)</td><td>Stateless. Multiple replicas behind LB if needed</td></tr>
+  <tr><td>PostgreSQL</td><td>v14+. ~100 MB at low scale</td><td>Standard managed or self-hosted PostgreSQL</td></tr>
+  <tr><td>Evidence Volume</td><td>Block storage or NFS mount</td><td>Append-only JSONL. Size depends on eval volume</td></tr>
+</table>
+
+<h3 id="deploy-single">6.2 Single-Server (VPS / On-Prem)</h3>
+
+<p>The simplest production deployment — all three containers on one host. Suitable for small teams and early adoption (hundreds of evaluations/day).</p>
+
+<div class="diagram-container">
+  <div class="diagram-label">Single-Server — docker-compose</div>
+  <pre class="mermaid">
+graph TB
+  subgraph "Single Host (VPS or Bare Metal)"
+    subgraph "docker-compose"
+      PROXY["Reverse Proxy<br/><i>Traefik / Caddy / Nginx</i><br/><i>TLS via Let's Encrypt</i>"]
+      API["evidra-api<br/><i>:8080</i>"]
+      PG["PostgreSQL<br/><i>:5432</i>"]
+    end
+
+    subgraph "Persistent Volume"
+      DATA["postgres/<br/>traefik/<br/>evidence/"]
+    end
+  end
+
+  PROXY --> API --> PG
+  PG --- DATA
+  API --- DATA
+  PROXY --- DATA
+
+  style PROXY fill:#d29922,stroke:#e3b341,color:#000
+  style API fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style PG fill:#238636,stroke:#3fb950,color:#fff
+  </pre>
+</div>
+
+<div class="grid-3">
+  <div class="card">
+    <div class="card-title">Hetzner Cloud</div>
+    <p>CX22 (2 vCPU, 4 GB). Block volume for data. Firewall for 22/80/443. ~€5/mo.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">DigitalOcean</div>
+    <p>Basic Droplet (2 vCPU, 2 GB). Attached volume. Cloud firewall. ~$18/mo.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">On-Premise</div>
+    <p>Any Linux host with Docker. Mount local or NAS storage. Bring your own certs or use Let's Encrypt.</p>
+  </div>
+</div>
+
+<pre><code># Minimal docker-compose.yml (cloud-agnostic)
+services:
+  proxy:
+    image: traefik:v3.3  # or caddy:2, nginx:alpine
+    ports: ["443:443", "80:80"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DATA_DIR}/certs:/certs
+
+  evidra-api:
+    image: ghcr.io/evidra/evidra-api:latest
+    environment:
+      DATABASE_URL: postgres://evidra:${DB_PASSWORD}@postgres:5432/evidra?sslmode=disable
+      EVIDRA_SIGNING_KEY: ${SIGNING_KEY}
+    depends_on: [postgres]
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: evidra
+      POSTGRES_USER: evidra
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ${DATA_DIR}/postgres:/var/lib/postgresql/data</code></pre>
+
+<h3 id="deploy-k8s">6.3 Kubernetes</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">Kubernetes Deployment</div>
+  <pre class="mermaid">
+graph TB
+  subgraph "Kubernetes Cluster"
+    ING["Ingress Controller<br/><i>nginx / traefik / istio</i><br/><i>TLS via cert-manager</i>"]
+
+    subgraph "evidra namespace"
+      DEP["Deployment: evidra-api<br/><i>replicas: 2</i>"]
+      SVC["Service: evidra-api<br/><i>ClusterIP :8080</i>"]
+      PVC["PVC: evidence-data<br/><i>ReadWriteMany</i>"]
+    end
+
+    subgraph "database"
+      PG["StatefulSet: postgresql<br/><i>or managed (RDS, CloudSQL)</i>"]
+      PG_PVC["PVC: postgres-data<br/><i>ReadWriteOnce</i>"]
+    end
+  end
+
+  ING --> SVC --> DEP
+  DEP --> PG
+  DEP --> PVC
+  PG --> PG_PVC
+
+  style ING fill:#d29922,stroke:#e3b341,color:#000
+  style DEP fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style PG fill:#238636,stroke:#3fb950,color:#fff
+  </pre>
+</div>
+
+<p>Key considerations for Kubernetes deployments:</p>
+<table>
+  <tr><th>Aspect</th><th>Recommendation</th></tr>
+  <tr><td>API replicas</td><td>2+ for HA. Stateless — scales horizontally behind Service</td></tr>
+  <tr><td>PostgreSQL</td><td>Managed (RDS, CloudSQL, Azure Database) preferred. Or StatefulSet with PVC</td></tr>
+  <tr><td>Evidence volume</td><td>ReadWriteMany PVC if multiple replicas. Or forward to external storage</td></tr>
+  <tr><td>TLS</td><td>cert-manager + Let's Encrypt, or cloud-native certificate</td></tr>
+  <tr><td>Secrets</td><td><code>EVIDRA_SIGNING_KEY</code> and <code>DATABASE_URL</code> in Kubernetes Secret</td></tr>
+  <tr><td>Health checks</td><td>Liveness: <code>GET /healthz</code>. Readiness: <code>GET /readyz</code></td></tr>
+</table>
+
+<h3 id="deploy-cloud">6.4 Cloud-Native (AWS / GCP / Azure)</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">Cloud-Native — Managed Services</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "AWS Example"
+    ALB["ALB<br/><i>TLS + WAF</i>"]
+    ECS["ECS Fargate<br/><i>evidra-api</i>"]
+    RDS["RDS PostgreSQL<br/><i>db.t4g.micro</i>"]
+    EFS["EFS<br/><i>Evidence logs</i>"]
+  end
+
+  subgraph "GCP Example"
+    GLB["Cloud Load Balancer<br/><i>Managed SSL</i>"]
+    CR["Cloud Run<br/><i>evidra-api</i>"]
+    CSQL["Cloud SQL<br/><i>PostgreSQL</i>"]
+    GCS["Cloud Storage<br/><i>Evidence logs</i>"]
+  end
+
+  ALB --> ECS --> RDS
+  ECS --> EFS
+  GLB --> CR --> CSQL
+  CR --> GCS
+
+  style ALB fill:#d29922,stroke:#e3b341,color:#000
+  style GLB fill:#d29922,stroke:#e3b341,color:#000
+  style ECS fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style CR fill:#1f6feb,stroke:#58a6ff,color:#fff
+  </pre>
+</div>
+
+<table>
+  <tr><th>Cloud</th><th>Compute</th><th>Database</th><th>Evidence Storage</th><th>Load Balancer</th></tr>
+  <tr><td>AWS</td><td>ECS Fargate / EC2</td><td>RDS PostgreSQL</td><td>EFS / S3</td><td>ALB + ACM</td></tr>
+  <tr><td>GCP</td><td>Cloud Run / GKE</td><td>Cloud SQL</td><td>GCS / Filestore</td><td>Cloud LB + Managed SSL</td></tr>
+  <tr><td>Azure</td><td>Container Apps / AKS</td><td>Azure Database for PostgreSQL</td><td>Azure Files / Blob</td><td>Application Gateway</td></tr>
+</table>
+
+<p>For serverless options (Cloud Run, Fargate), ensure the evidence volume is accessible — either an NFS mount or forward evidence records to cloud storage via a sidecar or log pipeline.</p>
+
+<h3 id="deploy-airgap">6.5 Air-Gapped / Offline</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">Air-Gapped Deployment — No Internet Required</div>
+  <pre class="mermaid">
+graph TB
+  subgraph "Air-Gapped Network"
+    subgraph "MCP Mode (fully offline)"
+      AGENT["AI Agent"]
+      MCP["evidra-mcp<br/><i>Embedded policy bundle</i><br/><i>Local evidence store</i>"]
+    end
+
+    subgraph "API Mode (internal network)"
+      CI["Internal CI"]
+      API["evidra-api<br/><i>Container registry mirror</i>"]
+      PG["PostgreSQL"]
+    end
+  end
+
+  AGENT -- "stdio" --> MCP
+  CI --> API --> PG
+
+  style MCP fill:#238636,stroke:#3fb950,color:#fff
+  style API fill:#1f6feb,stroke:#58a6ff,color:#fff
+  </pre>
+</div>
+
+<p>Two deployment modes work without internet access:</p>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">MCP Server (fully offline)</div>
+    <p>The <code>evidra-mcp</code> binary with its embedded policy bundle runs entirely locally. No network needed. Evidence stored at <code>~/.evidra/evidence</code>. Ideal for developer workstations in restricted environments.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">API Server (internal network)</div>
+    <p>Deploy <code>evidra-api</code> from an internal container registry mirror. PostgreSQL on the same network. TLS via internal CA. CI pipelines connect to the internal endpoint.</p>
+  </div>
+</div>
+
+<h3 id="deploy-requirements">6.6 Requirements & Sizing</h3>
+
+<table>
+  <tr><th>Scale</th><th>Evals/day</th><th>CPU</th><th>RAM</th><th>Disk (DB)</th><th>API Replicas</th></tr>
+  <tr><td><span class="badge badge-green">Small</span></td><td>&lt; 1,000</td><td>1 vCPU</td><td>1 GB</td><td>1 GB</td><td>1</td></tr>
+  <tr><td><span class="badge badge-orange">Medium</span></td><td>1,000–50,000</td><td>2 vCPU</td><td>4 GB</td><td>10 GB</td><td>2</td></tr>
+  <tr><td><span class="badge badge-red">Large</span></td><td>50,000+</td><td>4+ vCPU</td><td>8+ GB</td><td>50+ GB</td><td>3+</td></tr>
+</table>
+
+<p>The API binary itself uses ~30 MB RAM at idle. OPA evaluation adds ~1 MB per concurrent evaluation. PostgreSQL dominates resource usage at scale. The evidence log grows at roughly 1 KB per evaluation.</p>
+
+<div class="note"><strong>Scaling strategy:</strong> The API server is stateless — add replicas behind a load balancer. PostgreSQL is the only stateful component. For high-scale deployments, use a managed PostgreSQL instance with read replicas.</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="ci-cd"><span class="num">7</span> CI/CD & Release</h2>
+
+<h3 id="ci-adapters">7.1 Adapters Release</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">evidra/adapters — Test & Release Pipeline</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "On push / PR"
+    T1["go test -race -cover"]
+    T2["go vet"]
+    T3["gofmt check"]
+  end
+
+  subgraph "On tag v*"
+    GR["goreleaser release"]
+    BIN["Cross-compile<br/><i>linux/darwin/windows</i><br/><i>amd64/arm64</i>"]
+    CHK["checksums.txt<br/><i>SHA-256</i>"]
+    REL["GitHub Release<br/><i>Binaries + checksums</i>"]
+    IMG["Docker image<br/><i>ghcr.io/evidra/adapter-terraform</i>"]
+  end
+
+  T1 --> T2 --> T3
+  GR --> BIN --> CHK --> REL
+  GR --> IMG
+
+  style REL fill:#238636,stroke:#3fb950,color:#fff
+  style IMG fill:#6e40c9,stroke:#bc8cff,color:#fff
+  </pre>
+</div>
+
+<p>Release artifacts: <code>evidra-adapter-terraform_{VERSION}_{OS}_{ARCH}.tar.gz</code> + <code>checksums.txt</code>. Version injected via <code>ldflags</code>.</p>
+
+<h3 id="ci-api">7.2 API Server Release</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">evidra/evidra — Build & Deploy Pipeline</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "On push to main"
+    TEST["go test -race"]
+    OPA["opa test policy/"]
+    BUILD["Docker build"]
+    PUSH["Push to ghcr.io"]
+  end
+
+  subgraph "Deploy"
+    DEPLOY["SSH / kubectl / terraform"]
+    PULL["Pull new image"]
+    RESTART["Rolling restart"]
+    HEALTH["Health check"]
+  end
+
+  TEST --> OPA --> BUILD --> PUSH
+  PUSH --> DEPLOY --> PULL --> RESTART --> HEALTH
+
+  style PUSH fill:#6e40c9,stroke:#bc8cff,color:#fff
+  style HEALTH fill:#238636,stroke:#3fb950,color:#fff
+  </pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="security"><span class="num">8</span> Security Model</h2>
+
+<div class="diagram-container">
+  <div class="diagram-label">Security Boundaries & Trust Model</div>
+  <pre class="mermaid">
+graph TB
+  subgraph "Untrusted"
+    EXT["External requests"]
+  end
+
+  subgraph "Edge (TLS + Rate Limit)"
+    TLS["TLS termination<br/><i>HSTS, security headers</i>"]
+    RL["Rate limiting<br/><i>Per-IP on public endpoints</i>"]
+  end
+
+  subgraph "Auth Boundary"
+    AUTH["API key validation<br/><i>SHA-256 hash lookup</i>"]
+    TENANT["Tenant isolation<br/><i>Key → tenant mapping</i>"]
+  end
+
+  subgraph "Trusted Core"
+    ENGINE["Policy engine<br/><i>Deterministic evaluation</i>"]
+    SIGN["Evidence signing<br/><i>Ed25519 per-server key</i>"]
+    STORE["Evidence store<br/><i>Hash-linked chain</i>"]
+  end
+
+  EXT --> TLS --> RL --> AUTH --> TENANT --> ENGINE
+  ENGINE --> SIGN --> STORE
+
+  style TLS fill:#d29922,stroke:#e3b341,color:#000
+  style AUTH fill:#f85149,stroke:#ff7b72,color:#fff
+  style SIGN fill:#238636,stroke:#3fb950,color:#fff
+  </pre>
+</div>
+
+<table>
+  <tr><th>Layer</th><th>Mechanism</th><th>Details</th></tr>
+  <tr><td>Transport</td><td>TLS 1.2+ (HTTPS only)</td><td>Let's Encrypt or custom CA. HSTS with 1-year max-age</td></tr>
+  <tr><td>Rate limiting</td><td>Per-IP on public endpoints</td><td><code>/v1/keys</code> and <code>/v1/evidence/verify</code> are unauthenticated, rate-limited</td></tr>
+  <tr><td>Authentication</td><td>Bearer token (<code>ev1_</code> prefix)</td><td>SHA-256 hashed at rest. Key never stored in plaintext</td></tr>
+  <tr><td>Key issuance</td><td>Feature gate + invite secret</td><td>Public endpoint rate-limited per IP. Invite code required when enabled</td></tr>
+  <tr><td>Tenant isolation</td><td>Key → tenant mapping</td><td>All queries scoped to tenant. No cross-tenant data access</td></tr>
+  <tr><td>Evidence integrity</td><td>Ed25519 signatures</td><td>Every record signed. Hash-linked chain prevents insertion/deletion</td></tr>
+  <tr><td>Evidence verification</td><td>Public key endpoint + offline</td><td><code>GET /v1/evidence/pubkey</code> for online. Ed25519.Verify() for offline</td></tr>
+</table>
+
+<p style="text-align: center; color: var(--text-muted); margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border);">
+  Evidra &bull; System Architecture &bull; v0.1.0
+</p>
+
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'dark',
+  themeVariables: {
+    primaryColor: '#1f6feb',
+    primaryTextColor: '#e6edf3',
+    primaryBorderColor: '#58a6ff',
+    lineColor: '#8b949e',
+    secondaryColor: '#238636',
+    tertiaryColor: '#161b22',
+    fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif',
+    fontSize: '14px',
+    noteBkgColor: '#161b22',
+    noteTextColor: '#e6edf3',
+    noteBorderColor: '#30363d',
+    actorBkg: '#161b22',
+    actorBorder: '#58a6ff',
+    actorTextColor: '#e6edf3',
+    sequenceNumberColor: '#1f6feb',
+    signalColor: '#8b949e',
+    labelBoxBkgColor: '#161b22',
+    labelBoxBorderColor: '#30363d',
+    labelTextColor: '#e6edf3'
+  },
+  flowchart: { curve: 'basis', padding: 20 },
+  sequence: { mirrorActors: false, messageMargin: 40, actorMargin: 80 }
+});
+</script>
+</body>
+</html>

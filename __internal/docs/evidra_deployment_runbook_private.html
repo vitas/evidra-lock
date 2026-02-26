@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evidra — Deployment Runbook (Private)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2129;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-dim: #1f6feb;
+    --green: #3fb950;
+    --orange: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--red), var(--orange));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .private-banner {
+    background: rgba(248,81,73,0.1);
+    border: 1px solid var(--red);
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin-bottom: 32px;
+    font-size: 0.92rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .private-banner strong { color: var(--red); }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 56px 0 20px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    background: var(--accent-dim);
+    color: #fff;
+    font-size: 0.8rem;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-weight: 700;
+  }
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 32px 0 12px;
+    color: var(--text);
+  }
+  p { margin: 0 0 16px; color: var(--text); }
+  .diagram-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 24px;
+    margin: 24px 0 32px;
+    overflow-x: auto;
+  }
+  .diagram-container .mermaid { display: flex; justify-content: center; }
+  .diagram-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 0.92rem;
+  }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    color: var(--accent);
+    font-weight: 600;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  tr:hover td { background: var(--surface); }
+  code {
+    background: var(--surface-2);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.88em;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--orange);
+  }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  pre code { background: none; padding: 0; color: var(--text); }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-orange { background: rgba(210,153,34,0.15); color: var(--orange); }
+  .badge-red { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-blue { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .badge-purple { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .note {
+    background: rgba(88,166,255,0.08);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0 24px;
+    font-size: 0.92rem;
+  }
+  .note strong { color: var(--accent); }
+  .warn {
+    background: rgba(210,153,34,0.08);
+    border-left: 3px solid var(--orange);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0 24px;
+    font-size: 0.92rem;
+  }
+  .warn strong { color: var(--orange); }
+  .danger {
+    background: rgba(248,81,73,0.08);
+    border-left: 3px solid var(--red);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0 24px;
+    font-size: 0.92rem;
+  }
+  .danger strong { color: var(--red); }
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 24px 0 40px;
+  }
+  .toc-title {
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .toc a { color: var(--text); text-decoration: none; display: block; padding: 4px 0; transition: color 0.15s; }
+  .toc a:hover { color: var(--accent); }
+  .toc .indent { padding-left: 20px; color: var(--text-muted); font-size: 0.9rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card-title { font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .card p { font-size: 0.9rem; color: var(--text-muted); margin: 0; }
+  @media (max-width: 700px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    body { padding: 20px 16px 60px; }
+    h1 { font-size: 1.7rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Evidra — Deployment Runbook</h1>
+<p class="subtitle">Private operations document &bull; Version 0.1.0 &bull; February 2026</p>
+
+<div class="private-banner">
+  <strong>PRIVATE</strong> — This document contains infrastructure details, secrets layout, IP addresses, and operational procedures. Do not share publicly. For the public architecture reference, see <code>evidra_architecture_public.html</code>.
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <a href="#repos">1. Repository Layout</a>
+  <a href="#infra">2. Hetzner Infrastructure</a>
+  <a href="#hetzner-topo" class="indent">2.1 Topology</a>
+  <a href="#hetzner-resources" class="indent">2.2 Resources & Costs</a>
+  <a href="#hetzner-terraform" class="indent">2.3 Terraform IaC</a>
+  <a href="#hetzner-volumes" class="indent">2.4 Volume Layout</a>
+  <a href="#containers">3. Container Stack</a>
+  <a href="#compose" class="indent">3.1 docker-compose.prod.yml</a>
+  <a href="#traefik" class="indent">3.2 Traefik Configuration</a>
+  <a href="#network" class="indent">3.3 Network & TLS Flow</a>
+  <a href="#secrets">4. Secrets & Environment</a>
+  <a href="#env-vars" class="indent">4.1 Environment Variables</a>
+  <a href="#github-secrets" class="indent">4.2 GitHub Secrets</a>
+  <a href="#cicd">5. CI/CD Pipelines</a>
+  <a href="#ci-deploy" class="indent">5.1 API Deploy Pipeline</a>
+  <a href="#ci-test" class="indent">5.2 Adapters Test & Release</a>
+  <a href="#ci-dogfood" class="indent">5.3 Dogfooding — Evidra Validates Evidra</a>
+  <a href="#ops">6. Operations</a>
+  <a href="#ops-deploy" class="indent">6.1 Manual Deploy</a>
+  <a href="#ops-scale" class="indent">6.2 Scaling</a>
+  <a href="#ops-backup" class="indent">6.3 Backup & Recovery</a>
+  <a href="#ops-monitor" class="indent">6.4 Monitoring & Health</a>
+  <a href="#ops-destroy" class="indent">6.5 Teardown</a>
+  <a href="#upgrade">7. Upgrade Path</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="repos"><span class="num">1</span> Repository Layout</h2>
+
+<div class="diagram-container">
+  <div class="diagram-label">Three Repos — Ownership & Data Flow</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "evidra org (public)"
+    E["evidra/evidra<br/><i>API + MCP + CLI</i>"]
+    A["evidra/adapters<br/><i>Terraform adapter</i>"]
+  end
+
+  subgraph "private"
+    I["evidra-infra<br/><i>Terraform IaC</i><br/><i>docker-compose</i><br/><i>deploy scripts</i>"]
+  end
+
+  E -- "Docker image<br/>ghcr.io" --> I
+  A -- "Binary release<br/>GitHub Releases" --> I
+  I -- "deploys to" --> H["Hetzner CX22"]
+
+  style E fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style A fill:#238636,stroke:#3fb950,color:#fff
+  style I fill:#6e40c9,stroke:#bc8cff,color:#fff
+  style H fill:#d29922,stroke:#e3b341,color:#000
+  </pre>
+</div>
+
+<table>
+  <tr><th>Repo</th><th>Visibility</th><th>Contents</th><th>Releases</th></tr>
+  <tr><td><code>evidra/evidra</code></td><td>Public</td><td>Go server, MCP, CLI, OPA policies, evidence</td><td>Docker → <code>ghcr.io/evidra/evidra-api</code></td></tr>
+  <tr><td><code>evidra/adapters</code></td><td>Public</td><td>Adapter interface, Terraform adapter, CLI binary</td><td>Binary → GitHub Releases + Docker</td></tr>
+  <tr><td><code>evidra-infra</code></td><td><span class="badge badge-red">Private</span></td><td>Terraform HCL, docker-compose, .env template, CI</td><td>—</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="infra"><span class="num">2</span> Hetzner Infrastructure</h2>
+
+<h3 id="hetzner-topo">2.1 Topology</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">Hetzner Cloud — Falkenstein DC — Production Stack</div>
+  <pre class="mermaid">
+graph TB
+  subgraph "Internet"
+    U["Users / Agents / CI"]
+  end
+
+  subgraph "Hetzner Cloud — Falkenstein (fsn1)"
+    FW["Firewall<br/><i>Inbound: 22, 80, 443</i>"]
+
+    subgraph "CX22 — 2 vCPU / 4 GB RAM / 40 GB NVMe"
+      subgraph "Docker CE"
+        TR["Traefik v3.3<br/><i>:443 TLS termination</i><br/><i>:80 → HTTPS redirect</i>"]
+        EA["evidra-api<br/><i>:8080 (internal only)</i>"]
+        PG["PostgreSQL 17-alpine<br/><i>:5432 (internal only)</i>"]
+      end
+    end
+
+    subgraph "Block Storage — 20 GB ext4"
+      direction TB
+      VOL_PG["/mnt/data/postgres<br/><i>PGDATA</i>"]
+      VOL_TR["/mnt/data/traefik<br/><i>acme.json (600)</i>"]
+      VOL_EV["/mnt/data/evidence<br/><i>JSONL logs</i>"]
+    end
+  end
+
+  U -- "HTTPS :443" --> FW --> TR
+  TR -- "proxy :8080" --> EA
+  EA -- "tcp :5432" --> PG
+  PG --- VOL_PG
+  TR --- VOL_TR
+  EA --- VOL_EV
+
+  style TR fill:#d29922,stroke:#e3b341,color:#000
+  style EA fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style PG fill:#238636,stroke:#3fb950,color:#fff
+  style FW fill:#f85149,stroke:#ff7b72,color:#fff
+  </pre>
+</div>
+
+<h3 id="hetzner-resources">2.2 Resources & Costs</h3>
+
+<table>
+  <tr><th>Resource</th><th>Type</th><th>Spec</th><th>Cost</th><th>Terraform Resource</th></tr>
+  <tr><td>Server</td><td>CX22</td><td>2 vCPU (Intel), 4 GB RAM, 40 GB NVMe</td><td>~€3.79/mo</td><td><code>hcloud_server.evidra</code></td></tr>
+  <tr><td>Volume</td><td>Block Storage</td><td>20 GB ext4, mounted <code>/mnt/data</code></td><td>~€0.88/mo</td><td><code>hcloud_volume.data</code></td></tr>
+  <tr><td>Firewall</td><td>Cloud Firewall</td><td>Inbound: 22/tcp, 80/tcp, 443/tcp</td><td>Free</td><td><code>hcloud_firewall.evidra</code></td></tr>
+  <tr><td>SSH Key</td><td>—</td><td>Ed25519 public key</td><td>Free</td><td><code>hcloud_ssh_key.deploy</code></td></tr>
+  <tr><td><strong>Total</strong></td><td></td><td></td><td><strong>~€4.67/mo</strong></td><td></td></tr>
+</table>
+
+<h3 id="hetzner-terraform">2.3 Terraform IaC</h3>
+
+<pre><code># evidra-infra/terraform/
+├── main.tf          # Server, volume, firewall, SSH key
+├── variables.tf     # server_type, volume_size, location, domain
+├── outputs.tf       # server_ip, volume_id
+├── versions.tf      # terraform >= 1.7, hetznercloud/hcloud provider
+└── terraform.tfvars # HCLOUD_TOKEN (gitignored)</code></pre>
+
+<div class="warn"><strong>State management:</strong> Currently local state (<code>terraform.tfstate</code> gitignored). Planned migration to remote S3 backend for team collaboration.</div>
+
+<h3 id="hetzner-volumes">2.4 Volume Layout</h3>
+
+<pre><code>/mnt/data/                    # Hetzner Block Volume (ext4, 20 GB)
+├── postgres/                 # PostgreSQL 17 data directory
+│   └── (PGDATA)
+├── traefik/
+│   └── acme.json             # Let's Encrypt certs (chmod 600)
+└── evidence/
+    └── (JSONL segments)</code></pre>
+
+<p>Volume survives VM rebuild (server_type change, OS reinstall). Data is preserved as long as the volume exists. Online resize available via Hetzner console or Terraform.</p>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="containers"><span class="num">3</span> Container Stack</h2>
+
+<h3 id="compose">3.1 docker-compose.prod.yml</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">Container Relationships & Volumes</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "docker-compose.prod.yml"
+    T["traefik:v3.3<br/><i>ports: 443, 80</i><br/><i>Let's Encrypt ACME</i>"]
+    E["ghcr.io/…/evidra-api<br/><i>port: 8080 internal</i><br/><i>Stateless</i>"]
+    P["postgres:17-alpine<br/><i>port: 5432 internal</i>"]
+  end
+
+  T -- ":8080 HTTP" --> E
+  E -- ":5432 TCP" --> P
+
+  T -.- |"acme.json"| V1["/mnt/data/traefik"]
+  P -.- |"PGDATA"| V2["/mnt/data/postgres"]
+  E -.- |"evidence"| V3["/mnt/data/evidence"]
+  E -.- |".env"| V4["Environment"]
+
+  style T fill:#d29922,stroke:#e3b341,color:#000
+  style E fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style P fill:#238636,stroke:#3fb950,color:#fff
+  </pre>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">Traefik v3.3 <span class="badge badge-orange">Edge</span></div>
+    <p>Auto-discovery via Docker labels. Let's Encrypt ACME (TLS-ALPN-01 challenge). HSTS (1 year). Rate limiting middleware. Optional dashboard behind basic auth on <code>traefik.${DOMAIN}</code>.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">evidra-api <span class="badge badge-blue">Core</span></div>
+    <p>Stateless Go binary. Embedded SPA (UI) + REST API on :8080. Ed25519 evidence signing with persistent key from <code>EVIDRA_SIGNING_KEY</code>. Feature-gated key issuance.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">PostgreSQL 17 <span class="badge badge-green">Data</span></div>
+    <p>Stores tenants, hashed API keys, skill definitions, executions, usage counters. Data on Hetzner Volume — survives VM rebuild.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Block Volume <span class="badge badge-purple">Storage</span></div>
+    <p>20 GB ext4 at <code>/mnt/data</code>. PostgreSQL + Traefik certs + evidence JSONL. Online resize: <code>terraform apply</code> with new <code>volume_size</code>.</p>
+  </div>
+</div>
+
+<h3 id="traefik">3.2 Traefik Configuration</h3>
+
+<p>Traefik is configured entirely via Docker labels on the <code>evidra-api</code> service:</p>
+
+<table>
+  <tr><th>Label</th><th>Purpose</th></tr>
+  <tr><td><code>traefik.http.routers.evidra.rule</code></td><td><code>Host(`evidra.rest`) || Host(`www.evidra.rest`)</code></td></tr>
+  <tr><td><code>traefik.http.routers.evidra.entrypoints</code></td><td><code>websecure</code> (HTTPS :443)</td></tr>
+  <tr><td><code>traefik.http.routers.evidra.tls.certresolver</code></td><td><code>letsencrypt</code></td></tr>
+  <tr><td><code>evidra-headers</code> middleware</td><td>HSTS (31536000s), X-Content-Type-Options: nosniff</td></tr>
+  <tr><td><code>evidra-ratelimit</code> middleware</td><td>Rate limiting for abuse protection</td></tr>
+</table>
+
+<h3 id="network">3.3 Network & TLS Flow</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">Request Path — Internet to API Response</div>
+  <pre class="mermaid">
+sequenceDiagram
+  participant C as Client
+  participant FW as Hetzner Firewall
+  participant T as Traefik v3
+  participant A as evidra-api
+
+  C->>FW: HTTPS :443
+  FW->>T: Pass (port 443 allowed)
+  T->>T: TLS termination<br/>(Let's Encrypt cert for evidra.rest)
+  T->>T: Apply middlewares<br/>(HSTS, rate limit, security headers)
+  T->>A: HTTP :8080 (plain, Docker network)
+  A->>A: Route: API (/v1/*) or UI (SPA)
+  A->>A: Auth check (Bearer ev1_...)
+  A->>A: Policy evaluation (embedded OPA)
+  A-->>T: JSON response
+  T-->>C: HTTPS response
+
+  Note over C,A: Single domain: evidra.rest<br/>UI + API same origin — no CORS needed
+  </pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="secrets"><span class="num">4</span> Secrets & Environment</h2>
+
+<h3 id="env-vars">4.1 Environment Variables (.env on server)</h3>
+
+<div class="danger"><strong>Never commit .env to git.</strong> The <code>.env</code> file on the server contains production secrets. Use <code>.env.example</code> as a template in the repo.</div>
+
+<table>
+  <tr><th>Variable</th><th>Example</th><th>Where</th><th>Sensitivity</th></tr>
+  <tr><td><code>DOMAIN</code></td><td><code>evidra.rest</code></td><td>.env</td><td>Low</td></tr>
+  <tr><td><code>EVIDRA_VERSION</code></td><td><code>latest</code> or <code>v0.1.0</code></td><td>.env</td><td>Low</td></tr>
+  <tr><td><code>DATABASE_URL</code></td><td><code>postgres://evidra:xxx@postgres:5432/evidra?sslmode=disable</code></td><td>.env</td><td><span class="badge badge-red">High</span></td></tr>
+  <tr><td><code>POSTGRES_PASSWORD</code></td><td>(random 32 chars)</td><td>.env</td><td><span class="badge badge-red">High</span></td></tr>
+  <tr><td><code>EVIDRA_SIGNING_KEY</code></td><td>(Ed25519 seed, hex)</td><td>.env</td><td><span class="badge badge-red">High</span></td></tr>
+  <tr><td><code>EVIDRA_INVITE_SECRET</code></td><td>(random token)</td><td>.env</td><td><span class="badge badge-orange">Medium</span></td></tr>
+  <tr><td><code>DATA_DIR</code></td><td><code>/mnt/data</code></td><td>.env</td><td>Low</td></tr>
+  <tr><td><code>TRAEFIK_AUTH</code></td><td><code>user:$apr1$hash</code></td><td>.env</td><td><span class="badge badge-orange">Medium</span></td></tr>
+  <tr><td><code>TRAEFIK_DASHBOARD_ENABLED</code></td><td><code>false</code></td><td>.env</td><td>Low</td></tr>
+  <tr><td><code>ACME_EMAIL</code></td><td><code>admin@evidra.rest</code></td><td>.env</td><td>Low</td></tr>
+</table>
+
+<h3 id="github-secrets">4.2 GitHub Secrets</h3>
+
+<table>
+  <tr><th>Secret</th><th>Repo</th><th>Purpose</th></tr>
+  <tr><td><code>HCLOUD_TOKEN</code></td><td>evidra-infra</td><td>Hetzner API token for Terraform</td></tr>
+  <tr><td><code>DEPLOY_SSH_KEY</code></td><td>evidra-infra</td><td>SSH private key for deployment to Hetzner VM</td></tr>
+  <tr><td><code>DEPLOY_HOST</code></td><td>evidra-infra</td><td>Server IP or hostname</td></tr>
+  <tr><td><code>EVIDRA_API_KEY</code></td><td>evidra-infra</td><td>API key for dogfooding CI (policy checks)</td></tr>
+  <tr><td><code>GITHUB_TOKEN</code></td><td>evidra/adapters</td><td>Auto-provided. Used by goreleaser for releases</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="cicd"><span class="num">5</span> CI/CD Pipelines</h2>
+
+<h3 id="ci-deploy">5.1 API Deploy Pipeline</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">evidra/evidra → ghcr.io → Hetzner VM</div>
+  <pre class="mermaid">
+sequenceDiagram
+  participant DEV as Developer
+  participant GH as GitHub Actions<br/>(evidra/evidra)
+  participant REG as ghcr.io
+  participant VM as Hetzner CX22
+
+  DEV->>GH: Push to main
+  GH->>GH: go test -race ./...
+  GH->>GH: opa test policy/
+  GH->>GH: Docker build
+  GH->>REG: Docker push<br/>ghcr.io/evidra/evidra-api:latest
+  GH->>VM: SSH: docker compose pull
+  GH->>VM: SSH: docker compose up -d
+  VM->>VM: Health check: GET /healthz
+  VM-->>GH: Deploy complete
+  </pre>
+</div>
+
+<h3 id="ci-test">5.2 Adapters Test & Release</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">evidra/adapters — CI + Release via goreleaser</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "Every push / PR"
+    T["go test -race -cover"]
+    V["go vet + gofmt"]
+  end
+
+  subgraph "On tag v*"
+    GR["goreleaser"]
+    BIN["linux/darwin/windows<br/>× amd64/arm64"]
+    SUM["checksums.txt"]
+    REL["GitHub Release"]
+  end
+
+  T --> V
+  GR --> BIN --> SUM --> REL
+
+  style REL fill:#238636,stroke:#3fb950,color:#fff
+  </pre>
+</div>
+
+<p>Release naming: <code>evidra-adapter-terraform_{VERSION}_{OS}_{ARCH}.tar.gz</code></p>
+
+<h3 id="ci-dogfood">5.3 Dogfooding — Evidra Validates Evidra</h3>
+
+<p>When a PR to <code>evidra-infra</code> modifies <code>terraform/**</code>, the infra-validate workflow runs the Terraform plan through Evidra's own policy engine.</p>
+
+<div class="diagram-container">
+  <div class="diagram-label">infra-validate.yml — Dogfooding Pipeline</div>
+  <pre class="mermaid">
+sequenceDiagram
+  participant PR as Pull Request<br/>(evidra-infra)
+  participant GH as GitHub Actions
+  participant TF as Terraform
+  participant AD as evidra-adapter-terraform<br/>(pinned v0.1.0 + checksum)
+  participant API as evidra.rest
+
+  PR->>GH: PR touches terraform/**
+  GH->>GH: curl adapter binary<br/>verify SHA-256 checksum
+  GH->>TF: terraform init + plan
+  TF-->>GH: tfplan.json
+
+  GH->>AD: stdin: tfplan.json
+  AD-->>GH: {input: {...}, metadata: {...}}
+
+  GH->>API: POST /v1/validate<br/>Bearer EVIDRA_API_KEY
+  API-->>GH: {allow, risk_level, reason}
+
+  GH->>GH: Write to Step Summary<br/>(plan counts + policy result)
+
+  alt Policy allows
+    GH-->>PR: ✅ Check passed
+  else Policy denies
+    GH-->>PR: ❌ Check failed<br/>(reason in summary)
+  end
+  </pre>
+</div>
+
+<div class="note"><strong>Version pinning:</strong> Adapter version is set in <code>env.ADAPTER_VERSION: v0.1.0</code>. Checksum verified against <code>checksums.txt</code> from the same release. Update manually when upgrading.</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="ops"><span class="num">6</span> Operations</h2>
+
+<h3 id="ops-deploy">6.1 Manual Deploy</h3>
+
+<pre><code># SSH to server
+ssh root@&lt;server-ip&gt;
+cd /opt/evidra
+
+# Pull latest and restart
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+
+# Check logs
+docker compose -f docker-compose.prod.yml logs -f evidra-api
+docker compose -f docker-compose.prod.yml logs -f traefik
+
+# Verify health
+curl -s https://evidra.rest/healthz | jq .</code></pre>
+
+<h3 id="ops-scale">6.2 Scaling</h3>
+
+<div class="diagram-container">
+  <div class="diagram-label">Upgrade Path — Vertical Scaling</div>
+  <pre class="mermaid">
+graph LR
+  CX22["CX22<br/><i>2 vCPU, 4 GB</i><br/><i>€3.79/mo</i>"]
+  CX32["CX32<br/><i>4 vCPU, 8 GB</i><br/><i>€6.80/mo</i>"]
+  CX42["CX42<br/><i>8 vCPU, 16 GB</i><br/><i>€13.10/mo</i>"]
+
+  CX22 -- "terraform apply<br/>server_type change" --> CX32
+  CX32 -- "terraform apply" --> CX42
+
+  style CX22 fill:#238636,stroke:#3fb950,color:#fff
+  style CX32 fill:#d29922,stroke:#e3b341,color:#000
+  style CX42 fill:#f85149,stroke:#ff7b72,color:#fff
+  </pre>
+</div>
+
+<pre><code># In terraform.tfvars:
+server_type = "cx32"    # Upgrade from cx22
+volume_size = 50        # Resize from 20 GB
+
+terraform apply
+# Server recreated (new IP if no floating IP)
+# Volume resized in-place (online)</code></pre>
+
+<div class="warn"><strong>Server resize = recreation.</strong> The VM is destroyed and recreated with the new type. Data on the Hetzner Volume survives. Docker containers need to be restarted after. Cloud-init or manual SSH to start compose again.</div>
+
+<h3 id="ops-backup">6.3 Backup & Recovery</h3>
+
+<pre><code># PostgreSQL backup (on server)
+docker compose -f docker-compose.prod.yml exec postgres \
+  pg_dump -U evidra evidra | gzip > /mnt/data/backups/evidra_$(date +%Y%m%d).sql.gz
+
+# Evidence backup (just copy JSONL files)
+cp -r /mnt/data/evidence /mnt/data/backups/evidence_$(date +%Y%m%d)
+
+# Restore PostgreSQL
+gunzip -c backup.sql.gz | docker compose exec -T postgres psql -U evidra evidra</code></pre>
+
+<p>Hetzner also offers automatic server snapshots (~€0.01/GB/mo) as an additional backup layer.</p>
+
+<h3 id="ops-monitor">6.4 Monitoring & Health</h3>
+
+<table>
+  <tr><th>Check</th><th>Command</th><th>Expected</th></tr>
+  <tr><td>API health</td><td><code>curl https://evidra.rest/healthz</code></td><td><code>{"status": "ok"}</code></td></tr>
+  <tr><td>TLS cert</td><td><code>curl -vI https://evidra.rest 2>&1 | grep expire</code></td><td>Auto-renewed by Traefik</td></tr>
+  <tr><td>PostgreSQL</td><td><code>docker compose exec postgres pg_isready</code></td><td><code>accepting connections</code></td></tr>
+  <tr><td>Disk usage</td><td><code>df -h /mnt/data</code></td><td>&lt; 80% used</td></tr>
+  <tr><td>Container status</td><td><code>docker compose ps</code></td><td>All "Up", healthy</td></tr>
+  <tr><td>Logs (errors)</td><td><code>docker compose logs --since 1h evidra-api | grep -i error</code></td><td>No unexpected errors</td></tr>
+</table>
+
+<h3 id="ops-destroy">6.5 Teardown</h3>
+
+<div class="danger"><strong>Destructive operation.</strong> This deletes all infrastructure including data. Ensure backups are taken first.</div>
+
+<pre><code># Stop containers first
+ssh root@&lt;server-ip&gt; "cd /opt/evidra && docker compose down"
+
+# Destroy infrastructure
+cd terraform
+terraform destroy</code></pre>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="upgrade"><span class="num">7</span> Upgrade Path</h2>
+
+<div class="diagram-container">
+  <div class="diagram-label">Evolution Phases</div>
+  <pre class="mermaid">
+graph LR
+  subgraph "Phase 0  (current)"
+    P0["Single server<br/><i>CX22 + Volume</i><br/><i>Local TF state</i><br/><i>Manual deploy</i>"]
+  end
+
+  subgraph "Phase 1"
+    P1["+ Remote state (S3)<br/><i>+ Automated deploy CI</i><br/><i>+ Monitoring (UptimeRobot)</i><br/><i>+ Scheduled backups</i>"]
+  end
+
+  subgraph "Phase 2"
+    P2["+ Floating IP<br/><i>+ CX32 upgrade</i><br/><i>+ Dogfooding CI live</i><br/><i>+ Adapter v1.0</i>"]
+  end
+
+  subgraph "Phase 3"
+    P3["Kubernetes migration<br/><i>or multi-server</i><br/><i>(only if needed)</i>"]
+  end
+
+  P0 --> P1 --> P2 --> P3
+
+  style P0 fill:#238636,stroke:#3fb950,color:#fff
+  style P1 fill:#1f6feb,stroke:#58a6ff,color:#fff
+  style P2 fill:#d29922,stroke:#e3b341,color:#000
+  style P3 fill:#6e40c9,stroke:#bc8cff,color:#fff
+  </pre>
+</div>
+
+<table>
+  <tr><th>Phase</th><th>Trigger</th><th>Changes</th></tr>
+  <tr><td><span class="badge badge-green">0 — Current</span></td><td>Launch</td><td>Single CX22, local state, manual ops</td></tr>
+  <tr><td><span class="badge badge-blue">1 — Stability</span></td><td>First external users</td><td>Remote TF state, CI deploy, monitoring, backups</td></tr>
+  <tr><td><span class="badge badge-orange">2 — Scale</span></td><td>Sustained traffic</td><td>Floating IP, server upgrade, dogfooding live</td></tr>
+  <tr><td><span class="badge badge-purple">3 — Growth</span></td><td>Need HA / multi-region</td><td>Kubernetes or multi-server setup</td></tr>
+</table>
+
+<p style="text-align: center; color: var(--text-muted); margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border);">
+  Evidra &bull; Deployment Runbook (Private) &bull; v0.1.0
+</p>
+
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'dark',
+  themeVariables: {
+    primaryColor: '#1f6feb',
+    primaryTextColor: '#e6edf3',
+    primaryBorderColor: '#58a6ff',
+    lineColor: '#8b949e',
+    secondaryColor: '#238636',
+    tertiaryColor: '#161b22',
+    fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif',
+    fontSize: '14px',
+    noteBkgColor: '#161b22',
+    noteTextColor: '#e6edf3',
+    noteBorderColor: '#30363d',
+    actorBkg: '#161b22',
+    actorBorder: '#58a6ff',
+    actorTextColor: '#e6edf3',
+    sequenceNumberColor: '#1f6feb',
+    signalColor: '#8b949e',
+    labelBoxBkgColor: '#161b22',
+    labelBoxBorderColor: '#30363d',
+    labelTextColor: '#e6edf3'
+  },
+  flowchart: { curve: 'basis', padding: 20 },
+  sequence: { mirrorActors: false, messageMargin: 40, actorMargin: 80 }
+});
+</script>
+</body>
+</html>
