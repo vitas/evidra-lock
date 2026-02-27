@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	rateLimit   = 3             // max requests per window
-	rateWindow  = time.Hour     // sliding window
+	rateLimit   = 3         // max requests per window
+	rateWindow  = time.Hour // sliding window
 	maxLabelLen = 128
 )
 

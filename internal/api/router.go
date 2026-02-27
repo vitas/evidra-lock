@@ -14,12 +14,12 @@ import (
 type RouterConfig struct {
 	Engine       *engine.Adapter
 	Signer       *evidence.Signer
-	APIKey       string         // Phase 0: static key; empty when Store is set.
+	APIKey       string // Phase 0: static key; empty when Store is set.
 	ServerID     string
-	UIFS         fs.FS          // Embedded UI filesystem; nil disables UI serving.
+	UIFS         fs.FS           // Embedded UI filesystem; nil disables UI serving.
 	Store        *store.KeyStore // Phase 1: nil in Phase 0.
-	DB           Pinger         // Phase 1: database pool for readyz; nil in Phase 0.
-	InviteSecret string         // Phase 1: optional invite gate for POST /v1/keys.
+	DB           Pinger          // Phase 1: database pool for readyz; nil in Phase 0.
+	InviteSecret string          // Phase 1: optional invite gate for POST /v1/keys.
 }
 
 // NewRouter builds the HTTP handler with all routes and middleware.
