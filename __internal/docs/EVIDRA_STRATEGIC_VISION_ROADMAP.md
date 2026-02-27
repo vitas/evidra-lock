@@ -54,8 +54,8 @@
 
 ### Exit criteria
 
-- `curl POST https://evidra.rest/v1/validate` returns signed evidence
-- `evidra validate --url https://evidra.rest` works
+- `curl POST https://api.evidra.rest/v1/validate` returns signed evidence
+- `evidra validate --url https://api.evidra.rest` works
 - `evidra-mcp` with `EVIDRA_URL` delegates to API
 - `evidra-adapter-terraform | evidra validate -` works end-to-end
 - Infrastructure PRs validated by Evidra

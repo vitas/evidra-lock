@@ -18,7 +18,7 @@ import (
 
 // Config holds API connection settings.
 type Config struct {
-	URL     string        // e.g. "https://evidra.rest"
+	URL     string        // base URL without path, e.g. "https://api.evidra.rest" (client appends /v1/validate, /healthz)
 	APIKey  string        // Bearer token
 	Timeout time.Duration // HTTP timeout (default: 30s)
 }

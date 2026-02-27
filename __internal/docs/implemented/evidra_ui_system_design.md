@@ -63,7 +63,7 @@ The UI is embedded in the `evidra-api` Go binary via `//go:embed`. No separate d
 │   │   "mcpServers": {                             │  │
 │   │     "evidra": {                               │  │
 │   │       "command": "evidra-mcp",                │  │
-│   │       "args": ["--api", "https://evidra.rest"]  │  │
+│   │       "args": ["--api", "https://api.evidra.rest"]  │  │
 │   │     }                                         │  │
 │   │   }                                           │  │
 │   │ }                                             │  │
@@ -72,7 +72,7 @@ The UI is embedded in the `evidra-api` Go binary via `//go:embed`. No separate d
 │   ┌─ GitHub Actions ─────────────────────────────┐  │
 │   │ - name: Evaluate terraform plan               │  │
 │   │   run: |                                      │  │
-│   │     curl -X POST https://evidra.rest/...  │  │
+│   │     curl -X POST https://api.evidra.rest/...  │  │
 │   │     -H "Authorization: Bearer $KEY"           │  │
 │   │     -d @invocation.json                       │  │
 │   └───────────────────────────────────────────────┘  │
@@ -147,7 +147,7 @@ The UI is embedded in the `evidra-api` Go binary via `//go:embed`. No separate d
 │   └─────────────────────────────────────────┘    │
 │                                                  │
 │   Quick start:                                   │
-│   curl -X POST https://evidra.rest/v1/valid.. │
+│   curl -X POST https://api.evidra.rest/v1/valid.. │
 │                                                  │
 ├─────────────────────────────────────────────────┤
 │  How it works   │   API Reference   │   GitHub   │

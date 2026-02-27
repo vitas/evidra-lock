@@ -35,7 +35,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
   };
 
   const curlExample = keyData
-    ? `curl -X POST https://evidra.rest/v1/validate \\
+    ? `curl -X POST https://api.evidra.rest/v1/validate \\
   -H "Authorization: Bearer ${keyData.key}" \\
   -H "Content-Type: application/json" \\
   -d '{"actor":{"type":"agent","id":"claude"},"tool":"kubectl","operation":"apply","params":{"namespace":"default"}}'`

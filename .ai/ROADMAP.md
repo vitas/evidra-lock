@@ -69,9 +69,9 @@ All design is complete. Implementation not started. Steps are ordered by depende
 
 ### P0-API Exit Criteria
 
-- `curl -X POST https://evidra.rest/v1/validate -H "Authorization: Bearer ..." → signed evidence`
-- `evidra validate --url https://evidra.rest scenario.yaml` works
-- `evidra-mcp` with `EVIDRA_URL=https://evidra.rest` delegates to API
+- `curl -X POST https://api.evidra.rest/v1/validate -H "Authorization: Bearer ..." → signed evidence`
+- `evidra validate --url https://api.evidra.rest scenario.yaml` works
+- `evidra-mcp` with `EVIDRA_URL=https://api.evidra.rest` delegates to API
 - `terraform show -json | evidra-adapter-terraform | evidra validate -` works end-to-end
 - Infrastructure PRs validated by Evidra
 

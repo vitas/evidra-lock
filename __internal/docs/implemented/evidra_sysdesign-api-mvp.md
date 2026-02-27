@@ -35,7 +35,7 @@ creates all tables upfront (no schema change needed to enable Phase 2).
 
 ```
                           ┌───────────────────────┐
-                          │  https://evidra.rest   │
+                          │  https://evidra.samebits.com   │
                           │  (static HTML)         │
                           │                        │
                           │  [Get API Key]─────────┼──── POST /v1/keys

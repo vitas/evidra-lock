@@ -24,7 +24,7 @@ func TestResolve_NoURL(t *testing.T) {
 func TestResolve_ForceOffline(t *testing.T) {
 	t.Parallel()
 	r, err := Resolve(Config{
-		URL:          "https://evidra.rest",
+		URL:          "https://api.evidra.rest",
 		APIKey:       "test-key",
 		ForceOffline: true,
 	})
@@ -41,7 +41,7 @@ func TestResolve_ForceOffline(t *testing.T) {
 
 func TestResolve_NoAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := Resolve(Config{URL: "https://evidra.rest"})
+	_, err := Resolve(Config{URL: "https://api.evidra.rest"})
 	if err == nil {
 		t.Fatal("expected error when URL is set but API key is missing")
 	}
@@ -53,7 +53,7 @@ func TestResolve_NoAPIKey(t *testing.T) {
 func TestResolve_Online(t *testing.T) {
 	t.Parallel()
 	r, err := Resolve(Config{
-		URL:    "https://evidra.rest",
+		URL:    "https://api.evidra.rest",
 		APIKey: "test-key",
 	})
 	if err != nil {
@@ -65,8 +65,8 @@ func TestResolve_Online(t *testing.T) {
 	if r.Client == nil {
 		t.Error("expected non-nil client in online mode")
 	}
-	if r.Client.URL() != "https://evidra.rest" {
-		t.Errorf("expected URL=https://evidra.rest, got %s", r.Client.URL())
+	if r.Client.URL() != "https://api.evidra.rest" {
+		t.Errorf("expected URL=https://api.evidra.rest, got %s", r.Client.URL())
 	}
 	if r.FallbackPolicy != "closed" {
 		t.Errorf("expected fallback=closed, got %s", r.FallbackPolicy)
@@ -115,7 +115,7 @@ func TestResolve_WhitespaceURL(t *testing.T) {
 
 func TestResolve_WhitespaceAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := Resolve(Config{URL: "https://evidra.rest", APIKey: "  "})
+	_, err := Resolve(Config{URL: "https://api.evidra.rest", APIKey: "  "})
 	if err == nil {
 		t.Fatal("expected error for whitespace-only API key")
 	}

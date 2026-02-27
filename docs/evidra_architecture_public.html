@@ -288,7 +288,7 @@ graph TD
 
 <table>
   <tr><th>Env / Flag</th><th>Default</th><th>Effect</th></tr>
-  <tr><td><code>EVIDRA_URL</code></td><td>(unset)</td><td>When set, enables online mode. Example: <code>https://evidra.rest</code></td></tr>
+  <tr><td><code>EVIDRA_URL</code></td><td>(unset)</td><td>When set, enables online mode. Example: <code>https://api.evidra.rest</code> (REST API base, client appends <code>/v1/validate</code>)</td></tr>
   <tr><td><code>EVIDRA_API_KEY</code></td><td>(unset)</td><td>Bearer token for API auth. Required in online mode</td></tr>
   <tr><td><code>--offline</code></td><td>false</td><td>Force offline mode even when <code>EVIDRA_URL</code> is set</td></tr>
   <tr><td><code>EVIDRA_FALLBACK</code></td><td><code>closed</code></td><td><code>closed</code> = fail with error. <code>offline</code> = evaluate locally when API unreachable</td></tr>
@@ -316,7 +316,7 @@ graph LR
   end
 
   subgraph "Remote (optional)"
-    REMOTE["evidra.rest<br/><i>Hosted API</i>"]
+    REMOTE["api.evidra.rest/v1<br/><i>Hosted API</i>"]
   end
 
   AGENT -- "MCP stdio" --> MCP
@@ -333,7 +333,7 @@ graph LR
   <tr><th>Setup</th><th>EVIDRA_URL</th><th>How it works</th></tr>
   <tr><td>Fully local (offline)</td><td>(unset)</td><td>MCP uses local OPA directly</td></tr>
   <tr><td>Local sidecar</td><td><code>http://localhost:8080</code></td><td>MCP → local <code>evidra-api</code> → local PostgreSQL</td></tr>
-  <tr><td>Remote API</td><td><code>https://evidra.rest</code></td><td>MCP → remote API → remote PostgreSQL</td></tr>
+  <tr><td>Hosted API</td><td><code>https://api.evidra.rest</code></td><td>MCP → <code>https://api.evidra.rest/v1</code> → hosted PostgreSQL</td></tr>
 </table>
 
 <div class="note"><strong>Why sidecar, not direct HTTP from MCP?</strong> Separation of concerns. The MCP binary handles only the MCP protocol (stdio, tool dispatch). The API binary handles auth, tenant isolation, skills, evidence signing, and database writes. If we add features to the API (rate limiting, billing, audit), MCP gets them for free without code changes.</div>

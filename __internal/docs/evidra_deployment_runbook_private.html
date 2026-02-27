@@ -546,7 +546,7 @@ sequenceDiagram
   participant GH as GitHub Actions
   participant TF as Terraform
   participant AD as evidra-adapter-terraform<br/>(pinned v0.1.0 + checksum)
-  participant API as evidra.rest
+  participant API as api.evidra.rest
 
   PR->>GH: PR touches terraform/**
   GH->>GH: curl adapter binary<br/>verify SHA-256 checksum
@@ -589,7 +589,7 @@ docker compose -f docker-compose.prod.yml logs -f evidra-api
 docker compose -f docker-compose.prod.yml logs -f traefik
 
 # Verify health
-curl -s https://evidra.rest/healthz | jq .</code></pre>
+curl -s https://api.evidra.rest/healthz | jq .</code></pre>
 
 <h3 id="ops-scale">6.2 Scaling</h3>
 
@@ -638,8 +638,8 @@ gunzip -c backup.sql.gz | docker compose exec -T postgres psql -U evidra evidra<
 
 <table>
   <tr><th>Check</th><th>Command</th><th>Expected</th></tr>
-  <tr><td>API health</td><td><code>curl https://evidra.rest/healthz</code></td><td><code>{"status": "ok"}</code></td></tr>
-  <tr><td>TLS cert</td><td><code>curl -vI https://evidra.rest 2>&1 | grep expire</code></td><td>Auto-renewed by Traefik</td></tr>
+  <tr><td>API health</td><td><code>curl https://api.evidra.rest/healthz</code></td><td><code>{"status": "ok"}</code></td></tr>
+  <tr><td>TLS cert</td><td><code>curl -vI https://api.evidra.rest 2>&1 | grep expire</code></td><td>Auto-renewed by Traefik</td></tr>
   <tr><td>PostgreSQL</td><td><code>docker compose exec postgres pg_isready</code></td><td><code>accepting connections</code></td></tr>
   <tr><td>Disk usage</td><td><code>df -h /mnt/data</code></td><td>&lt; 80% used</td></tr>
   <tr><td>Container status</td><td><code>docker compose ps</code></td><td>All "Up", healthy</td></tr>

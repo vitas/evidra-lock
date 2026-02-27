@@ -7,15 +7,14 @@ interface LandingProps {
 const mcpExample = `{
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
-      "args": ["--api", "https://evidra.rest"]
+      "url": "https://evidra.samebits.com/mcp"
     }
   }
 }`;
 
 const ghActionsExample = `- name: Evaluate terraform plan
   run: |
-    curl -X POST https://evidra.rest/v1/validate \\
+    curl -X POST https://api.evidra.rest/v1/validate \\
       -H "Authorization: Bearer \$KEY" \\
       -H "Content-Type: application/json" \\
       -d @invocation.json`;
@@ -147,7 +146,7 @@ export function Landing({ onGetStarted }: LandingProps) {
         <span>Apache 2.0</span>
         <a href="#docs">Policy catalog</a>
         <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener noreferrer">GitHub</a>
-        <span>evidra.rest</span>
+        <span>evidra.samebits.com</span>
       </footer>
     </div>
   );

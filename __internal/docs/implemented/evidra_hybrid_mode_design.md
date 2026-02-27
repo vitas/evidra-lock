@@ -53,7 +53,7 @@ EVIDRA_URL set?
 
 | Variable | Default | Scope | Purpose |
 |---|---|---|---|
-| `EVIDRA_URL` | (unset) | CLI + MCP | API endpoint. Enables online mode. Example: `https://evidra.rest` |
+| `EVIDRA_URL` | (unset) | CLI + MCP | API endpoint. Enables online mode. Example: `https://api.evidra.rest` |
 | `EVIDRA_API_KEY` | (unset) | CLI + MCP | Bearer token. Required when `EVIDRA_URL` is set |
 | `EVIDRA_FALLBACK` | `closed` | CLI + MCP | `closed` = error on API failure. `offline` = local eval on API failure |
 | `EVIDRA_BUNDLE_PATH` | (embedded) | CLI + MCP | OPA bundle path for offline/fallback. If unset, uses embedded `ops-v0.1` |
@@ -88,7 +88,7 @@ import (
 
 // Config holds API connection settings.
 type Config struct {
-    URL     string        // e.g. "https://evidra.rest"
+    URL     string        // e.g. "https://api.evidra.rest"
     APIKey  string        // Bearer token
     Timeout time.Duration // HTTP timeout (default: 30s)
 }

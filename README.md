@@ -84,7 +84,19 @@ Binary downloads available on [GitHub Releases](https://github.com/vitas/evidra/
 
 ## Connect to Claude Code
 
-Add to `~/.claude/settings.json`:
+**Hosted (no install required)** — add to `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "evidra": {
+      "url": "https://evidra.samebits.com/mcp"
+    }
+  }
+}
+```
+
+**Local binary** — runs offline with the embedded policy bundle:
 
 ```json
 {
@@ -96,9 +108,17 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-No extra flags required — the binary ships with the `ops-v0.1` policy bundle built in.
+For other MCP clients (Cursor, Windsurf, etc.), use the same `url` or `command` shape in their respective config.
 
-For other MCP clients, use the same `command` / `args` shape in their respective config.
+---
+
+## Hosted Endpoints
+
+| Endpoint | URL |
+|---|---|
+| MCP server | `https://evidra.samebits.com/mcp` |
+| REST API | `https://api.evidra.rest/v1` |
+| Landing / Console | `https://evidra.samebits.com` |
 
 ---
 

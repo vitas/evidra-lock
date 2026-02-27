@@ -322,8 +322,8 @@ func TestNew_CustomTimeout(t *testing.T) {
 
 func TestURL(t *testing.T) {
 	t.Parallel()
-	c := New(Config{URL: "https://evidra.rest", APIKey: "key"})
-	if c.URL() != "https://evidra.rest" {
-		t.Errorf("expected https://evidra.rest, got %s", c.URL())
+	c := New(Config{URL: "https://api.evidra.rest", APIKey: "key"})
+	if c.URL() != "https://api.evidra.rest" {
+		t.Errorf("expected https://api.evidra.rest, got %s", c.URL())
 	}
 }
