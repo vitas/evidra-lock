@@ -22,6 +22,62 @@
   line-height: 1.6;
 }
 
+/* Onboarding steps */
+
+.onboarding-steps {
+  list-style: none;
+  counter-reset: steps;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+  padding: 0;
+}
+
+.onboarding-steps li {
+  counter-increment: steps;
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+
+.onboarding-steps li::before {
+  content: counter(steps);
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #0f2018;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.onboarding-steps li strong {
+  display: block;
+  font-size: 0.9375rem;
+  margin-bottom: 4px;
+}
+
+.onboarding-steps li p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.onboarding-steps li code {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.8125rem;
+}
+
 /* Key form */
 
 .key-form {
@@ -51,7 +107,7 @@
 
 .key-form button {
   background: var(--color-primary);
-  color: #fff;
+  color: #0f2018;
   border: none;
   border-radius: var(--radius);
   padding: var(--space-sm) var(--space-lg);

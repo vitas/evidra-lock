@@ -52,17 +52,41 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
       </div>
 
       {!keyData && (
-        <div className="key-form">
-          <input
-            type="text"
-            placeholder="Label (optional)"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-          />
-          <button type="button" onClick={handleGetKey} disabled={loading}>
-            {loading ? "Creating..." : "Get Key"}
-          </button>
-        </div>
+        <>
+          <ol className="onboarding-steps">
+            <li>
+              <strong>Generate a key</strong>
+              <p>Click <em>Get Key</em> below. The key is shown once — copy it immediately.</p>
+            </li>
+            <li>
+              <strong>Add it to your agent</strong>
+              <p>
+                Set <code>EVIDRA_API_KEY=&lt;key&gt;</code> in your environment,
+                or pass it as <code>Authorization: Bearer &lt;key&gt;</code> on every request.
+              </p>
+            </li>
+            <li>
+              <strong>Call validate before every apply</strong>
+              <p>
+                Send <code>POST /v1/validate</code> before <code>kubectl apply</code> or{" "}
+                <code>terraform apply</code>. Receive a signed evidence record and store it
+                alongside your change log.
+              </p>
+            </li>
+          </ol>
+
+          <div className="key-form">
+            <input
+              type="text"
+              placeholder="Label (optional, e.g. prod-agent)"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+            />
+            <button type="button" onClick={handleGetKey} disabled={loading}>
+              {loading ? "Creating..." : "Get Key"}
+            </button>
+          </div>
+        </>
       )}
 
       {error && (
