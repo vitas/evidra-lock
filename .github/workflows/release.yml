@@ -164,6 +164,12 @@ jobs:
             || { echo "FAIL: /healthz not reachable"; docker logs evidra-api-smoke; exit 1; }
           echo "PASS: /healthz ok"
 
+          # UI root — must return 200 text/html (embedded UI)
+          UI_CT=$(curl -sf -o /dev/null -w "%{content_type}" http://localhost:8080/)
+          echo "$UI_CT" | grep -q "text/html" \
+            || { echo "FAIL: GET / content-type not text/html (got: $UI_CT)"; docker logs evidra-api-smoke; exit 1; }
+          echo "PASS: GET / returns text/html"
+
           # Public key endpoint
           curl -sf http://localhost:8080/v1/evidence/pubkey | grep -q "PUBLIC KEY" \
             || { echo "FAIL: /v1/evidence/pubkey missing PEM"; exit 1; }
