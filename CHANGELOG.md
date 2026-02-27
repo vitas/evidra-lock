@@ -4,7 +4,21 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog.
 
-## [Unreleased]
+## [v0.1.0] — Phase 1
+
+### Added
+
+- **`POST /v1/keys`** — dynamic API key issuance backed by Postgres. Returns plaintext key once with `Cache-Control: no-store`. Rate-limited: 3 keys/hour/IP. Optional `EVIDRA_INVITE_SECRET` invite gate.
+- **`GET /readyz`** — readiness probe that verifies database connectivity (registered only when `DATABASE_URL` is set).
+- **DB-backed auth** (`internal/auth`) — `KeyStoreMiddleware` performs SHA-256 hash lookup with per-key tenant isolation and async `last_used_at` tracking.
+- **`internal/store/`** — `KeyStore`: `CreateKey`, `LookupKey` (primitive returns, satisfies `auth.KeyLookup`), `TouchKey` (async). pgx/v5, raw SQL, no ORM.
+- **`internal/db/`** — `Connect()`: pgxpool init + ping + embedded migration runner. Idempotent DDL — safe to re-run on restart. No external migration framework.
+- **Migrations** — `001_keys.sql`: `tenants` and `api_keys` tables with `key_hash BYTEA` (SHA-256), unique index on hash, index on tenant.
+- **Phase auto-detect** — server reads `DATABASE_URL` at startup; Phase 0 path (static key auth, no `/readyz`) unchanged when absent.
+
+---
+
+## [v0.0.5] — Phase 0 complete
 
 ### Added
 
@@ -59,7 +73,7 @@ The format is based on Keep a Changelog.
 - Product direction update — reflects API-first shift.
 - Policy catalog, contributing guide, docs index.
 
-## [0.0.1]
+## [v0.0.1]
 
 - MCP server for AI agents with `validate` and `get_event` tools.
 - OPA/Rego policy enforcement with structured decisions (`allow`, `risk_level`, `reason`).

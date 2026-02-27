@@ -58,13 +58,13 @@ Zero Go import coupling between repos. Communication between adapters and Evidra
 
 Stateless HTTP server. Evaluates policy via embedded OPA, signs evidence with Ed25519, returns the signed record to the caller. Never stores evidence server-side.
 
-| Phase | Gate | Capabilities |
-|---|---|---|
-| **Phase 0** (current) | `DATABASE_URL` absent | Stateless. `POST /v1/validate`, `GET /v1/evidence/pubkey`, `GET /healthz`. Static API key from env var. No Postgres. |
-| Phase 1 | `DATABASE_URL` present | + `POST /v1/keys`, `GET /readyz`. Dynamic key issuance, usage tracking. |
-| Phase 2 | `EVIDRA_SKILLS_ENABLED=true` | + `/v1/skills/*`, `/v1/executions/*`. Named operations with input validation. |
+| Phase | Gate | Capabilities | Status |
+|---|---|---|---|
+| **Phase 0** | `DATABASE_URL` absent | Stateless. `POST /v1/validate`, `GET /v1/evidence/pubkey`, `GET /healthz`. Static API key from env var. No Postgres. | **✅ Complete. Deployed.** |
+| **Phase 1** | `DATABASE_URL` present | + `POST /v1/keys`, `GET /readyz`. Dynamic key issuance, usage tracking. | **✅ Complete.** |
+| Phase 2 | `EVIDRA_SKILLS_ENABLED=true` | + `/v1/skills/*`, `/v1/executions/*`. Named operations with input validation. | Not started. |
 
-Key packages: `internal/api` (handlers, router, middleware), `internal/auth` (Bearer token, constant-time compare), `internal/engine` (runtime adapter), `internal/evidence` (Ed25519 signer, signing payload builder).
+Key packages: `internal/api` (handlers, router, middleware), `internal/auth` (static key P0 / DB-backed P1), `internal/engine` (runtime adapter), `internal/evidence` (Ed25519 signer, signing payload builder), `internal/store` (Postgres key store), `internal/db` (pgxpool + migration runner).
 
 ### MCP Server (`cmd/evidra-mcp`)
 

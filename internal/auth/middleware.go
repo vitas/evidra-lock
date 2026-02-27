@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"errors"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -19,6 +21,20 @@ const (
 	jitterMinMS = 50
 	jitterMaxMS = 100
 )
+
+// KeyLookup is the interface satisfied by *store.KeyStore.
+// Uses only primitive return types to avoid an import cycle between
+// internal/auth and internal/store.
+type KeyLookup interface {
+	// LookupKey hashes the plaintext key and returns tenantID, keyID, and
+	// log-safe prefix (e.g. "ev1_a8Fk3mQ9"), or ErrKeyNotFound.
+	LookupKey(ctx context.Context, plaintext string) (tenantID, keyID, prefix string, err error)
+	// TouchKey updates last_used_at for the given key ID (async, best-effort).
+	TouchKey(keyID string)
+}
+
+// ErrKeyNotFound must be returned by KeyLookup.LookupKey when the key is absent or revoked.
+var ErrKeyNotFound = errors.New("key not found")
 
 // StaticKeyMiddleware returns HTTP middleware that authenticates requests
 // using a constant-time comparison against a static API key.
@@ -43,6 +59,42 @@ func StaticKeyMiddleware(apiKey string) func(http.Handler) http.Handler {
 			}
 
 			ctx := WithTenantID(r.Context(), staticTenantID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// KeyStoreMiddleware returns HTTP middleware that authenticates requests
+// by looking up the Bearer token in the key store (Phase 1+).
+//
+// On success, the request context is populated with the stored tenant_id.
+// On failure, a random 50-100ms jitter sleep precedes the 401 response.
+func KeyStoreMiddleware(store KeyLookup) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := extractBearerToken(r)
+			if token == "" {
+				authFail(w, r)
+				return
+			}
+
+			tenantID, keyID, prefix, err := store.LookupKey(r.Context(), token)
+			if err != nil {
+				if !errors.Is(err, ErrKeyNotFound) {
+					slog.Error("auth: key lookup failed", "error", err)
+				}
+				authFail(w, r)
+				return
+			}
+
+			store.TouchKey(keyID)
+
+			slog.Debug("auth: key accepted",
+				"prefix", prefix,
+				"tenant_id", tenantID,
+			)
+
+			ctx := WithTenantID(r.Context(), tenantID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

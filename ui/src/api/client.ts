@@ -32,15 +32,26 @@ async function request<T>(
     headers,
   });
 
-  const data = await res.json();
+  let data: Record<string, unknown>;
+  try {
+    data = await res.json();
+  } catch {
+    // Server returned non-JSON (e.g. HTML error page or network proxy error).
+    throw new ApiError(res.status, "parse_error", res.statusText || "unexpected response from server");
+  }
 
   if (!res.ok || data.ok === false) {
-    throw new ApiError(
-      res.status,
-      data.error?.code || "unknown",
-      data.error?.message || res.statusText,
-      data.error?.details,
-    );
+    // Server returns either {"error": "msg"} (flat) or {"error": {"code":"...","message":"..."}} (object).
+    const errField = data.error;
+    const msg =
+      typeof errField === "string"
+        ? errField
+        : (errField as Record<string, string>)?.message || res.statusText;
+    const code =
+      typeof errField === "object" && errField !== null
+        ? ((errField as Record<string, string>).code || "unknown")
+        : "unknown";
+    throw new ApiError(res.status, code, msg, (errField as Record<string, unknown>)?.details as Record<string, unknown>);
   }
 
   return data as T;

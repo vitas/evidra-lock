@@ -1,6 +1,6 @@
 # Evidra — Strategic Vision and Roadmap
 
-**Updated:** 2026-02-26
+**Updated:** 2026-02-27
 
 ---
 
@@ -15,63 +15,27 @@
 
 ---
 
-## P0 — API + Hybrid (current focus)
+## ✅ P0 — API + Hybrid (complete)
 
-**Goal:** Working hosted API at `evidra.rest`. CLI and MCP talk to it or work offline.
+**Shipped.** Working hosted API at `api.evidra.rest`. CLI and MCP talk to it or work offline.
 
-### API Phase 0 (stateless, no database)
-
-- `POST /v1/validate` — policy evaluation with Ed25519-signed evidence
-- `GET /v1/evidence/pubkey` — public key for offline verification
-- `GET /healthz` — liveness probe
-- Static API key from env var, constant-time compare, timing jitter on auth failure
-- Single binary, zero dependencies beyond OPA
-- Design: `__internal/docs/implemented/evidra_sysdesign-api-mvp.md`
-
-### Hybrid mode
-
-- CLI and MCP become API-first when `EVIDRA_URL` is set
-- Local OPA fallback with `EVIDRA_FALLBACK=offline`
-- Fail closed by default — API unreachable + `fallback=closed` = error
-- New packages: `pkg/client` (HTTP client), `pkg/mode` (mode resolution)
-- Design: `__internal/docs/implemented/evidra_cli_hybrid_mode_design.md`
-
-### Deployment
-
-- Hetzner CX22, Traefik v3, Let's Encrypt TLS
-- Domain: `evidra.rest`
-- GitHub Actions: build → push GHCR → deploy
-
-### Input adapters
-
-- `evidra/adapters` — separate Go module, zero import coupling with main repo
-- `evidra-adapter-terraform` — reads `terraform show -json`, produces structured ToolInvocation params
-- Design: `__internal/docs/implemented/evidra_adapter_system_design.md`
-
-### Dogfooding CI
-
-- Infrastructure PRs: `terraform plan` → adapter → `POST /v1/validate`
-
-### Exit criteria
-
-- `curl POST https://api.evidra.rest/v1/validate` returns signed evidence
-- `evidra validate --url https://api.evidra.rest` works
-- `evidra-mcp` with `EVIDRA_URL` delegates to API
-- `evidra-adapter-terraform | evidra validate -` works end-to-end
-- Infrastructure PRs validated by Evidra
-
-**P0 is the stopping point.** Everything below is designed but not scheduled.
+- API Phase 0 (stateless): `POST /v1/validate`, `GET /v1/evidence/pubkey`, `GET /healthz`. Ed25519-signed evidence, static key auth with timing jitter.
+- Hybrid mode: CLI and MCP become API-first when `EVIDRA_URL` is set. `pkg/client` + `pkg/mode`. Configurable fallback.
+- Deployment: Hetzner CX22, Traefik v3, Let's Encrypt TLS. GitHub Actions CI/CD.
+- Input adapters: `evidra/adapters` repo, `evidra-adapter-terraform`.
+- Dogfooding CI: infra PRs validated by Evidra.
 
 ---
 
-## P1 — Multi-tenant + Landing (unscheduled)
+## ✅ P1 — Multi-tenant + Key Issuance (complete)
 
-Gate: `DATABASE_URL` set → enables Phase 1 features.
+Gate: `DATABASE_URL` set → Phase 1 features auto-enabled.
 
-- PostgreSQL-backed key management (`POST /v1/keys`, `GET /readyz`)
-- Tenant isolation, usage tracking, rate limiting per key/IP
-- Landing page with "Get API Key" form
-- Design: `__internal/docs/implemented/evidra_sysdesign-api-mvp.md` Phase 1 tasks
+- `POST /v1/keys` — dynamic key issuance. `ev1_` + 32 random bytes base62, SHA-256 hash stored. Rate limited: 3/hr/IP. Optional invite gate (`EVIDRA_INVITE_SECRET`). Returns key once with `Cache-Control: no-store`.
+- `GET /readyz` — readiness probe with DB ping.
+- `internal/store/` — `CreateKey`, `LookupKey` (primitive returns, satisfies `auth.KeyLookup`), `TouchKey` (async).
+- `internal/db/` — `Connect()`: pgxpool + embedded migration runner, idempotent DDL.
+- Auth auto-switch: `KeyStoreMiddleware` when store present, `StaticKeyMiddleware` (P0) otherwise.
 
 ---
 

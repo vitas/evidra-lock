@@ -14,8 +14,10 @@ import (
 
 	evidra "samebits.com/evidra"
 	"samebits.com/evidra/internal/api"
+	"samebits.com/evidra/internal/db"
 	"samebits.com/evidra/internal/engine"
 	"samebits.com/evidra/internal/evidence"
+	"samebits.com/evidra/internal/store"
 	"samebits.com/evidra/pkg/bundlesource"
 )
 
@@ -28,18 +30,21 @@ func run() int {
 
 	// --- Config from env vars ---
 	apiKey := os.Getenv("EVIDRA_API_KEY")
-	if apiKey == "" {
-		slog.Error("EVIDRA_API_KEY is required (minimum 32 characters)")
-		return 1
-	}
-	if len(apiKey) < 32 {
-		slog.Error("EVIDRA_API_KEY must be at least 32 characters")
-		return 1
-	}
-
+	databaseURL := os.Getenv("DATABASE_URL")
 	listenAddr := envOrDefault("LISTEN_ADDR", ":8080")
 	serverID := envOrDefault("EVIDRA_SERVER_ID", hostname())
 	devMode := os.Getenv("EVIDRA_ENV") == "development"
+	inviteSecret := os.Getenv("EVIDRA_INVITE_SECRET")
+
+	// Phase 0 requires a static API key; Phase 1 (DATABASE_URL set) does not.
+	if databaseURL == "" && apiKey == "" {
+		slog.Error("EVIDRA_API_KEY is required when DATABASE_URL is not set")
+		return 1
+	}
+	if databaseURL == "" && len(apiKey) < 32 {
+		slog.Error("EVIDRA_API_KEY must be at least 32 characters")
+		return 1
+	}
 
 	// --- Signer ---
 	signer, err := evidence.NewSigner(evidence.SignerConfig{
@@ -74,14 +79,35 @@ func run() int {
 
 	policyRef, _ := bs.PolicyRef()
 
+	// --- Phase 1: database (optional) ---
+	var ks *store.KeyStore
+	routerCfg := api.RouterConfig{
+		Engine:       eng,
+		Signer:       signer,
+		APIKey:       apiKey,
+		ServerID:     serverID,
+		UIFS:         evidra.UIDistFS,
+		InviteSecret: inviteSecret,
+	}
+
+	phase := "Phase 0 (stateless)"
+	if databaseURL != "" {
+		ctx := context.Background()
+		pool, err := db.Connect(ctx, databaseURL)
+		if err != nil {
+			slog.Error("database connection failed", "error", err)
+			return 1
+		}
+		defer pool.Close()
+
+		ks = store.New(pool)
+		routerCfg.Store = ks
+		routerCfg.DB = pool
+		phase = "Phase 1 (database-backed)"
+	}
+
 	// --- Router ---
-	handler := api.NewRouter(api.RouterConfig{
-		Engine:   eng,
-		Signer:   signer,
-		APIKey:   apiKey,
-		ServerID: serverID,
-		UIFS:     evidra.UIDistFS,
-	})
+	handler := api.NewRouter(routerCfg)
 
 	// --- Server ---
 	srv := &http.Server{
@@ -92,7 +118,6 @@ func run() int {
 	}
 
 	// --- Startup log ---
-	phase := "Phase 0 (stateless)"
 	slog.Info("starting evidra-api",
 		"addr", listenAddr,
 		"phase", phase,
@@ -101,6 +126,7 @@ func run() int {
 		"bundle_revision", bs.BundleRevision(),
 		"profile_name", bs.ProfileName(),
 		"dev_mode", devMode,
+		"db_backed", ks != nil,
 	)
 
 	// --- Graceful shutdown ---

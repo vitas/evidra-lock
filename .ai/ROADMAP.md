@@ -1,7 +1,7 @@
 # Evidra — Implementation Roadmap
 
-**Updated:** 2026-02-26
-**Status:** P0-local complete. P0-API designed, implementation not started.
+**Updated:** 2026-02-27
+**Status:** P0 (stateless API) + P1 (DB-backed key issuance) complete and deployed. Building P2 (Skills API).
 
 ---
 
@@ -25,63 +25,27 @@ Everything below works today and is released.
 
 ---
 
-## 2. P0-API — Current Focus
+## 2. ✅ P0-API — Complete
 
-All design is complete. Implementation not started. Steps are ordered by dependency.
+All P0 milestones are shipped.
 
-### Step 1: Implement API Phase 0 (stateless)
+- API Phase 0 (stateless): `POST /v1/validate`, `GET /v1/evidence/pubkey`, `GET /healthz`. Ed25519-signed evidence. Static key auth.
+- Deployed to Hetzner: docker-compose + Traefik v3 + Let's Encrypt TLS at `api.evidra.rest`.
+- Hybrid mode: `pkg/client` + `pkg/mode`, CLI `--url`/`--api-key`/`--offline` flags, MCP `EVIDRA_URL` support, configurable fallback.
+- Adapters repo: `evidra/adapters`, `evidra-adapter-terraform` binary.
+- Dogfooding CI: infra PRs validated by Evidra.
 
-- `cmd/evidra-api` — HTTP server, stdlib `net/http`
-- `internal/evidence/` — Ed25519 signer, deterministic signing payload, evidence record builder
-- `internal/auth/` — static API key with constant-time compare, timing jitter
-- `internal/engine/` — thin wrapper around existing `pkg/runtime.Evaluator`
-- Endpoints: `POST /v1/validate`, `GET /v1/evidence/pubkey`, `GET /healthz`
-- Deny = HTTP 200. Evidence signed and returned, never stored server-side.
-- Design: `__internal/docs/implemented/evidra_sysdesign-api-mvp.md`
+## 3. ✅ P1-API — Complete
 
-### Step 2: Deploy to Hetzner
+Phase 1 (DB-backed key issuance) is shipped. Gate: `DATABASE_URL` set.
 
-- Terraform IaC for Hetzner CX22 (2 vCPU, 4 GB)
-- docker-compose: Traefik v3 (Let's Encrypt TLS) + evidra-api
-- Domain: `evidra.rest`
-- GitHub Actions: build, push GHCR, deploy
+- `POST /v1/keys` — dynamic key issuance, 3/hr/IP rate limit, optional invite gate.
+- `GET /readyz` — DB ping readiness probe.
+- `internal/store/` — `CreateKey`, `LookupKey`, `TouchKey` via pgx/v5.
+- `internal/db/` — pgxpool + embedded migration runner (idempotent DDL, no external framework).
+- Auth auto-switch: `KeyStoreMiddleware` when `Store != nil`, `StaticKeyMiddleware` otherwise.
 
-### Step 3: Implement hybrid mode
-
-- `pkg/client` — HTTP client for `POST /v1/validate` with sentinel errors and fallback classification
-- `pkg/mode` — mode resolution (online/offline), pure config validation, no I/O
-- CLI updates: `--url`, `--api-key`, `--offline`, `--fallback-offline` flags
-- MCP updates: `EVIDRA_URL` support, conditional bundle extraction, fallback to local eval
-- Design: `__internal/docs/implemented/evidra_cli_hybrid_mode_design.md`
-
-### Step 4: Create adapters repo
-
-- `evidra/adapters` — separate Go module, zero import coupling
-- Adapter interface: `Name() string`, `Convert(ctx, raw, config) → Result`
-- `evidra-adapter-terraform` — reads `terraform show -json`, produces structured params
-- goreleaser, Dockerfile, stdin/stdout binary distribution
-- Design: `__internal/docs/implemented/evidra_adapter_system_design.md`
-
-### Step 5: Dogfooding CI
-
-- Infrastructure PRs run: `terraform plan` → adapter → `POST /v1/validate`
-- Evidra validates its own infrastructure changes
-
-### P0-API Exit Criteria
-
-- `curl -X POST https://api.evidra.rest/v1/validate -H "Authorization: Bearer ..." → signed evidence`
-- `evidra validate --url https://api.evidra.rest scenario.yaml` works
-- `evidra-mcp` with `EVIDRA_URL=https://api.evidra.rest` delegates to API
-- `terraform show -json | evidra-adapter-terraform | evidra validate -` works end-to-end
-- Infrastructure PRs validated by Evidra
-
----
-
-## 3. Backlog — Designed, Not Scheduled
-
-### API Phase 1 (multi-tenant)
-
-PostgreSQL, dynamic key issuance (256-bit keys, SHA-256 hashed), usage tracking, `POST /v1/keys`, `GET /readyz`. Design: `__internal/docs/implemented/evidra_sysdesign-api-mvp.md` Phase 1 tasks.
+## 4. Backlog — Designed, Not Scheduled
 
 ### API Phase 2 (skills)
 
