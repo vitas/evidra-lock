@@ -89,6 +89,9 @@ archives:
         formats: [zip]
     name_template: "evidra-api_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
+release:
+  mode: replace
+
 checksum:
   name_template: checksums.txt
 
@@ -100,6 +103,7 @@ brews:
   - name: evidra-mcp
     ids:
       - evidra-mcp
+    skip_upload: true
     repository:
       owner: vitas
       name: homebrew-tap
