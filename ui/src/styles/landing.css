@@ -33,7 +33,7 @@
   align-items: center;
   gap: var(--space-xs);
   background: var(--color-primary);
-  color: #fff;
+  color: #0f2018;
   padding: var(--space-sm) var(--space-lg);
   border-radius: var(--radius);
   font-weight: 600;
@@ -43,7 +43,7 @@
 
 .hero-cta:hover {
   background: var(--color-primary-hover);
-  color: #fff;
+  color: #0f2018;
 }
 
 /* Sections */
