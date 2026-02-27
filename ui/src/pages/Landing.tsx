@@ -146,7 +146,7 @@ export function Landing({ onGetStarted }: LandingProps) {
         <span>Open source</span>
         <span>Apache 2.0</span>
         <a href="#docs">Policy catalog</a>
-        <a href="https://github.com/evidra" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener noreferrer">GitHub</a>
         <span>evidra.rest</span>
       </footer>
     </div>

@@ -1,16 +1,16 @@
 :root {
-  --color-bg: #0f1117;
-  --color-surface: #1a1d27;
-  --color-surface-hover: #242836;
-  --color-border: #2e3345;
-  --color-text: #e1e4ed;
-  --color-text-muted: #8b91a5;
+  --color-bg: #1e2d28;
+  --color-surface: #273d36;
+  --color-surface-hover: #304840;
+  --color-border: #3f5c52;
+  --color-text: #d4e9e0;
+  --color-text-muted: #86a89a;
   --color-primary: #6366f1;
   --color-primary-hover: #818cf8;
   --color-success: #22c55e;
   --color-danger: #ef4444;
   --color-warning: #f59e0b;
-  --color-code-bg: #12141d;
+  --color-code-bg: #192822;
 
   --radius: 8px;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
