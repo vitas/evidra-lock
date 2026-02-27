@@ -299,7 +299,7 @@ func extractEmbeddedBundle(fsys fs.ReadDirFS, targetDir string) (string, error) 
 func printHelp(w io.Writer) {
 	defaultEvidence := config.DefaultEvidencePathDescription()
 
-	fmt.Fprintln(w, "evidra-mcp — MCP server for AI agent policy evaluation.")
+	fmt.Fprintln(w, "evidra-mcp — open-source utility by SameBits. MCP server for AI agent policy evaluation.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "USAGE:")
 	fmt.Fprintln(w, "  evidra-mcp [flags]")

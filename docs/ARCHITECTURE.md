@@ -1,3 +1,5 @@
+> Part of the Evidra OSS toolset by SameBits.
+
 # Architecture
 
 Evidra is a policy evaluation and evidence signing system for AI agent infrastructure operations. Before an AI agent executes `kubectl apply` or `terraform apply`, it calls Evidra. Evidra evaluates OPA policy, returns allow/deny with risk level and remediation hints, and produces a cryptographically verifiable evidence record. The agent stores the evidence and proceeds (or aborts).

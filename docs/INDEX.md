@@ -1,3 +1,5 @@
+> Part of the Evidra OSS toolset by SameBits.
+
 # Documentation
 
 1. [Policy Catalog](POLICY_CATALOG.md) — Full rule reference (23 rules, parameters, hints)

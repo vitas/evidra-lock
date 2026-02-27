@@ -1,3 +1,5 @@
+> Part of the Evidra OSS toolset by SameBits.
+
 # Policy Catalog — ops-v0.1
 
 Bundle revision: `ops-v0.1.0-dev`

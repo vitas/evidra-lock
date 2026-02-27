@@ -488,6 +488,7 @@ func firstN(items []string, limit int) []string {
 func printUsage(w io.Writer) {
 	defaultEvidence := config.DefaultEvidencePathDescription()
 
+	fmt.Fprintln(w, "Evidra CLI — open-source utility by SameBits.")
 	fmt.Fprintln(w, "usage: evidra <validate|version>")
 	fmt.Fprintln(w, "  evidra validate [flags] <file>")
 	fmt.Fprintln(w, "  evidra version")

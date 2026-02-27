@@ -2,6 +2,8 @@
 
 Evidra is a guardrail layer between AI agents and your infrastructure.
 
+Evidra is an open-source tool developed and maintained by SameBits.
+
 - 23 OPA policy rules covering Kubernetes, Terraform, ArgoCD, S3, and IAM
 - Structured deny responses with rule IDs and actionable hints
 - Append-only, hash-linked evidence chain for every decision
@@ -158,3 +160,7 @@ Exit codes: `0` = PASS, `2` = FAIL, `1` = error.
 ## License
 
 Apache License 2.0
+
+---
+Part of the Evidra open-source toolset by SameBits.
+This name is used strictly for open-source identification purposes.

@@ -1,3 +1,5 @@
+> Part of the Evidra OSS toolset by SameBits.
+
 # Security Model
 
 ## Design Philosophy
