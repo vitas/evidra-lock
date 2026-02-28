@@ -3,7 +3,8 @@ module samebits.com/evidra
 go 1.24.6
 
 require (
-	github.com/modelcontextprotocol/go-sdk v1.3.1
+	github.com/jackc/pgx/v5 v5.8.0
+	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/open-policy-agent/opa v1.13.2
 	go.yaml.in/yaml/v3 v3.0.4
@@ -22,7 +23,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.8.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/dsig v1.0.0 // indirect
@@ -54,7 +54,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
