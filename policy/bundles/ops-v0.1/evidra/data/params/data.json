@@ -22,5 +22,23 @@
   },
   "aws_s3.versioning.require": {
     "by_env": { "default": false, "production": true }
+  },
+  "ops.destructive_operations": {
+    "by_env": {
+      "default": [
+        "kubectl.delete",
+        "kubectl.apply",
+        "terraform.apply",
+        "terraform.destroy",
+        "helm.upgrade",
+        "helm.uninstall",
+        "argocd.sync"
+      ]
+    }
+  },
+  "ops.profile": {
+    "by_env": {
+      "default": "ops"
+    }
   }
 }

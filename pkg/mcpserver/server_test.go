@@ -69,13 +69,16 @@ func TestValidateServiceRecordsEvidence(t *testing.T) {
 		Actor:     invocation.Actor{Type: "human", ID: "tester", Origin: "cli"},
 		Tool:      "kubectl",
 		Operation: "delete",
-		Params:    map[string]interface{}{},
-		Context:   map[string]interface{}{},
+		Params: map[string]interface{}{
+			"target":  map[string]interface{}{"namespace": "default"},
+			"payload": map[string]interface{}{"namespace": "default", "resource": "pod"},
+		},
+		Context: map[string]interface{}{},
 	}
 
 	out := svc.Validate(context.Background(), inv)
 	if !out.Policy.Allow {
-		t.Fatalf("expected policy to allow")
+		t.Fatalf("expected policy to allow; rule_ids=%v reasons=%v", out.RuleIDs, out.Reasons)
 	}
 	if out.EventID == "" {
 		t.Fatalf("missing event id")

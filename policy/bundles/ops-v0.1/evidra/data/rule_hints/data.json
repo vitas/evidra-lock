@@ -93,5 +93,21 @@
   "aws_iam.wildcard_principal": [
     "Replace Principal:* with specific AWS account IDs or service principals.",
     "Add Condition keys to restrict who can assume the role."
+  ],
+  "ops.insufficient_context": [
+    "Provide required context in payload for this operation.",
+    "For kubectl: include namespace. For workload resources (pod/deployment/statefulset/daemonset/job/cronjob): also include containers[] with image.",
+    "For terraform: include at least one semantic detail (resource_types, security_group_rules, iam_policy_statements, etc.).",
+    "If this is a newly added tool: add a has_sufficient_context clause in deny_insufficient_context.rego."
+  ],
+  "ops.unknown_destructive": [
+    "This tool/operation is not recognized by Evidra policy.",
+    "Add it to ops.destructive_operations in policy params, or use a known safe suffix (get, list, describe, plan, etc.).",
+    "For emergency use: add risk_tag: breakglass to override (will be logged)."
+  ],
+  "ops.truncated_context": [
+    "Plan output was truncated and may be incomplete.",
+    "Review the full plan manually before applying.",
+    "Or reduce plan scope with -target flags."
   ]
 }

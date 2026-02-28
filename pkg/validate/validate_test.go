@@ -34,8 +34,9 @@ func safeScenario() scenario.Scenario {
 		Timestamp:  time.Now().UTC(),
 		Actions: []scenario.Action{
 			{
-				Kind:   "kubectl.apply",
-				Target: map[string]interface{}{"namespace": "default"},
+				Kind:    "kubectl.apply",
+				Target:  map[string]interface{}{"namespace": "default"},
+				Payload: map[string]interface{}{"namespace": "default", "resource": "configmap"},
 			},
 		},
 	}
