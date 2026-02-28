@@ -1,0 +1,395 @@
+{
+  "cases": [
+    {
+      "id": "argocd.autosync_prod/deny_real_1",
+      "environment": "production",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "argocd.autosync_prod"
+        ]
+      }
+    },
+    {
+      "id": "argocd.autosync_prod/allow_real_1",
+      "environment": "production",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "argocd.dangerous_sync_combo/deny_real_1",
+      "environment": "production",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "argocd.dangerous_sync_combo"
+        ]
+      }
+    },
+    {
+      "id": "argocd.dangerous_sync_combo/allow_real_1",
+      "environment": "production",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "argocd.wildcard_destination/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "argocd.wildcard_destination"
+        ]
+      }
+    },
+    {
+      "id": "argocd.wildcard_destination/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "aws_iam.wildcard_policy/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "aws_iam.wildcard_policy",
+          "terraform.iam_wildcard_policy"
+        ]
+      }
+    },
+    {
+      "id": "aws_iam.wildcard_policy/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "aws_iam.wildcard_principal/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "aws_iam.wildcard_principal"
+        ]
+      }
+    },
+    {
+      "id": "aws_iam.wildcard_principal/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "aws_s3.no_encryption/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "aws_s3.no_encryption"
+        ]
+      }
+    },
+    {
+      "id": "aws_s3.no_encryption/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "aws_s3.no_versioning_prod/deny_real_1",
+      "environment": "production",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "aws_s3.no_versioning_prod"
+        ]
+      }
+    },
+    {
+      "id": "aws_s3.no_versioning_prod/allow_real_1",
+      "environment": "production",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "k8s.dangerous_capabilities/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "k8s.dangerous_capabilities"
+        ]
+      }
+    },
+    {
+      "id": "k8s.dangerous_capabilities/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "k8s.host_namespace_escape/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "k8s.host_namespace_escape"
+        ]
+      }
+    },
+    {
+      "id": "k8s.host_namespace_escape/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "k8s.hostpath_mount/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "k8s.hostpath_mount"
+        ]
+      }
+    },
+    {
+      "id": "k8s.hostpath_mount/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "k8s.mutable_image_tag/deny_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": [
+          "k8s.mutable_image_tag"
+        ]
+      }
+    },
+    {
+      "id": "k8s.mutable_image_tag/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "k8s.no_resource_limits/deny_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": [
+          "k8s.no_resource_limits"
+        ]
+      }
+    },
+    {
+      "id": "k8s.no_resource_limits/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "k8s.privileged_container/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "k8s.privileged_container"
+        ]
+      }
+    },
+    {
+      "id": "k8s.privileged_container/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "k8s.protected_namespace/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "k8s.protected_namespace"
+        ]
+      }
+    },
+    {
+      "id": "k8s.protected_namespace/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "k8s.run_as_root/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "k8s.run_as_root"
+        ]
+      }
+    },
+    {
+      "id": "k8s.run_as_root/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "ops.breakglass_used/deny_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": [
+          "ops.breakglass_used"
+        ]
+      }
+    },
+    {
+      "id": "ops.breakglass_used/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "ops.insufficient_context/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "ops.insufficient_context"
+        ]
+      }
+    },
+    {
+      "id": "ops.insufficient_context/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "ops.mass_delete/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "ops.mass_delete"
+        ]
+      }
+    },
+    {
+      "id": "ops.mass_delete/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "ops.public_exposure/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "ops.public_exposure"
+        ]
+      }
+    },
+    {
+      "id": "ops.public_exposure/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "ops.terraform_metadata_only/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "ops.terraform_metadata_only"
+        ]
+      }
+    },
+    {
+      "id": "ops.terraform_metadata_only/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "ops.unapproved_change/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "ops.unapproved_change"
+        ]
+      }
+    },
+    {
+      "id": "ops.unapproved_change/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "terraform.iam_wildcard_policy/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "terraform.iam_wildcard_policy"
+        ]
+      }
+    },
+    {
+      "id": "terraform.iam_wildcard_policy/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "terraform.s3_public_access/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "terraform.s3_public_access"
+        ]
+      }
+    },
+    {
+      "id": "terraform.s3_public_access/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    },
+    {
+      "id": "terraform.sg_open_world/deny_real_1",
+      "expected": {
+        "decision": "deny",
+        "rule_ids": [
+          "terraform.sg_open_world"
+        ]
+      }
+    },
+    {
+      "id": "terraform.sg_open_world/allow_real_1",
+      "expected": {
+        "decision": "allow",
+        "rule_ids": []
+      }
+    }
+  ]
+}

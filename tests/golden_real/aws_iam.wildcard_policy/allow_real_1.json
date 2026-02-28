@@ -1,0 +1,13 @@
+{
+  "scenario_id": "golden-real/aws_iam.wildcard_policy/allow_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "terraform.plan",
+    "target": {"dir": "./infra"},
+    "intent": "plan IAM policy",
+    "payload": {"iam_policy_statements": [{"effect": "Allow", "action": "s3:GetObject", "resource": "arn:aws:s3:::payments-bucket/*"}]},
+    "risk_tags": []
+  }]
+}

@@ -1,0 +1,17 @@
+{
+  "scenario_id": "golden-real/k8s.no_resource_limits/allow_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "kubectl.apply",
+    "target": {"namespace": "default"},
+    "intent": "apply deployment",
+    "payload": {
+      "namespace": "default",
+      "resource": "deployment",
+      "containers": [{"name": "web", "image": "nginx:1.25.3", "security_context": {"run_as_user": 1000}, "resources": {"limits": {"cpu": "100m", "memory": "128Mi"}}}]
+    },
+    "risk_tags": []
+  }]
+}

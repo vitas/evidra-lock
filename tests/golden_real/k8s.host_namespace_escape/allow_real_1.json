@@ -1,0 +1,13 @@
+{
+  "scenario_id": "golden-real/k8s.host_namespace_escape/allow_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "kubectl.apply",
+    "target": {"namespace": "default"},
+    "intent": "apply config",
+    "payload": {"namespace": "default", "resource": "configmap", "host_network": false},
+    "risk_tags": []
+  }]
+}

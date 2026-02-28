@@ -1,0 +1,1 @@
+No stable public corpus was identified containing real plan payloads with the exact truncation marker fields (`resource_changes_truncated`, `delete_addresses_truncated`, `replace_addresses_truncated`) used by this rule.

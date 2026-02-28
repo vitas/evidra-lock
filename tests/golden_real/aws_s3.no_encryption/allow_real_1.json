@@ -1,0 +1,17 @@
+{
+  "scenario_id": "golden-real/aws_s3.no_encryption/allow_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "terraform.plan",
+    "target": {"dir": "./infra"},
+    "intent": "plan S3",
+    "payload": {
+      "resource_type": "aws_s3_bucket",
+      "server_side_encryption": {"enabled": true},
+      "s3_public_access_block": {"block_public_acls": true, "ignore_public_acls": true, "block_public_policy": true, "restrict_public_buckets": true}
+    },
+    "risk_tags": []
+  }]
+}

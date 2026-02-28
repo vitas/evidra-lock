@@ -1,0 +1,13 @@
+{
+  "scenario_id": "golden-real/terraform.sg_open_world/allow_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "terraform.plan",
+    "target": {"dir": "./infra"},
+    "intent": "plan SG",
+    "payload": {"security_group_rules": [{"type": "ingress", "from_port": 22, "to_port": 22, "cidr_blocks": ["10.0.0.0/16"]}]},
+    "risk_tags": []
+  }]
+}

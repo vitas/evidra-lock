@@ -1,0 +1,700 @@
+{
+  "rules": [
+    {
+      "rule_id": "argocd.autosync_prod",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Argo CD Automated Sync Policy",
+          "url": "https://argo-cd.readthedocs.io/en/release-2.7/user-guide/auto_sync/",
+          "evidence": {
+            "file_paths": ["user-guide/auto_sync/"],
+            "commit": "release-2.7",
+            "snippet_description": "Documents automated sync behavior and control flags for production safety."
+          },
+          "notes": "deny-like: automated sync enabled in prod maps to this rule"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Amazon EKS guide for Argo CD application creation",
+          "url": "https://docs.aws.amazon.com/eks/latest/userguide/argocd-create-application.html",
+          "evidence": {
+            "file_paths": ["argocd-create-application.html"],
+            "commit": "latest",
+            "snippet_description": "Shows sync policy choices and cautions for automated sync in cluster operations."
+          },
+          "notes": "allow-like: manual sync path is the safer baseline"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "argocd.dangerous_sync_combo",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Argo CD Automated Sync semantics (prune/self-heal)",
+          "url": "https://argo-cd.readthedocs.io/en/release-2.7/user-guide/auto_sync/",
+          "evidence": {
+            "file_paths": ["user-guide/auto_sync/"],
+            "commit": "release-2.7",
+            "snippet_description": "Documents prune and self-heal behavior under automated sync."
+          },
+          "notes": "deny-like: automated+prune+self-heal is the risky combo"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Amazon EKS Argo CD concepts and sync options",
+          "url": "https://docs.aws.amazon.com/eks/latest/userguide/argocd-concepts.html",
+          "evidence": {
+            "file_paths": ["argocd-concepts.html"],
+            "commit": "latest",
+            "snippet_description": "Documents operational sync options and project guardrails for Argo CD workloads."
+          },
+          "notes": "allow-like: conservative sync configuration in managed EKS workflows"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "argocd.wildcard_destination",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Argo CD AppProject specification",
+          "url": "https://argo-cd.readthedocs.io/en/latest/operator-manual/project-specification/",
+          "evidence": {
+            "file_paths": ["operator-manual/project-specification/"],
+            "commit": "latest",
+            "snippet_description": "Shows destinations schema where wildcard namespace/server can be configured."
+          },
+          "notes": "deny-like: wildcard destinations in AppProject"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Amazon EKS Argo CD project guidance",
+          "url": "https://docs.aws.amazon.com/eks/latest/userguide/argocd-projects.html",
+          "evidence": {
+            "file_paths": ["argocd-projects.html"],
+            "commit": "latest",
+            "snippet_description": "Shows destination restrictions and project scoping for Argo CD."
+          },
+          "notes": "allow-like: explicit destination scoping"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "aws_iam.wildcard_policy",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "tfsec: no-policy-wildcards",
+          "url": "https://aquasecurity.github.io/tfsec/v1.28.13/checks/aws/iam/no-policy-wildcards/",
+          "evidence": {
+            "file_paths": ["checks/aws/iam/no-policy-wildcards"],
+            "commit": "v1.28.13",
+            "snippet_description": "Contains insecure and secure Terraform IAM policy examples around wildcard Action/Resource."
+          },
+          "notes": "deny-like: Action:* and Resource:*"
+        },
+        {
+          "kind": "docs_example",
+          "title": "AWS IAM security best practices",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+          "evidence": {
+            "file_paths": ["best-practices.html"],
+            "commit": "latest",
+            "snippet_description": "Recommends least-privilege and avoiding wildcard permissions."
+          },
+          "notes": "allow-like: scoped actions/resources"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "aws_iam.wildcard_principal",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "AWS Principal element reference",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_principal.html",
+          "evidence": {
+            "file_paths": ["reference_policies_elements_principal.html"],
+            "commit": "latest",
+            "snippet_description": "Defines Principal behavior in trust policies and why broad principals are dangerous."
+          },
+          "notes": "deny-like: Principal:* in assume role policy"
+        },
+        {
+          "kind": "docs_example",
+          "title": "IAM Access Analyzer policy checks",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-reference-policy-checks.html",
+          "evidence": {
+            "file_paths": ["access-analyzer-reference-policy-checks.html"],
+            "commit": "latest",
+            "snippet_description": "Enumerates problematic trust-policy patterns and recommended narrowing."
+          },
+          "notes": "allow-like: specific account/service principals"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "aws_s3.no_encryption",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "tfsec: enable-bucket-encryption",
+          "url": "https://aquasecurity.github.io/tfsec/v1.28.11/checks/aws/s3/enable-bucket-encryption/",
+          "evidence": {
+            "file_paths": ["checks/aws/s3/enable-bucket-encryption"],
+            "commit": "v1.28.11",
+            "snippet_description": "Shows insecure/secure Terraform S3 encryption configurations."
+          },
+          "notes": "deny-like: missing default SSE"
+        },
+        {
+          "kind": "docs_example",
+          "title": "AWS S3 default bucket encryption",
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html",
+          "evidence": {
+            "file_paths": ["default-bucket-encryption.html"],
+            "commit": "latest",
+            "snippet_description": "Canonical AWS guidance for enforcing default bucket encryption."
+          },
+          "notes": "allow-like: SSE enabled"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "aws_s3.no_versioning_prod",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "tfsec: enable-versioning",
+          "url": "https://aquasecurity.github.io/tfsec/v1.28.6/checks/aws/s3/enable-versioning/",
+          "evidence": {
+            "file_paths": ["checks/aws/s3/enable-versioning"],
+            "commit": "v1.28.6",
+            "snippet_description": "Provides insecure and secure Terraform versioning examples for S3."
+          },
+          "notes": "deny-like: versioning disabled"
+        },
+        {
+          "kind": "docs_example",
+          "title": "AWS S3 versioning user guide",
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html",
+          "evidence": {
+            "file_paths": ["Versioning.html"],
+            "commit": "latest",
+            "snippet_description": "Describes versioning as protection against accidental deletes/overwrites."
+          },
+          "notes": "allow-like: versioning enabled in production buckets"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "k8s.dangerous_capabilities",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes Pod Security Standards",
+          "url": "https://kubernetes.io/docs/concepts/security/pod-security-standards/",
+          "evidence": {
+            "file_paths": ["docs/concepts/security/pod-security-standards"],
+            "commit": "latest",
+            "snippet_description": "Restricted/Baseline policy guidance around capability additions and privilege controls."
+          },
+          "notes": "deny-like: adding high-risk capabilities"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes Pod Security Admission stable announcement",
+          "url": "https://kubernetes.io/blog/2022/08/25/pod-security-admission-stable/",
+          "evidence": {
+            "file_paths": ["blog/2022/08/25/pod-security-admission-stable/"],
+            "commit": "v1.25",
+            "snippet_description": "Shows admission rejections including disallowed capability patterns."
+          },
+          "notes": "allow-like: drop capabilities or use restricted profile"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "k8s.host_namespace_escape",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes Pod Security Standards",
+          "url": "https://kubernetes.io/docs/concepts/security/pod-security-standards/",
+          "evidence": {
+            "file_paths": ["docs/concepts/security/pod-security-standards"],
+            "commit": "latest",
+            "snippet_description": "Baseline/Restricted controls disallow host namespaces (hostNetwork/hostPID/hostIPC)."
+          },
+          "notes": "deny-like: host namespace escape fields"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes Linux kernel security constraints",
+          "url": "https://kubernetes.io/docs/concepts/security/linux-kernel-security-constraints/",
+          "evidence": {
+            "file_paths": ["docs/concepts/security/linux-kernel-security-constraints"],
+            "commit": "latest",
+            "snippet_description": "Explains container isolation boundaries and implications of elevated namespace access."
+          },
+          "notes": "allow-like: preserve namespace isolation"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "k8s.hostpath_mount",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes hostPath volume documentation",
+          "url": "https://kubernetes.io/docs/concepts/storage/volumes/#hostpath",
+          "evidence": {
+            "file_paths": ["docs/concepts/storage/volumes/#hostpath"],
+            "commit": "latest",
+            "snippet_description": "Warns about host filesystem exposure risks from hostPath volumes."
+          },
+          "notes": "deny-like: direct hostPath mounts"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes Pod Security Standards",
+          "url": "https://kubernetes.io/docs/concepts/security/pod-security-standards/",
+          "evidence": {
+            "file_paths": ["docs/concepts/security/pod-security-standards"],
+            "commit": "latest",
+            "snippet_description": "Restricted profile guidance includes hostPath-related hardening constraints."
+          },
+          "notes": "allow-like: use non-hostPath volume types"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "k8s.mutable_image_tag",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes images concept docs",
+          "url": "https://kubernetes.io/docs/concepts/containers/images/",
+          "evidence": {
+            "file_paths": ["docs/concepts/containers/images"],
+            "commit": "latest",
+            "snippet_description": "Explains tags vs digests and deterministic image selection."
+          },
+          "notes": "deny-like: mutable tags such as latest"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Docker build best practices",
+          "url": "https://docs.docker.com/build/building/best-practices/#pin-base-image-versions",
+          "evidence": {
+            "file_paths": ["build/building/best-practices/#pin-base-image-versions"],
+            "commit": "latest",
+            "snippet_description": "Recommends pinning versions/digests to avoid mutable tag drift."
+          },
+          "notes": "allow-like: immutable image references"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "k8s.no_resource_limits",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes manage resources for containers",
+          "url": "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+          "evidence": {
+            "file_paths": ["docs/concepts/configuration/manage-resources-containers"],
+            "commit": "latest",
+            "snippet_description": "Defines CPU/memory requests and limits and operational impact."
+          },
+          "notes": "deny-like analog: missing limits"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes LimitRange policy",
+          "url": "https://kubernetes.io/docs/concepts/policy/limit-range/",
+          "evidence": {
+            "file_paths": ["docs/concepts/policy/limit-range"],
+            "commit": "latest",
+            "snippet_description": "Shows namespace policy to enforce default/min/max container limits."
+          },
+          "notes": "allow-like: enforce resource limits by policy"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "k8s.privileged_container",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes Pod Security Standards",
+          "url": "https://kubernetes.io/docs/concepts/security/pod-security-standards/",
+          "evidence": {
+            "file_paths": ["docs/concepts/security/pod-security-standards"],
+            "commit": "latest",
+            "snippet_description": "Explicitly restricts privileged container settings in secure profiles."
+          },
+          "notes": "deny-like: privileged=true"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes Linux kernel security constraints",
+          "url": "https://kubernetes.io/docs/concepts/security/linux-kernel-security-constraints/",
+          "evidence": {
+            "file_paths": ["docs/concepts/security/linux-kernel-security-constraints"],
+            "commit": "latest",
+            "snippet_description": "Discusses privileged containers and kernel attack-surface expansion."
+          },
+          "notes": "allow-like: avoid privileged mode, apply seccomp/AppArmor/SELinux"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "k8s.protected_namespace",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes namespace fundamentals",
+          "url": "https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/#initial-namespaces",
+          "evidence": {
+            "file_paths": ["docs/concepts/overview/working-with-objects/namespaces/#initial-namespaces"],
+            "commit": "latest",
+            "snippet_description": "Identifies kube-system as a special namespace for cluster components."
+          },
+          "notes": "deny-like: changes in protected namespaces need extra controls"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes cluster-level Pod Security Admission tutorial",
+          "url": "https://kubernetes.io/docs/tutorials/security/cluster-level-pss/",
+          "evidence": {
+            "file_paths": ["docs/tutorials/security/cluster-level-pss"],
+            "commit": "latest",
+            "snippet_description": "Demonstrates exempting system namespaces from broad policy changes."
+          },
+          "notes": "allow-like: explicit exemptions and controlled admin paths"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "k8s.run_as_root",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes security context task",
+          "url": "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
+          "evidence": {
+            "file_paths": ["docs/tasks/configure-pod-container/security-context"],
+            "commit": "latest",
+            "snippet_description": "Shows runAsUser and runAsNonRoot settings for containers/pods."
+          },
+          "notes": "deny-like: UID 0 configuration"
+        },
+        {
+          "kind": "docs_example",
+          "title": "Kubernetes Pod Security Standards",
+          "url": "https://kubernetes.io/docs/concepts/security/pod-security-standards/",
+          "evidence": {
+            "file_paths": ["docs/concepts/security/pod-security-standards"],
+            "commit": "latest",
+            "snippet_description": "Restricted policy guidance includes non-root execution controls."
+          },
+          "notes": "allow-like: runAsNonRoot / non-zero UID"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "ops.autonomous_execution",
+      "candidates": [],
+      "notes": "No directly comparable public corpus with the same Evidra-specific signal pair (actor.type=agent and source=mcp). Found only high-level AI governance guidance, not concrete tool invocation datasets.",
+      "status": "no_public_candidates"
+    },
+    {
+      "rule_id": "ops.breakglass_used",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Google Cloud Binary Authorization breakglass",
+          "url": "https://cloud.google.com/binary-authorization/docs/using-breakglass",
+          "evidence": {
+            "file_paths": ["binary-authorization/docs/using-breakglass"],
+            "commit": "latest",
+            "snippet_description": "Documents explicit emergency bypass workflow with audit logging."
+          },
+          "notes": "deny/warn analog: breakglass is exceptional and should be audited"
+        },
+        {
+          "kind": "docs_example",
+          "title": "AWS Well-Architected emergency process for permissions",
+          "url": "https://docs.aws.amazon.com/wellarchitected/latest/framework/sec_permissions_emergency_process.html",
+          "evidence": {
+            "file_paths": ["framework/sec_permissions_emergency_process.html"],
+            "commit": "latest",
+            "snippet_description": "Describes emergency access controls and post-incident review requirements."
+          },
+          "notes": "allow-like: controlled, time-bound breakglass procedures"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "ops.insufficient_context",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Terraform JSON output format",
+          "url": "https://developer.hashicorp.com/terraform/internals/json-format",
+          "evidence": {
+            "file_paths": ["terraform/internals/json-format"],
+            "commit": "latest",
+            "snippet_description": "Defines semantic fields required to reason about plan safety beyond counts."
+          },
+          "notes": "deny-like analog: missing critical fields prevents safe evaluation"
+        },
+        {
+          "kind": "github_repo",
+          "title": "Terraform issue: incomplete plan JSON extraction edge cases",
+          "url": "https://github.com/hashicorp/terraform/issues/35674",
+          "evidence": {
+            "file_paths": ["issues/35674"],
+            "commit": "n/a",
+            "snippet_description": "Public issue showing practical gaps when expected plan details are absent."
+          },
+          "notes": "supports fail-closed behavior when context is incomplete"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "ops.mass_delete",
+      "candidates": [
+        {
+          "kind": "incident_writeup",
+          "title": "Amazon S3 service disruption summary (2017-02-28)",
+          "url": "https://aws.amazon.com/message/41926/",
+          "evidence": {
+            "file_paths": [],
+            "commit": "n/a",
+            "snippet_description": "Incident attributed to an incorrect command that removed more servers than intended."
+          },
+          "notes": "deny-like: destructive scope exceeded safe threshold"
+        },
+        {
+          "kind": "incident_writeup",
+          "title": "GitLab database incident postmortem",
+          "url": "https://about.gitlab.com/blog/2017/02/01/gitlab-dot-com-database-incident/",
+          "evidence": {
+            "file_paths": [],
+            "commit": "n/a",
+            "snippet_description": "Production data deletion during ops activity highlights need for hard guardrails."
+          },
+          "notes": "supports strict controls for mass destructive actions"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "ops.public_exposure",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "AWS S3 Block Public Access",
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+          "evidence": {
+            "file_paths": ["access-control-block-public-access.html"],
+            "commit": "latest",
+            "snippet_description": "Canonical guidance for preventing unintended public exposure in S3."
+          },
+          "notes": "deny-like: public exposure without explicit approval"
+        },
+        {
+          "kind": "incident_writeup",
+          "title": "Verizon customer records leak linked to public S3 bucket",
+          "url": "https://www.forbes.com/sites/leemathews/2017/07/13/millions-of-verizon-customers-exposed-by-third-party-leak/",
+          "evidence": {
+            "file_paths": [],
+            "commit": "n/a",
+            "snippet_description": "Public incident coverage of data exposure caused by public cloud storage configuration."
+          },
+          "notes": "real-world impact for public exposure misconfigurations"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "ops.terraform_metadata_only",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Terraform JSON output format",
+          "url": "https://developer.hashicorp.com/terraform/internals/json-format",
+          "evidence": {
+            "file_paths": ["terraform/internals/json-format"],
+            "commit": "latest",
+            "snippet_description": "Specifies rich change model fields needed for policy-grade evaluation."
+          },
+          "notes": "deny-like analog: metadata-only payload cannot drive deep security checks"
+        },
+        {
+          "kind": "github_repo",
+          "title": "Terraform issue: missing details in expected JSON structures",
+          "url": "https://github.com/hashicorp/terraform/issues/35674",
+          "evidence": {
+            "file_paths": ["issues/35674"],
+            "commit": "n/a",
+            "snippet_description": "Demonstrates real-world scenarios where expected semantic fields are absent."
+          },
+          "notes": "supports separate guard for shallow/metadata-only inputs"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "ops.truncated_context",
+      "candidates": [],
+      "notes": "This rule is adapter-specific (truncation flags like resource_changes_truncated). Public Terraform docs describe JSON structure but do not provide stable, real-world corpora carrying these exact truncation marker fields.",
+      "status": "no_public_candidates"
+    },
+    {
+      "rule_id": "ops.unapproved_change",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "Amazon EKS Argo CD application workflow",
+          "url": "https://docs.aws.amazon.com/eks/latest/userguide/argocd-create-application.html",
+          "evidence": {
+            "file_paths": ["argocd-create-application.html"],
+            "commit": "latest",
+            "snippet_description": "Shows explicit sync controls and operational approval points before deployment."
+          },
+          "notes": "allow-like: controlled promotion/sync in production"
+        },
+        {
+          "kind": "incident_writeup",
+          "title": "GitLab database incident postmortem",
+          "url": "https://about.gitlab.com/blog/2017/02/01/gitlab-dot-com-database-incident/",
+          "evidence": {
+            "file_paths": [],
+            "commit": "n/a",
+            "snippet_description": "Incident emphasizes procedural controls and approvals for production-impacting changes."
+          },
+          "notes": "deny-like: unapproved production operations"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "ops.unknown_destructive",
+      "candidates": [],
+      "notes": "Rule enforces Evidra's internal allowlist model for operation kinds. Public sources discuss fail-closed design generally, but no concrete external dataset maps 1:1 to Evidra kind vocabulary and safe-suffix logic.",
+      "status": "no_public_candidates"
+    },
+    {
+      "rule_id": "sys.unlabeled_deny",
+      "candidates": [],
+      "notes": "Hint-only internal quality label for policy authoring (not a domain misconfiguration rule). No external corpus maps to unlabeled deny emissions in Evidra's decision aggregator.",
+      "status": "no_public_candidates"
+    },
+    {
+      "rule_id": "terraform.iam_wildcard_policy",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "tfsec: no-policy-wildcards",
+          "url": "https://aquasecurity.github.io/tfsec/v1.28.13/checks/aws/iam/no-policy-wildcards/",
+          "evidence": {
+            "file_paths": ["checks/aws/iam/no-policy-wildcards"],
+            "commit": "v1.28.13",
+            "snippet_description": "Insecure and secure Terraform policy statement examples with wildcard action/resource."
+          },
+          "notes": "deny-like: wildcard in IAM statement"
+        },
+        {
+          "kind": "docs_example",
+          "title": "AWS IAM security best practices",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+          "evidence": {
+            "file_paths": ["best-practices.html"],
+            "commit": "latest",
+            "snippet_description": "Least-privilege guidance for narrowing policy statements."
+          },
+          "notes": "allow-like: scoped IAM statements"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "terraform.s3_public_access",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "tfsec: block-public-policy",
+          "url": "https://aquasecurity.github.io/tfsec/v1.28.13/checks/aws/s3/block-public-policy/",
+          "evidence": {
+            "file_paths": ["checks/aws/s3/block-public-policy"],
+            "commit": "v1.28.13",
+            "snippet_description": "Terraform examples for enabling/disabling block public policy settings."
+          },
+          "notes": "deny-like: incomplete block public access configuration"
+        },
+        {
+          "kind": "docs_example",
+          "title": "AWS S3 Block Public Access",
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+          "evidence": {
+            "file_paths": ["access-control-block-public-access.html"],
+            "commit": "latest",
+            "snippet_description": "Defines all four block-public-access controls and their effects."
+          },
+          "notes": "allow-like: all controls enabled"
+        }
+      ],
+      "status": "found_candidates"
+    },
+    {
+      "rule_id": "terraform.sg_open_world",
+      "candidates": [
+        {
+          "kind": "docs_example",
+          "title": "tfsec: no-public-ingress-sgr",
+          "url": "https://aquasecurity.github.io/tfsec/v1.6.2/checks/aws/ec2/no-public-ingress-sgr/",
+          "evidence": {
+            "file_paths": ["checks/aws/ec2/no-public-ingress-sgr"],
+            "commit": "v1.6.2",
+            "snippet_description": "Shows insecure world-open ingress and secure restricted CIDR alternatives."
+          },
+          "notes": "deny-like: ingress from 0.0.0.0/0"
+        },
+        {
+          "kind": "docs_example",
+          "title": "AWS Control Tower EC2 high-risk port control",
+          "url": "https://docs.aws.amazon.com/controltower/latest/controlreference/ec2-rules.html",
+          "evidence": {
+            "file_paths": ["controlreference/ec2-rules.html"],
+            "commit": "latest",
+            "snippet_description": "Control includes detection of 0.0.0.0/0 on high-risk ports including 22 and 3389."
+          },
+          "notes": "allow-like: high-risk ports must not be world-open"
+        }
+      ],
+      "status": "found_candidates"
+    }
+  ]
+}

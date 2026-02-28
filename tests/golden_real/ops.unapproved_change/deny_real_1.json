@@ -1,0 +1,13 @@
+{
+  "scenario_id": "golden-real/ops.unapproved_change/deny_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "kubectl.apply",
+    "target": {"namespace": "prod"},
+    "intent": "apply prod config",
+    "payload": {"namespace": "prod", "resource": "configmap"},
+    "risk_tags": []
+  }]
+}

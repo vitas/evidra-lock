@@ -1,0 +1,13 @@
+{
+  "scenario_id": "golden-real/ops.public_exposure/allow_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "terraform.plan",
+    "target": {"dir": "./infra"},
+    "intent": "approved public exposure",
+    "payload": {"publicly_exposed": true},
+    "risk_tags": ["approved_public"]
+  }]
+}

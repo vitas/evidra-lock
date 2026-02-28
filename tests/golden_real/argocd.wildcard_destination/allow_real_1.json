@@ -1,0 +1,13 @@
+{
+  "scenario_id": "golden-real/argocd.wildcard_destination/allow_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "argocd.project",
+    "target": {"name": "payments-project"},
+    "intent": "update project",
+    "payload": {"name": "payments-project", "destinations": [{"namespace": "payments", "server": "https://kubernetes.default.svc"}]},
+    "risk_tags": []
+  }]
+}

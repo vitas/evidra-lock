@@ -1,0 +1,18 @@
+{
+  "scenario_id": "golden-real/ops.terraform_metadata_only/allow_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "terraform.apply",
+    "target": {"dir": "./infra"},
+    "intent": "apply with deep fields",
+    "payload": {
+      "resource_count": 12,
+      "destroy_count": 2,
+      "resource_types": ["aws_security_group"],
+      "security_group_rules": [{"type": "ingress", "from_port": 443, "to_port": 443, "cidr_blocks": ["10.0.0.0/16"]}]
+    },
+    "risk_tags": []
+  }]
+}

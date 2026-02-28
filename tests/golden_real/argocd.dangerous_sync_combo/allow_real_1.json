@@ -1,0 +1,13 @@
+{
+  "scenario_id": "golden-real/argocd.dangerous_sync_combo/allow_real_1",
+  "actor": {"type": "human", "id": "golden-real", "origin": "ci"},
+  "source": "cli",
+  "timestamp": "2026-02-28T00:00:00Z",
+  "actions": [{
+    "kind": "argocd.sync",
+    "target": {"name": "payments-api"},
+    "intent": "sync app",
+    "payload": {"app_name": "payments-api", "sync_policy": {"automated": {"prune": true, "self_heal": false}}},
+    "risk_tags": []
+  }]
+}
