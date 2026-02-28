@@ -141,9 +141,8 @@
 
 /* ── TERMINAL ─────────────────────────────── */
 
-.landing .terminal-section {
-  padding: 48px 0;
-  border-bottom: 1px solid var(--border);
+.landing .hero-terminal {
+  margin: 32px 0;
 }
 
 .landing .section-label {
@@ -198,6 +197,210 @@
 .landing .t-deny { color: #ef4444; font-weight: 700; }
 .landing .t-allow { color: #4ade80; }
 .landing .t-key { color: #888; }
+
+/* ── HOSTED MCP ───────────────────────────── */
+
+.landing .hosted-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.landing .hosted-section h2 {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.landing .hosted-note {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.8;
+  margin-top: 16px;
+}
+
+.landing .hosted-note a {
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.landing .hosted-note a:hover {
+  color: var(--text);
+}
+
+.landing .hosted-links {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 16px;
+}
+
+.landing .hosted-links a {
+  color: var(--text-dim);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.landing .hosted-links a:hover {
+  color: var(--text);
+  border-bottom-color: var(--text-dim);
+}
+
+/* ── PROMPTS TABLE ────────────────────────── */
+
+.landing .prompts-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.landing .prompts-section h2 {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.landing .prompts-intro {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+}
+
+.landing .prompts-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.landing .prompts-table th {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.landing .prompt-row {
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--border);
+}
+
+.landing .prompt-row:last-child {
+  border-bottom: none;
+}
+
+.landing .prompt-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.landing .prompt-row td {
+  padding: 14px 16px;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.landing .prompt-text {
+  position: relative;
+}
+
+.landing .prompt-text code {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.landing .prompt-copy-hint {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  margin-top: 2px;
+}
+
+.landing .prompt-row:hover .prompt-copy-hint {
+  opacity: 1;
+}
+
+.landing .prompt-copy-hint--copied {
+  opacity: 1;
+  color: var(--green);
+}
+
+.landing .prompt-row--allow {
+  background: rgba(34, 197, 94, 0.05);
+  border-left: 3px solid #22c55e;
+}
+
+.landing .prompt-row--allow:hover {
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.landing .prompt-rule {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.landing .prompts-note {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-top: 16px;
+}
+
+.landing .prompts-note strong {
+  color: var(--text);
+}
+
+.landing .badge--danger {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red);
+}
+
+.landing .badge--success {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--green);
+}
+
+/* ── REPEAT CTA ───────────────────────────── */
+
+.landing .repeat-cta {
+  text-align: center;
+  padding: 24px 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.landing .repeat-cta a {
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.landing .repeat-cta a:hover {
+  color: var(--text);
+}
 
 /* ── SCENARIOS ────────────────────────────── */
 
@@ -522,6 +725,13 @@
   color: var(--text);
 }
 
+.landing .mcp-note {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 20px;
+  font-style: italic;
+}
+
 /* ── CI / GITOPS ───────────────────────────── */
 
 .landing .ci-section {
@@ -678,4 +888,7 @@
   .landing .scenario-cmd { text-align: left; }
   .landing .levels-grid { grid-template-columns: 1fr; }
   .landing .mcp-points { grid-template-columns: 1fr; }
+  .landing .prompts-table th:nth-child(3),
+  .landing .prompts-table td:nth-child(3) { display: none; }
+  .landing .prompts-table { font-size: 0.8rem; }
 }

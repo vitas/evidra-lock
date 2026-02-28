@@ -6,16 +6,72 @@ import { CodeBlock } from "../components/CodeBlock";
 import { InlineError } from "../components/InlineError";
 import "../styles/console.css";
 
-type Track = "mcp" | "api";
+type Track = "hosted" | "api";
 type EditorTab = "claude-code" | "claude-desktop" | "cursor" | "codex" | "gemini";
 
 interface ConsoleProps {
   onKeyCreated: () => void;
 }
 
-const mcpClaudeCode = `claude mcp add evidra evidra-mcp`;
+const HOSTED_URL = "https://evidra.samebits.com/mcp";
 
-const mcpClaudeDesktop = `{
+function hostedClaudeCode(apiKey?: string) {
+  if (apiKey) {
+    return `claude mcp add evidra --url ${HOSTED_URL} --header "Authorization: Bearer ${apiKey}"`;
+  }
+  return `claude mcp add evidra --url ${HOSTED_URL}`;
+}
+
+function hostedClaudeDesktop(apiKey?: string) {
+  const headers = apiKey
+    ? `\n      "headers": {\n        "Authorization": "Bearer ${apiKey}"\n      }`
+    : "";
+  return `{
+  "mcpServers": {
+    "evidra": {
+      "url": "${HOSTED_URL}"${headers ? "," : ""}${headers}
+    }
+  }
+}`;
+}
+
+function hostedCursor(apiKey?: string) {
+  const headers = apiKey
+    ? `\n      "headers": {\n        "Authorization": "Bearer ${apiKey}"\n      }`
+    : "";
+  return `{
+  "mcpServers": {
+    "evidra": {
+      "url": "${HOSTED_URL}"${headers ? "," : ""}${headers}
+    }
+  }
+}`;
+}
+
+function hostedCodex(apiKey?: string) {
+  const headerLine = apiKey
+    ? `\nheaders = { "Authorization" = "Bearer ${apiKey}" }`
+    : "";
+  return `[mcp_servers.evidra]
+url = "${HOSTED_URL}"${headerLine}`;
+}
+
+function hostedGemini(apiKey?: string) {
+  const headers = apiKey
+    ? `\n      "headers": {\n        "Authorization": "Bearer ${apiKey}"\n      }`
+    : "";
+  return `{
+  "mcpServers": {
+    "evidra": {
+      "url": "${HOSTED_URL}"${headers ? "," : ""}${headers}
+    }
+  }
+}`;
+}
+
+const localClaudeCode = `claude mcp add evidra evidra-mcp`;
+
+const localClaudeDesktop = `{
   "mcpServers": {
     "evidra": {
       "command": "evidra-mcp",
@@ -24,7 +80,7 @@ const mcpClaudeDesktop = `{
   }
 }`;
 
-const mcpCursor = `{
+const localCursor = `{
   "mcpServers": {
     "evidra": {
       "command": "evidra-mcp",
@@ -33,10 +89,10 @@ const mcpCursor = `{
   }
 }`;
 
-const mcpCodex = `[mcp_servers.evidra]
+const localCodex = `[mcp_servers.evidra]
 command = "evidra-mcp"`;
 
-const mcpGemini = `{
+const localGemini = `{
   "mcpServers": {
     "evidra": {
       "command": "evidra-mcp",
@@ -53,13 +109,13 @@ const editorTabs: { id: EditorTab; label: string }[] = [
   { id: "gemini", label: "Gemini CLI" },
 ];
 
-function EditorConfig({ editor }: { editor: EditorTab }) {
+function HostedEditorConfig({ editor, apiKey }: { editor: EditorTab; apiKey?: string }) {
   switch (editor) {
     case "claude-code":
       return (
         <>
           <p>Run in your terminal:</p>
-          <CodeBlock code={mcpClaudeCode} />
+          <CodeBlock code={hostedClaudeCode(apiKey)} />
         </>
       );
     case "claude-desktop":
@@ -71,14 +127,62 @@ function EditorConfig({ editor }: { editor: EditorTab }) {
             <code>Linux: ~/.config/Claude/claude_desktop_config.json</code><br />
             <code>Windows: %APPDATA%\Claude\claude_desktop_config.json</code>
           </p>
-          <CodeBlock code={mcpClaudeDesktop} />
+          <CodeBlock code={hostedClaudeDesktop(apiKey)} />
         </>
       );
     case "cursor":
       return (
         <>
           <p>Add to <code>.cursor/mcp.json</code>:</p>
-          <CodeBlock code={mcpCursor} />
+          <CodeBlock code={hostedCursor(apiKey)} />
+        </>
+      );
+    case "codex":
+      return (
+        <>
+          <p>
+            CLI: <code>codex mcp add evidra -- --url {HOSTED_URL}</code>
+          </p>
+          <p>Or edit <code>~/.codex/config.toml</code>:</p>
+          <CodeBlock code={hostedCodex(apiKey)} />
+        </>
+      );
+    case "gemini":
+      return (
+        <>
+          <p>Add to <code>~/.gemini/settings.json</code>:</p>
+          <CodeBlock code={hostedGemini(apiKey)} />
+        </>
+      );
+  }
+}
+
+function LocalEditorConfig({ editor }: { editor: EditorTab }) {
+  switch (editor) {
+    case "claude-code":
+      return (
+        <>
+          <p>Run in your terminal:</p>
+          <CodeBlock code={localClaudeCode} />
+        </>
+      );
+    case "claude-desktop":
+      return (
+        <>
+          <p className="config-path-note">
+            Config file location:<br />
+            <code>macOS: ~/Library/Application Support/Claude/claude_desktop_config.json</code><br />
+            <code>Linux: ~/.config/Claude/claude_desktop_config.json</code><br />
+            <code>Windows: %APPDATA%\Claude\claude_desktop_config.json</code>
+          </p>
+          <CodeBlock code={localClaudeDesktop} />
+        </>
+      );
+    case "cursor":
+      return (
+        <>
+          <p>Add to <code>.cursor/mcp.json</code>:</p>
+          <CodeBlock code={localCursor} />
         </>
       );
     case "codex":
@@ -88,14 +192,14 @@ function EditorConfig({ editor }: { editor: EditorTab }) {
             CLI: <code>codex mcp add evidra -- evidra-mcp</code>
           </p>
           <p>Or edit <code>~/.codex/config.toml</code>:</p>
-          <CodeBlock code={mcpCodex} />
+          <CodeBlock code={localCodex} />
         </>
       );
     case "gemini":
       return (
         <>
           <p>Add to <code>~/.gemini/settings.json</code>:</p>
-          <CodeBlock code={mcpGemini} />
+          <CodeBlock code={localGemini} />
         </>
       );
   }
@@ -103,8 +207,9 @@ function EditorConfig({ editor }: { editor: EditorTab }) {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
-  const [track, setTrack] = useState<Track>("mcp");
+  const [track, setTrack] = useState<Track>("hosted");
   const [editor, setEditor] = useState<EditorTab>("claude-code");
+  const [localEditor, setLocalEditor] = useState<EditorTab>("claude-code");
   const [label, setLabel] = useState("");
   const [loading, setLoading] = useState(false);
   const [keyData, setKeyData] = useState<KeyResponse | null>(null);
@@ -159,10 +264,10 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
       <div className="track-selector">
         <button
           type="button"
-          className={`track-btn${track === "mcp" ? " track-btn--active" : ""}`}
-          onClick={() => setTrack("mcp")}
+          className={`track-btn${track === "hosted" ? " track-btn--active" : ""}`}
+          onClick={() => setTrack("hosted")}
         >
-          AI Agent (MCP)
+          Hosted (no install)
         </button>
         <button
           type="button"
@@ -173,54 +278,113 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
         </button>
       </div>
 
-      {track === "mcp" ? (
+      {track === "hosted" ? (
         <div className="track-content">
-          <h2>MCP Setup</h2>
+          <h2>Hosted MCP</h2>
           <p>
-            The MCP server runs locally and evaluates policy before every
-            destructive operation. No API key needed for local mode.
+            Connect your editor to the hosted Evidra endpoint. No install needed.
+            Policy evaluates in the cloud — every decision signed and returned.
           </p>
 
-          <h3>1. Install</h3>
-          <CodeBlock code={`brew install evidra/tap/evidra-mcp`} />
-          <p>
-            Or: <code>go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
-          </p>
+          {!keyData ? (
+            <>
+              <p>Generate a key to connect your editor:</p>
+              <div className="key-form">
+                <input
+                  type="text"
+                  placeholder="Label (optional, e.g. my-laptop)"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                />
+                <button type="button" onClick={handleGetKey} disabled={loading}>
+                  {loading ? "Creating..." : "Get Key"}
+                </button>
+              </div>
+              <p className="rate-limit-note">3 keys per hour per IP address.</p>
+            </>
+          ) : (
+            <>
+              <div className="key-result">
+                <div className="key-value">
+                  <code>{keyData.key}</code>
+                  <CopyButton text={keyData.key} />
+                </div>
+                <div className="key-warning">
+                  Save this key — it won't be shown again
+                </div>
+              </div>
 
-          <h3>2. Add to your editor</h3>
+              <h3>Add to your editor</h3>
+              <div className="editor-tabs">
+                {editorTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={`editor-tab${editor === tab.id ? " editor-tab--active" : ""}`}
+                    onClick={() => setEditor(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="editor-tab-content">
+                <HostedEditorConfig editor={editor} apiKey={keyData.key} />
+              </div>
 
-          <div className="editor-tabs">
-            {editorTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={`editor-tab${editor === tab.id ? " editor-tab--active" : ""}`}
-                onClick={() => setEditor(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="editor-tab-content">
-            <EditorConfig editor={editor} />
-          </div>
+              <p>
+                Restart your editor. Try: <em>"Delete all pods in kube-system"</em>
+              </p>
+            </>
+          )}
 
-          <h3>3. Verify</h3>
-          <p>
-            Test a <strong>deny</strong>: <em>"Validate kubectl.delete in kube-system"</em> — should
-            return <code>allow: false</code>.
-          </p>
-          <p>
-            Test an <strong>allow</strong>: <em>"Validate kubectl.get pods in default"</em> — should
-            return <code>allow: true</code>.
-          </p>
-          <p>
-            Both correct? You're set. <a href="#docs">Full setup guide</a>
-          </p>
-          <p className="optional-note">
-            Optional: store evidence locally with{" "}
-            <code>evidra-mcp --offline --evidence-dir ~/.evidra</code>
-          </p>
+          {error && (
+            <InlineError
+              message={error}
+              onRetry={handleGetKey}
+            />
+          )}
+
+          <details className="local-fallback">
+            <summary>Or install locally (offline, no key needed)</summary>
+            <div className="local-fallback-content">
+              <h3>1. Install</h3>
+              <CodeBlock code={`brew install evidra/tap/evidra-mcp`} />
+              <p>
+                Or: <code>go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
+              </p>
+
+              <h3>2. Add to your editor</h3>
+              <div className="editor-tabs">
+                {editorTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={`editor-tab${localEditor === tab.id ? " editor-tab--active" : ""}`}
+                    onClick={() => setLocalEditor(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="editor-tab-content">
+                <LocalEditorConfig editor={localEditor} />
+              </div>
+
+              <h3>3. Verify</h3>
+              <p>
+                Test a <strong>deny</strong>: <em>"Validate kubectl.delete in kube-system"</em> — should
+                return <code>allow: false</code>.
+              </p>
+              <p>
+                Test an <strong>allow</strong>: <em>"Validate kubectl.get pods in default"</em> — should
+                return <code>allow: true</code>.
+              </p>
+              <p className="optional-note">
+                Optional: store evidence locally with{" "}
+                <code>evidra-mcp --offline --evidence-dir ~/.evidra</code>
+              </p>
+            </div>
+          </details>
         </div>
       ) : (
         <div className="track-content">
@@ -261,6 +425,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
                   {loading ? "Creating..." : "Get Key"}
                 </button>
               </div>
+              <p className="rate-limit-note">3 keys per hour per IP address.</p>
             </>
           )}
 
