@@ -203,6 +203,92 @@
   border-color: var(--color-text-muted);
 }
 
+/* Track selector */
+
+.track-selector {
+  display: flex;
+  gap: 0;
+  margin-bottom: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.track-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.track-btn:not(:last-child) {
+  border-right: 1px solid var(--color-border);
+}
+
+.track-btn:hover {
+  color: var(--color-text);
+}
+
+.track-btn--active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Track content */
+
+.track-content h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: var(--space-sm);
+}
+
+.track-content h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-top: var(--space-lg);
+  margin-bottom: var(--space-sm);
+}
+
+.track-content p {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: var(--space-sm);
+}
+
+/* Editor config collapsibles */
+
+.editor-config {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-sm);
+}
+
+.editor-config summary {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.editor-config summary:hover {
+  color: var(--color-primary);
+}
+
+.editor-config[open] summary {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.editor-config p {
+  padding: var(--space-sm) var(--space-md) 0;
+}
+
 /* Console footer */
 
 .console-footer {

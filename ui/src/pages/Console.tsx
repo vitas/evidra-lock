@@ -6,12 +6,44 @@ import { CodeBlock } from "../components/CodeBlock";
 import { InlineError } from "../components/InlineError";
 import "../styles/console.css";
 
+type Track = "mcp" | "api";
+
 interface ConsoleProps {
   onKeyCreated: () => void;
 }
 
+const mcpClaudeDesktop = `{
+  "mcpServers": {
+    "evidra": {
+      "command": "evidra-mcp",
+      "args": ["--observe"]
+    }
+  }
+}`;
+
+const mcpClaudeCode = `# .claude/settings.json
+{
+  "mcpServers": {
+    "evidra": {
+      "command": "evidra-mcp",
+      "args": []
+    }
+  }
+}`;
+
+const mcpCursor = `# .cursor/mcp.json
+{
+  "mcpServers": {
+    "evidra": {
+      "command": "evidra-mcp",
+      "args": []
+    }
+  }
+}`;
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
+  const [track, setTrack] = useState<Track>("mcp");
   const [label, setLabel] = useState("");
   const [loading, setLoading] = useState(false);
   const [keyData, setKeyData] = useState<KeyResponse | null>(null);
@@ -38,7 +70,18 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
     ? `curl -X POST https://api.evidra.rest/v1/validate \\
   -H "Authorization: Bearer ${keyData.key}" \\
   -H "Content-Type: application/json" \\
-  -d '{"actor":{"type":"agent","id":"claude"},"tool":"kubectl","operation":"apply","params":{"namespace":"default"}}'`
+  -d '{
+    "actor": {"type":"agent","id":"claude","origin":"ci"},
+    "tool": "kubectl",
+    "operation": "apply",
+    "params": {
+      "action": {
+        "kind": "kubectl.apply",
+        "target": {"namespace":"default"},
+        "payload": {"resource":"configmap"}
+      }
+    }
+  }'`
     : "";
 
   return (
@@ -51,68 +94,133 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
         </p>
       </div>
 
-      {!keyData && (
-        <>
-          <ol className="onboarding-steps">
-            <li>
-              <strong>Generate a key</strong>
-              <p>Click <em>Get Key</em> below. The key is shown once — copy it immediately.</p>
-            </li>
-            <li>
-              <strong>Add it to your agent</strong>
-              <p>
-                Set <code>EVIDRA_API_KEY=&lt;key&gt;</code> in your environment,
-                or pass it as <code>Authorization: Bearer &lt;key&gt;</code> on every request.
-              </p>
-            </li>
-            <li>
-              <strong>Call validate before every apply</strong>
-              <p>
-                Send <code>POST /v1/validate</code> before <code>kubectl apply</code> or{" "}
-                <code>terraform apply</code>. Receive a signed evidence record and store it
-                alongside your change log.
-              </p>
-            </li>
-          </ol>
+      {/* Track selector */}
+      <div className="track-selector">
+        <button
+          type="button"
+          className={`track-btn${track === "mcp" ? " track-btn--active" : ""}`}
+          onClick={() => setTrack("mcp")}
+        >
+          AI Agent (MCP)
+        </button>
+        <button
+          type="button"
+          className={`track-btn${track === "api" ? " track-btn--active" : ""}`}
+          onClick={() => setTrack("api")}
+        >
+          API / CI
+        </button>
+      </div>
 
-          <div className="key-form">
-            <input
-              type="text"
-              placeholder="Label (optional, e.g. prod-agent)"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
+      {track === "mcp" ? (
+        <div className="track-content">
+          <h2>MCP Setup</h2>
+          <p>
+            The MCP server runs locally and evaluates policy before every
+            destructive operation. No API key needed for local mode.
+          </p>
+
+          <h3>1. Install</h3>
+          <CodeBlock code={`go install samebits.com/evidra/cmd/evidra-mcp@latest`} />
+
+          <h3>2. Configure your editor</h3>
+
+          <details className="editor-config">
+            <summary>Claude Desktop</summary>
+            <p>Add to <code>claude_desktop_config.json</code>:</p>
+            <CodeBlock code={mcpClaudeDesktop} />
+          </details>
+
+          <details className="editor-config">
+            <summary>Claude Code</summary>
+            <p>Add to <code>.claude/settings.json</code>:</p>
+            <CodeBlock code={mcpClaudeCode} />
+          </details>
+
+          <details className="editor-config">
+            <summary>Cursor</summary>
+            <p>Add to <code>.cursor/mcp.json</code>:</p>
+            <CodeBlock code={mcpCursor} />
+          </details>
+
+          <h3>3. Verify</h3>
+          <p>
+            Ask the agent: <em>"What tools does evidra provide?"</em> — it should
+            list <code>validate</code> and <code>get_event</code>.
+          </p>
+          <p>
+            Then test a deny: <em>"Validate kubectl.delete in kube-system"</em> — it
+            should return <code>allow: false</code>.
+          </p>
+        </div>
+      ) : (
+        <div className="track-content">
+          <h2>API Setup</h2>
+
+          {!keyData && (
+            <>
+              <ol className="onboarding-steps">
+                <li>
+                  <strong>Generate a key</strong>
+                  <p>Click <em>Get Key</em> below. The key is shown once — copy it immediately.</p>
+                </li>
+                <li>
+                  <strong>Add it to your agent</strong>
+                  <p>
+                    Set <code>EVIDRA_API_KEY=&lt;key&gt;</code> in your environment,
+                    or pass it as <code>Authorization: Bearer &lt;key&gt;</code> on every request.
+                  </p>
+                </li>
+                <li>
+                  <strong>Call validate before every apply</strong>
+                  <p>
+                    Send <code>POST /v1/validate</code> before <code>kubectl apply</code> or{" "}
+                    <code>terraform apply</code>. Receive a signed evidence record and store it
+                    alongside your change log.
+                  </p>
+                </li>
+              </ol>
+
+              <div className="key-form">
+                <input
+                  type="text"
+                  placeholder="Label (optional, e.g. prod-agent)"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                />
+                <button type="button" onClick={handleGetKey} disabled={loading}>
+                  {loading ? "Creating..." : "Get Key"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {error && (
+            <InlineError
+              message={error}
+              onRetry={handleGetKey}
             />
-            <button type="button" onClick={handleGetKey} disabled={loading}>
-              {loading ? "Creating..." : "Get Key"}
-            </button>
-          </div>
-        </>
-      )}
+          )}
 
-      {error && (
-        <InlineError
-          message={error}
-          onRetry={handleGetKey}
-        />
-      )}
+          {keyData && (
+            <>
+              <div className="key-result">
+                <div className="key-value">
+                  <code>{keyData.key}</code>
+                  <CopyButton text={keyData.key} />
+                </div>
+                <div className="key-warning">
+                  Save this key — it won't be shown again
+                </div>
+              </div>
 
-      {keyData && (
-        <>
-          <div className="key-result">
-            <div className="key-value">
-              <code>{keyData.key}</code>
-              <CopyButton text={keyData.key} />
-            </div>
-            <div className="key-warning">
-              Save this key — it won't be shown again
-            </div>
-          </div>
-
-          <div className="quick-start">
-            <h3>Quick start:</h3>
-            <CodeBlock code={curlExample} />
-          </div>
-        </>
+              <div className="quick-start">
+                <h3>Quick start:</h3>
+                <CodeBlock code={curlExample} />
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       <footer className="console-footer">

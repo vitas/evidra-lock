@@ -52,9 +52,9 @@ type ActionResult struct {
 type Result struct {
 	Pass          bool
 	RiskLevel     string
-	EvidenceID    string         // Single-action shortcut (most common case)
-	EvidenceIDs   []string       // All evidence IDs for multi-action scenarios
-	RequestIDs    []string       // X-Request-ID per API call (online only, empty in offline)
+	EvidenceID    string   // Single-action shortcut (most common case)
+	EvidenceIDs   []string // All evidence IDs for multi-action scenarios
+	RequestIDs    []string // X-Request-ID per API call (online only, empty in offline)
 	Reasons       []string
 	RuleIDs       []string
 	Hints         []string

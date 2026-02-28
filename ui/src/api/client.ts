@@ -40,7 +40,7 @@ async function request<T>(
     throw new ApiError(res.status, "parse_error", res.statusText || "unexpected response from server");
   }
 
-  if (!res.ok || data.ok === false) {
+  if (!res.ok) {
     // Server returns either {"error": "msg"} (flat) or {"error": {"code":"...","message":"..."}} (object).
     const errField = data.error;
     const msg =

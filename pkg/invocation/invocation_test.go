@@ -189,6 +189,41 @@ func TestValidateStructure_AllKnownKeysPass(t *testing.T) {
 	}
 }
 
+func TestValidateStructure_ActionKeyAccepted(t *testing.T) {
+	t.Parallel()
+	ti := ToolInvocation{
+		Actor: Actor{Type: "agent", ID: "claude", Origin: "cli"},
+		Tool:  "kubectl", Operation: "apply",
+		Params: map[string]interface{}{
+			KeyAction: map[string]interface{}{
+				"kind":   "kubectl.apply",
+				"target": map[string]interface{}{"namespace": "default"},
+			},
+		},
+	}
+	if err := ti.ValidateStructure(); err != nil {
+		t.Fatalf("expected action key to be accepted, got: %v", err)
+	}
+}
+
+func TestValidateStructure_InvalidActionFails(t *testing.T) {
+	t.Parallel()
+	ti := ToolInvocation{
+		Actor: Actor{Type: "agent", ID: "claude", Origin: "cli"},
+		Tool:  "kubectl", Operation: "apply",
+		Params: map[string]interface{}{
+			KeyAction: "not-a-map",
+		},
+	}
+	err := ti.ValidateStructure()
+	if err == nil {
+		t.Fatal("expected validation error for invalid action, got nil")
+	}
+	if err.Error() != "field 'action' must be a JSON object" {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
 func TestValidateStructure_InvalidRiskTagsFails(t *testing.T) {
 	ti := ToolInvocation{
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},

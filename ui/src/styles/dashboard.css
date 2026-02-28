@@ -382,6 +382,124 @@
   padding: var(--space-sm) 0;
 }
 
+/* Result details */
+
+.result-reasons,
+.result-hints {
+  margin-bottom: var(--space-sm);
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.result-reasons ul,
+.result-hints ul {
+  margin: var(--space-xs) 0 0 var(--space-md);
+  padding: 0;
+}
+
+.result-reasons li,
+.result-hints li {
+  margin-bottom: 2px;
+}
+
+.result-rules {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+  font-size: 0.8125rem;
+}
+
+.result-rules code {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.75rem;
+}
+
+.result-label {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: var(--space-xs);
+}
+
+/* Action results (v0.2.0+) */
+
+.result-actions {
+  margin: var(--space-md) 0;
+}
+
+.action-result {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-sm) var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.action-result--denied {
+  border-color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.action-result-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.action-result-header code {
+  font-size: 0.8125rem;
+}
+
+.action-result-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+}
+
+.action-result-rules code {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.75rem;
+}
+
+.action-result-reasons,
+.action-result-hints {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.action-result-reasons span,
+.action-result-hints span {
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Event ID link in recent evals */
+
+.event-id-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0;
+  cursor: pointer;
+}
+
+.event-id-link:hover {
+  text-decoration: underline;
+}
+
 /* Public key */
 
 .pubkey-loading {

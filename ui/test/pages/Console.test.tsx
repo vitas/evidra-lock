@@ -8,12 +8,22 @@ describe("Console", () => {
     global.fetch = vi.fn();
   });
 
-  it("shows key after successful creation", async () => {
+  it("shows track selector", () => {
+    render(<Console onKeyCreated={vi.fn()} />);
+    expect(screen.getByText(/ai agent \(mcp\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/api \/ ci/i)).toBeInTheDocument();
+  });
+
+  it("shows MCP setup by default", () => {
+    render(<Console onKeyCreated={vi.fn()} />);
+    expect(screen.getByText(/mcp setup/i)).toBeInTheDocument();
+  });
+
+  it("shows key after successful creation in API track", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
-          ok: true,
           key: "ev1_testkey123456789012345678901234567890",
           prefix: "ev1_testkey1",
           tenant_id: "01J...",
@@ -21,6 +31,8 @@ describe("Console", () => {
     });
 
     render(<Console onKeyCreated={vi.fn()} />);
+    // Switch to API track
+    await userEvent.click(screen.getByText(/api \/ ci/i));
     await userEvent.click(screen.getByRole("button", { name: /get key/i }));
 
     await waitFor(() => {
@@ -28,19 +40,19 @@ describe("Console", () => {
     });
   });
 
-  it("shows error on rate limit", async () => {
+  it("shows error on rate limit in API track", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false,
       status: 429,
       statusText: "Too Many Requests",
       json: () =>
         Promise.resolve({
-          ok: false,
           error: { code: "rate_limited", message: "Too many requests" },
         }),
     });
 
     render(<Console onKeyCreated={vi.fn()} />);
+    await userEvent.click(screen.getByText(/api \/ ci/i));
     await userEvent.click(screen.getByRole("button", { name: /get key/i }));
 
     await waitFor(() => {
@@ -53,7 +65,6 @@ describe("Console", () => {
       ok: true,
       json: () =>
         Promise.resolve({
-          ok: true,
           key: "ev1_secret",
           prefix: "ev1_secr",
           tenant_id: "t1",
@@ -61,6 +72,7 @@ describe("Console", () => {
     });
 
     render(<Console onKeyCreated={vi.fn()} />);
+    await userEvent.click(screen.getByText(/api \/ ci/i));
     await userEvent.click(screen.getByRole("button", { name: /get key/i }));
 
     expect(localStorage.getItem("evidra_api_key")).toBeNull();

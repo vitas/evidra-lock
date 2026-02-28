@@ -29,6 +29,14 @@ func handleValidate(eng *engine.Adapter, signer *evidence.Signer, builderCfg evi
 			return
 		}
 
+		// Convert flat params (target/payload/risk_tags) to canonical action format
+		// so OPA action-based rules fire correctly.
+		if inv.Params != nil {
+			if _, hasAction := inv.Params["action"]; !hasAction {
+				buildCanonicalAction(&inv)
+			}
+		}
+
 		if err := validatePayloadFields(inv); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -93,6 +101,33 @@ func validatePayloadFields(inv invocation.ToolInvocation) error {
 		}
 	}
 	return nil
+}
+
+// buildCanonicalAction converts flat params (target, payload, risk_tags) into
+// the canonical params.action format that OPA action-based rules expect.
+// It builds action.kind from tool + "." + operation, moves target/payload/risk_tags
+// into the action map, and preserves scenario_id at the top level.
+func buildCanonicalAction(inv *invocation.ToolInvocation) {
+	action := map[string]interface{}{
+		"kind": inv.Tool + "." + inv.Operation,
+	}
+	if v, ok := inv.Params["target"]; ok {
+		action["target"] = v
+	}
+	if v, ok := inv.Params["payload"]; ok {
+		action["payload"] = v
+	}
+	if v, ok := inv.Params["risk_tags"]; ok {
+		action["risk_tags"] = v
+	}
+
+	newParams := map[string]interface{}{
+		"action": action,
+	}
+	if v, ok := inv.Params["scenario_id"]; ok {
+		newParams["scenario_id"] = v
+	}
+	inv.Params = newParams
 }
 
 // isValidationError returns true if the error originated from ValidateStructure.

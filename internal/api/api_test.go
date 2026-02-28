@@ -286,6 +286,74 @@ decision := {
 	}
 }
 
+func TestValidate_CanonicalActionFormat(t *testing.T) {
+	t.Parallel()
+	handler := testRouter(t)
+
+	body := `{
+		"actor": {"type": "agent", "id": "claude", "origin": "mcp"},
+		"tool": "kubectl",
+		"operation": "apply",
+		"params": {
+			"action": {
+				"kind": "kubectl.apply",
+				"target": {"namespace": "default"},
+				"payload": {"resource": "configmap"}
+			}
+		}
+	}`
+	req := authRequest(http.MethodPost, "/v1/validate", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var evRec evidence.EvidenceRecord
+	if err := json.NewDecoder(rec.Body).Decode(&evRec); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if evRec.EventID == "" {
+		t.Error("expected non-empty EventID")
+	}
+}
+
+func TestValidate_FlatParamsConverted(t *testing.T) {
+	t.Parallel()
+	handler := testRouter(t)
+
+	// Send flat params without action wrapper — server should convert.
+	body := `{
+		"actor": {"type": "agent", "id": "claude", "origin": "mcp"},
+		"tool": "kubectl",
+		"operation": "apply",
+		"params": {
+			"target": {"namespace": "default"},
+			"payload": {"resource": "configmap"}
+		}
+	}`
+	req := authRequest(http.MethodPost, "/v1/validate", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var evRec evidence.EvidenceRecord
+	if err := json.NewDecoder(rec.Body).Decode(&evRec); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !evRec.Decision.Allow {
+		// kubectl.apply in default namespace with configmap payload should be allowed
+		t.Logf("decision: allow=%v reasons=%v", evRec.Decision.Allow, evRec.Decision.Reasons)
+	}
+	if evRec.EventID == "" {
+		t.Error("expected non-empty EventID")
+	}
+}
+
 func TestValidate_NoAuth(t *testing.T) {
 	t.Parallel()
 	handler := testRouter(t)

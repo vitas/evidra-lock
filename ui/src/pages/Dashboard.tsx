@@ -14,22 +14,35 @@ type Mode = "simple" | "advanced";
 
 interface RecentEval {
   time: string;
-  tool: string;
-  operation: string;
+  eventId: string;
+  kind: string;
   allow: boolean;
+  riskLevel: string;
+  ruleIds: string[];
+  rawEvidence: string;
 }
 
-const TOOL_OPTIONS = ["kubectl", "terraform", "helm"];
+const TOOL_OPTIONS = ["kubectl", "terraform", "helm", "argocd"];
 
 const OP_OPTIONS: Record<string, string[]> = {
   kubectl: ["apply", "delete", "get", "patch"],
   terraform: ["plan", "apply", "destroy"],
   helm: ["install", "upgrade", "uninstall"],
+  argocd: ["sync", "rollback", "terminate-op"],
 };
 
-function parseActor(input: string) {
+const WORKLOAD_KINDS = new Set([
+  "deployment", "pod", "statefulset", "daemonset", "replicaset", "job", "cronjob",
+]);
+
+const RESOURCE_KINDS = [
+  "deployment", "pod", "statefulset", "daemonset", "job", "service", "configmap",
+];
+
+function parseActor(input: string): { type: string; id: string; origin: string } {
   const [type, ...rest] = input.split(":");
-  return { type: type || "agent", id: rest.join(":") || input };
+  const id = rest.join(":") || input;
+  return { type: type || "agent", id, origin: "web-ui" };
 }
 
 export function Dashboard() {
@@ -41,6 +54,8 @@ export function Dashboard() {
   const [customTool, setCustomTool] = useState("");
   const [operation, setOperation] = useState("apply");
   const [namespace, setNamespace] = useState("default");
+  const [resourceKind, setResourceKind] = useState("configmap");
+  const [containerImage, setContainerImage] = useState("");
   const [actor, setActor] = useState("agent:claude");
   const [environment, setEnvironment] = useState("production");
   const [extraParams, setExtraParams] = useState<{ key: string; value: string }[]>([]);
@@ -49,10 +64,16 @@ export function Dashboard() {
   const [jsonText, setJsonText] = useState(
     JSON.stringify(
       {
-        actor: { type: "agent", id: "claude", origin: "claude-code" },
+        actor: { type: "agent", id: "claude", origin: "web-ui" },
         tool: "kubectl",
         operation: "apply",
-        params: { namespace: "default" },
+        params: {
+          action: {
+            kind: "kubectl.apply",
+            target: { namespace: "default" },
+            payload: { resource: "configmap" },
+          },
+        },
         environment: "production",
       },
       null,
@@ -70,6 +91,7 @@ export function Dashboard() {
 
   // Recent evaluations
   const [recent, setRecent] = useState<RecentEval[]>([]);
+  const [expandedEvalIdx, setExpandedEvalIdx] = useState<number | null>(null);
 
   // Public key
   const [pubKey, setPubKey] = useState<string | null>(null);
@@ -91,10 +113,18 @@ export function Dashboard() {
     }
 
     const resolvedTool = tool === "custom" ? customTool : tool;
-    const params: Record<string, unknown> = { namespace };
+    const kind = resolvedTool + "." + operation;
+
+    const target: Record<string, unknown> = { namespace };
+    const payload: Record<string, unknown> = { resource: resourceKind };
+
+    if (WORKLOAD_KINDS.has(resourceKind) && containerImage.trim()) {
+      payload.containers = [{ image: containerImage.trim() }];
+    }
+
     for (const p of extraParams) {
       if (p.key.trim()) {
-        params[p.key.trim()] = p.value;
+        payload[p.key.trim()] = p.value;
       }
     }
 
@@ -102,10 +132,12 @@ export function Dashboard() {
       actor: parseActor(actor),
       tool: resolvedTool,
       operation,
-      params,
+      params: {
+        action: { kind, target, payload },
+      },
       environment,
     };
-  }, [mode, tool, customTool, operation, namespace, actor, environment, extraParams, jsonParsed, jsonValid]);
+  }, [mode, tool, customTool, operation, namespace, resourceKind, containerImage, actor, environment, extraParams, jsonParsed, jsonValid]);
 
   const handleEvaluate = async () => {
     if (!apiKey) return;
@@ -120,12 +152,16 @@ export function Dashboard() {
     try {
       const res = await validate(invocation, apiKey);
       setResult(res);
+      const kind = invocation.tool + "." + invocation.operation;
       setRecent((prev) => [
         {
           time: new Date().toLocaleTimeString(),
-          tool: invocation.tool,
-          operation: invocation.operation,
+          eventId: res.event_id,
+          kind,
           allow: res.decision.allow,
+          riskLevel: res.decision.risk_level,
+          ruleIds: res.decision.rule_ids || [],
+          rawEvidence: JSON.stringify(res, null, 2),
         },
         ...prev,
       ]);
@@ -166,7 +202,7 @@ export function Dashboard() {
         <div className="dash-section-header">API Key</div>
         <div className="dash-section-body">
           <div className="api-key-display">
-            <code>{apiKey.slice(0, 12)}****</code>
+            <code>{apiKey.slice(0, 8)}****</code>
             <button
               type="button"
               className="api-key-change"
@@ -216,7 +252,6 @@ export function Dashboard() {
                   value={tool}
                   onChange={(e) => {
                     setTool(e.target.value);
-                    // Reset operation when tool changes
                     const newOps = OP_OPTIONS[e.target.value];
                     if (newOps && !newOps.includes(operation)) {
                       setOperation(newOps[0] || "apply");
@@ -269,6 +304,36 @@ export function Dashboard() {
                   onChange={(e) => setNamespace(e.target.value)}
                 />
               </div>
+
+              {effectiveTool === "kubectl" && (
+                <>
+                  <div className="form-field">
+                    <label htmlFor="dash-resource-kind">Resource Kind</label>
+                    <select
+                      id="dash-resource-kind"
+                      value={resourceKind}
+                      onChange={(e) => setResourceKind(e.target.value)}
+                    >
+                      {RESOURCE_KINDS.map((k) => (
+                        <option key={k} value={k}>{k}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {WORKLOAD_KINDS.has(resourceKind) && (
+                    <div className="form-field">
+                      <label htmlFor="dash-container-image">Container Image</label>
+                      <input
+                        id="dash-container-image"
+                        type="text"
+                        placeholder="e.g. nginx:1.25"
+                        value={containerImage}
+                        onChange={(e) => setContainerImage(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className="form-field">
                 <label htmlFor="dash-actor">Actor</label>
@@ -340,7 +405,77 @@ export function Dashboard() {
                   risk: {result.decision.risk_level}
                 </Badge>
               </div>
-              <div className="result-reason">{result.decision.reason}</div>
+
+              {/* Reasons */}
+              {result.decision.reasons?.length > 0 && (
+                <div className="result-reasons">
+                  <span className="result-label">Reasons:</span>
+                  <ul>
+                    {result.decision.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Rule IDs */}
+              {result.decision.rule_ids?.length > 0 && (
+                <div className="result-rules">
+                  <span className="result-label">Rules:</span>
+                  {result.decision.rule_ids.map((id, i) => (
+                    <code key={i}>{id}</code>
+                  ))}
+                </div>
+              )}
+
+              {/* Hints */}
+              {result.decision.hints?.length > 0 && (
+                <div className="result-hints">
+                  <span className="result-label">Hints:</span>
+                  <ul>
+                    {result.decision.hints.map((h, i) => <li key={i}>{h}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Action results (v0.2.0+) */}
+              {result.action_results && result.action_results.length > 0 && (
+                <div className="result-actions">
+                  <span className="result-label">Action Results:</span>
+                  {result.action_results.map((ar, i) => (
+                    <div key={i} className={`action-result${ar.pass ? "" : " action-result--denied"}`}>
+                      <div className="action-result-header">
+                        <Badge variant={ar.pass ? "allow" : "deny"}>
+                          {ar.pass ? "Pass" : "Deny"}
+                        </Badge>
+                        <code>{ar.kind}</code>
+                        <Badge variant={ar.risk_level}>
+                          {ar.risk_level}
+                        </Badge>
+                      </div>
+                      {ar.rule_ids?.length > 0 && (
+                        <div className="action-result-rules">
+                          {ar.rule_ids.map((id, j) => <code key={j}>{id}</code>)}
+                        </div>
+                      )}
+                      {ar.reasons?.length > 0 && (
+                        <div className="action-result-reasons">
+                          {ar.reasons.map((r, j) => <span key={j}>{r}</span>)}
+                        </div>
+                      )}
+                      {ar.hints?.length > 0 && (
+                        <div className="action-result-hints">
+                          {ar.hints.map((h, j) => <span key={j}>{h}</span>)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Fallback: single reason for pre-v0.2.0 */}
+              {!result.decision.reasons?.length && result.decision.reason && (
+                <div className="result-reason">{result.decision.reason}</div>
+              )}
+
               <button
                 type="button"
                 className="result-evidence-toggle"
@@ -350,7 +485,7 @@ export function Dashboard() {
               </button>
               {showEvidence && (
                 <CodeBlock
-                  code={JSON.stringify(result.evidence_record, null, 2)}
+                  code={JSON.stringify(result, null, 2)}
                 />
               )}
             </div>
@@ -368,24 +503,46 @@ export function Dashboard() {
             <table className="recent-table">
               <thead>
                 <tr>
-                  <th>Time</th>
-                  <th>Tool</th>
-                  <th>Op</th>
+                  <th>Event</th>
+                  <th>Kind</th>
+                  <th>Risk</th>
                   <th>Decision</th>
                 </tr>
               </thead>
               <tbody>
                 {recent.map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.time}</td>
-                    <td>{r.tool}</td>
-                    <td>{r.operation}</td>
-                    <td>
-                      <Badge variant={r.allow ? "allow" : "deny"}>
-                        {r.allow ? "Allow" : "Deny"}
-                      </Badge>
-                    </td>
-                  </tr>
+                  <>
+                    <tr key={i}>
+                      <td>
+                        <button
+                          type="button"
+                          className="event-id-link"
+                          title={r.eventId}
+                          onClick={() => setExpandedEvalIdx(expandedEvalIdx === i ? null : i)}
+                        >
+                          {r.eventId.slice(0, 16)}...
+                        </button>
+                      </td>
+                      <td><code>{r.kind}</code></td>
+                      <td>
+                        <Badge variant={r.riskLevel as "low" | "medium" | "high"}>
+                          {r.riskLevel}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge variant={r.allow ? "allow" : "deny"}>
+                          {r.allow ? "Allow" : "Deny"}
+                        </Badge>
+                      </td>
+                    </tr>
+                    {expandedEvalIdx === i && (
+                      <tr key={`${i}-detail`}>
+                        <td colSpan={4}>
+                          <CodeBlock code={r.rawEvidence} />
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>
