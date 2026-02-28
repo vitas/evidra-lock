@@ -4,6 +4,7 @@ package evidra.policy
 import data.evidra.policy.defaults as defaults
 
 deny["k8s.run_as_root"] = "Container explicitly runs as root (UID 0)" if {
+	defaults.profile_includes_ops
 	action := input.actions[_]
 	action.kind == "kubectl.apply"
 	c := defaults.all_containers(action.payload)[_]

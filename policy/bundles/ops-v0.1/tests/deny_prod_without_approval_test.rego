@@ -10,7 +10,7 @@ test_deny_prod_without_change_approved if {
 		"environment": "prod",
 		"actions": [
 			{
-				"kind": "k8s.apply",
+				"kind": "kubectl.apply",
 				"target": "prod",
 				"risk_tags": [],
 				"payload": {"namespace": "prod"},

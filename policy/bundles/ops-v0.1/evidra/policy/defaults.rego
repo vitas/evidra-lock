@@ -48,6 +48,13 @@ resolve_param(key) := val if {
 # Same lookup chain as resolve_param, provided for clarity.
 resolve_list_param(key) := resolve_param(key)
 
+# profile_includes_ops is true when ops.profile resolves to "ops".
+# Golden rules (domain-specific) are gated by this; baseline rules are not.
+profile_includes_ops if {
+	profile := resolve_param("ops.profile")
+	profile == "ops"
+}
+
 # all_containers returns the concatenation of containers and init_containers from a payload.
 all_containers(payload) := array.concat(
 	object.get(payload, "containers", []),

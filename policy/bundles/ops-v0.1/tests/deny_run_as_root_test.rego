@@ -9,7 +9,7 @@ test_deny_run_as_root if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {
@@ -30,7 +30,7 @@ test_allow_non_root_user if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {

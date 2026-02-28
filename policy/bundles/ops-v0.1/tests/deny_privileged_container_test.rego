@@ -9,7 +9,7 @@ test_deny_privileged_container if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {
@@ -30,7 +30,7 @@ test_deny_privileged_init_container if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {
@@ -51,7 +51,7 @@ test_allow_unprivileged_container if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {

@@ -8,9 +8,9 @@ AI can suggest. Evidra decides.
 
 - **Kill-switch** - destructive operations are blocked unless proven safe.
   Empty payload? Denied. Unknown tool? Denied. Ambiguous target scope? Denied.
-- **23 golden rules** - curated policies that catch the configs behind
+- **Ops layer** - curated ops rules that catch the configs behind
   real outages: privileged containers, public S3, wildcard IAM, open
-  security groups.
+  security groups. Extensible - add your own rules.
 - **Evidence** - every decision (allow and deny) is appended to a
   SHA-256 hash-chained log. Each record references the hash of the
   previous record. Tampering breaks verification.
@@ -198,10 +198,10 @@ the same validation engine is called directly.
 
 Evidra ships with two levels. Default is maximum safety.
 
-**ops** (default) - full protection. Kill-switch guardrails plus 23
-curated rules that catch privileged containers, public S3 buckets,
+**ops** (default) - full protection. Kill-switch guardrails plus
+curated ops rules that catch privileged containers, public S3 buckets,
 wildcard IAM, open security groups, and other catastrophic
-misconfigurations.
+misconfigurations. Extensible - add your own rules.
 
 **baseline** - kill-switch only. Blocks destructive operations with
 missing context and unknown tools. No opinion on what's "bad config."
@@ -220,7 +220,7 @@ EVIDRA_PROFILE=ops       # default - full protection
 Not a compliance scanner. Every rule prevents a specific high-impact
 failure that has caused real outages.
 
-Evidra ships with `ops-v0.1`: 23 rules (18 deny, 5 warn) covering Kubernetes, Terraform, ArgoCD, S3, and IAM.
+Evidra ships with `ops-v0.1`: curated ops rules (deny + warn) covering Kubernetes, Terraform, ArgoCD, S3, and IAM. The ops layer is extensible - add your own rules.
 
 Design principles:
 

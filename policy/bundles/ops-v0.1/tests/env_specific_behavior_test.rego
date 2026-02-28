@@ -17,7 +17,7 @@ test_env_production_stricter_mass_delete if {
 				"kind": "kubectl.delete",
 				"target": "default",
 				"risk_tags": [],
-				"payload": {"resource_count": 4},
+				"payload": {"resource_count": 4, "namespace": "default"},
 			},
 		],
 	}
@@ -35,7 +35,7 @@ test_env_dev_allows_same_count if {
 				"kind": "kubectl.delete",
 				"target": "default",
 				"risk_tags": [],
-				"payload": {"resource_count": 4},
+				"payload": {"resource_count": 4, "namespace": "default"},
 			},
 		],
 	}

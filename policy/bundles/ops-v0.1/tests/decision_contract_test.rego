@@ -11,7 +11,7 @@ test_decision_contract if {
 
 		"actions": [
 			{
-				"kind": "k8s.apply",
+				"kind": "kubectl.apply",
 				"target": "kube-system",
 				"risk_tags": [],
 				"payload": {"namespace": "kube-system"},

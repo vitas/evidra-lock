@@ -14,7 +14,7 @@ test_deny_mass_delete_without_breakglass if {
 				"kind": "kubectl.delete",
 				"target": "default",
 				"risk_tags": [],
-				"payload": {"resource_count": 12},
+				"payload": {"resource_count": 12, "namespace": "default"},
 			},
 		],
 	}

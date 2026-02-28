@@ -9,7 +9,7 @@ test_warn_missing_limits if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {
@@ -30,7 +30,7 @@ test_warn_missing_memory_limit if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {
@@ -51,7 +51,7 @@ test_no_warn_with_full_limits if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {

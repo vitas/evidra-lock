@@ -4,7 +4,7 @@
 
 ## Design Philosophy
 
-Evidra is a pre-execution validation layer. The policy baseline (`ops-v0.1`) contains 23 rules focused exclusively on catastrophic failure prevention: production namespace deletion, world-open security groups, wildcard IAM policies, privileged container escape.
+Evidra is a pre-execution validation layer. The policy baseline (`ops-v0.1`) contains a curated set of ops rules focused exclusively on catastrophic failure prevention: production namespace deletion, world-open security groups, wildcard IAM policies, privileged container escape. The ops layer is extensible with your own policies.
 
 ### What Evidra does
 

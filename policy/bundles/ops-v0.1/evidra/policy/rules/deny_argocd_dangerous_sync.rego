@@ -4,6 +4,7 @@ package evidra.policy
 import data.evidra.policy.defaults as defaults
 
 deny["argocd.dangerous_sync_combo"] = "Dangerous sync combination: automated + prune + selfHeal" if {
+	defaults.profile_includes_ops
 	defaults.resolve_param("argocd.dangerous_sync.deny_combo") == true
 	action := input.actions[_]
 	action.kind == "argocd.sync"

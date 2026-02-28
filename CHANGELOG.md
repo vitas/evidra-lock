@@ -44,7 +44,7 @@ The format is based on Keep a Changelog.
   - Fallback policy: `EVIDRA_FALLBACK=offline` falls back to local OPA on API failure; `closed` (default) errors immediately.
   - CLI exit codes: 0=allowed, 1=internal error, 2=denied, 3=API unreachable, 4=usage error.
 
-- **Policy bundle expanded** from 6 to 23 rules.
+- **Policy bundle expanded** from the initial baseline to a curated ops rules layer.
   - Kubernetes: `k8s.privileged_container`, `k8s.host_namespace_escape`, `k8s.run_as_root`, `k8s.hostpath_mount`, `k8s.dangerous_capabilities`, `k8s.mutable_image_tag`, `k8s.no_resource_limits` (CIS 5.2.x, kube-score).
   - Terraform: `terraform.sg_open_world`, `terraform.s3_public_access`, `terraform.iam_wildcard_policy` (tfsec AVD-AWS).
   - AWS S3: `aws_s3.no_encryption`, `aws_s3.no_versioning_prod`.

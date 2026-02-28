@@ -15,9 +15,40 @@ deny["ops.insufficient_context"] = msg if {
 	is_destructive(action.kind)
 	not has_sufficient_context(action)
 	msg := sprintf(
-		"Destructive operation %s lacks required context. If this is a new tool, add a has_sufficient_context clause.",
-		[action.kind],
+		"Destructive operation %s lacks required context. %s",
+		[action.kind, context_hint(action.kind)],
 	)
+}
+
+context_hint(kind) := "Provide: namespace" if {
+	kind == "kubectl.delete"
+}
+
+context_hint(kind) := "Provide: namespace + containers[].image (for workload resources)" if {
+	kind == "kubectl.apply"
+}
+
+context_hint(kind) := "Provide: at least one of resource_types, security_group_rules, iam_policy_statements, s3_public_access_block" if {
+	kind == "terraform.apply"
+}
+
+context_hint(kind) := "Provide: destroy_count (number)" if {
+	kind == "terraform.destroy"
+}
+
+context_hint(kind) := "Provide: namespace" if {
+	startswith(kind, "helm.")
+}
+
+context_hint(kind) := "Provide: app_name or sync_policy" if {
+	kind == "argocd.sync"
+}
+
+context_hint(kind) := "Add a has_sufficient_context clause for this tool" if {
+	not startswith(kind, "kubectl.")
+	not startswith(kind, "terraform.")
+	not startswith(kind, "helm.")
+	not startswith(kind, "argocd.")
 }
 
 is_destructive(kind) if {

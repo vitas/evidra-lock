@@ -9,7 +9,7 @@ test_warn_latest_tag if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {
@@ -30,7 +30,7 @@ test_warn_no_tag if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {
@@ -51,7 +51,7 @@ test_no_warn_pinned_tag if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {
@@ -72,7 +72,7 @@ test_no_warn_registry_with_port_and_tag if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {

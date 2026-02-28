@@ -4,6 +4,7 @@ package evidra.policy
 import data.evidra.policy.defaults as defaults
 
 deny["ops.public_exposure"] = msg if {
+	defaults.profile_includes_ops
 	some i
 	action := input.actions[i]
 	action.kind == "terraform.plan"

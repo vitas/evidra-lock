@@ -276,8 +276,9 @@ export function Landing({ onGetStarted }: LandingProps) {
                 default — full protection
               </div>
               <div className="level-desc">
-                Everything in baseline plus 23 curated rules targeting configs
-                that cause real outages.
+                Everything in baseline plus curated ops rules targeting
+                configs that cause real outages. Extensible with your own
+                policies.
               </div>
               <ul className="level-rules">
                 <li>Privileged containers</li>
@@ -287,7 +288,7 @@ export function Landing({ onGetStarted }: LandingProps) {
                 <li>Security groups open to 0.0.0.0/0</li>
                 <li>Dangerous ArgoCD sync settings</li>
                 <li>Capability escalation (SYS_ADMIN)</li>
-                <li>+ 16 more rules</li>
+                <li>+ Extensible with your own policies</li>
               </ul>
             </div>
           </div>

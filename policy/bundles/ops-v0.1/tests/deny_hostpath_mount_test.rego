@@ -9,7 +9,7 @@ test_deny_hostpath_mount if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {
@@ -31,7 +31,7 @@ test_allow_pvc_volume if {
 		"operation": "apply",
 		"environment": "dev",
 		"actions": [{
-			"kind": "k8s.apply",
+			"kind": "kubectl.apply",
 			"target": "default",
 			"risk_tags": [],
 			"payload": {

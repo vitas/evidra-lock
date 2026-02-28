@@ -4,6 +4,7 @@ package evidra.policy
 import data.evidra.policy.defaults as defaults
 
 deny["argocd.autosync_prod"] = "Automated sync is denied in this environment" if {
+	defaults.profile_includes_ops
 	defaults.resolve_param("argocd.autosync.deny_automated") == true
 	action := input.actions[_]
 	action.kind == "argocd.sync"

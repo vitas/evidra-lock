@@ -39,7 +39,8 @@
   },
   "ops.profile": {
     "by_env": {
-      "default": "ops"
+      "default": "ops",
+      "baseline-test": "baseline"
     }
   }
 }

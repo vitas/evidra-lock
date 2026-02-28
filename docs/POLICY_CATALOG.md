@@ -26,7 +26,7 @@ Every rule in this bundle satisfies all of the following:
 
 ### Why only these rules
 
-Eighteen guardrail rules (plus 5 operational rules) cover the critical attack surfaces where AI-generated infrastructure changes cause the most damage. This number is small enough to explain in a 30-minute meeting, audit in a single code review, and defend to a security team. Every rule maps to a CIS control, tfsec/trivy AVD ID, or kube-score check — nothing is invented, everything is curated.
+A curated set of ops rules covers the critical attack surfaces where AI-generated infrastructure changes cause the most damage. The set stays small enough to explain in a 30-minute meeting, audit in a single code review, and defend to a security team, and remains extensible as teams add their own rules. Every rule maps to a CIS control, tfsec/trivy AVD ID, or kube-score check — nothing is invented, everything is curated.
 
 ### Bundle layout
 
@@ -80,7 +80,7 @@ policy/bundles/ops-v0.1/
 | 22 | `ops.autonomous_execution` | ops | warn | no | Agent via MCP (audit) |
 | 23 | `ops.breakglass_used` | ops | warn | no | Breakglass tag present (audit) |
 
-**Summary:** 18 deny rules, 2 warn guardrails, 3 operational rules. 23 total.
+**Summary:** Curated deny and warn guardrails with operational audit rules. Extensible as the ops layer evolves.
 
 ---
 

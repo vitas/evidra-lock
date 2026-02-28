@@ -4,6 +4,7 @@ package evidra.policy
 import data.evidra.policy.defaults as defaults
 
 deny["terraform.s3_public_access"] = "S3 bucket missing complete Block Public Access configuration" if {
+	defaults.profile_includes_ops
 	action := input.actions[_]
 	action.kind == "terraform.plan"
 	action.payload.resource_type == "aws_s3_bucket"

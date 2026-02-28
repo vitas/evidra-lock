@@ -10,7 +10,7 @@ test_deny_kube_system_without_breakglass if {
 		"environment": "dev",
 		"actions": [
 			{
-				"kind": "k8s.apply",
+				"kind": "kubectl.apply",
 				"target": "kube-system",
 				"risk_tags": [],
 				"payload": {"namespace": "kube-system"},

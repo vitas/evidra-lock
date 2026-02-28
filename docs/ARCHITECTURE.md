@@ -158,7 +158,7 @@ No separate "Fallback mode" state. Online mode with a failed API call degrades b
 
 ## Policy Engine
 
-All three binaries embed the `ops-v0.1` OPA policy bundle (23 rules) via `go:embed`. The bundle is the single source of truth for policy.
+All three binaries embed the `ops-v0.1` OPA policy bundle (curated ops rules) via `go:embed`. The bundle is the single source of truth for policy.
 
 **Evaluation flow:**
 ```

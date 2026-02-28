@@ -4,6 +4,7 @@ package evidra.policy
 import data.evidra.policy.defaults as defaults
 
 deny["terraform.sg_open_world"] = "Security group allows world-open ingress on dangerous port" if {
+	defaults.profile_includes_ops
 	action := input.actions[_]
 	action.kind == "terraform.plan"
 	rule := action.payload.security_group_rules[_]

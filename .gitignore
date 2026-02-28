@@ -46,5 +46,7 @@ AGENTS.md
 .claude/
 .gemini/
 .codex/
-#.ai/
-ai/
+.ai/
+
+# Internal docs
+__internal/

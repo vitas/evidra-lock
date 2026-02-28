@@ -1,3 +1,18 @@
+// ══════════════════════════════════════════════════════════════
+// Kill-switch E2E suite — MAX 35 TESTS.
+//
+// Add new tests ONLY for:
+//   - new threat class (new tool, new bypass vector)
+//   - regression (a real bug that slipped through)
+//
+// Do NOT add tests for:
+//   - permutations of existing scenarios
+//   - "what if both X and Y" combinations
+//
+// If you need more coverage, add unit tests in the rule's own
+// _test.rego file, not here.
+// ══════════════════════════════════════════════════════════════
+
 package validate_test
 
 import (
@@ -103,9 +118,9 @@ func TestKillswitch(t *testing.T) {
 			payload: map[string]interface{}{
 				"resource_type": "aws_s3_bucket",
 				"s3_public_access_block": map[string]interface{}{
-					"block_public_acls":     false,
-					"ignore_public_acls":    false,
-					"block_public_policy":   false,
+					"block_public_acls":       false,
+					"ignore_public_acls":      false,
+					"block_public_policy":     false,
 					"restrict_public_buckets": false,
 				},
 			},
@@ -210,8 +225,8 @@ func TestKillswitch(t *testing.T) {
 			wantPass: true,
 		},
 		{
-			name: "e2e_workload_fake_empty_containers_deny",
-			kind: "kubectl.apply",
+			name:   "e2e_workload_fake_empty_containers_deny",
+			kind:   "kubectl.apply",
 			target: map[string]interface{}{"namespace": "default"},
 			payload: map[string]interface{}{
 				"namespace": "default",
@@ -238,8 +253,8 @@ func TestKillswitch(t *testing.T) {
 			name: "e2e_terraform_s3_block_empty_object_deny",
 			kind: "terraform.apply",
 			payload: map[string]interface{}{
-				"destroy_count":         0,
-				"total_changes":         1,
+				"destroy_count":          0,
+				"total_changes":          1,
 				"s3_public_access_block": map[string]interface{}{},
 			},
 			wantPass:    false,
@@ -309,13 +324,13 @@ func TestKillswitch(t *testing.T) {
 		// ── Domain rule + kill-switch interaction ──
 		{
 			// Verify domain rule fires THROUGH kill-switch (not blocked by it)
-			name: "e2e_kubectl_apply_host_namespace_deny",
-			kind: "kubectl.apply",
+			name:   "e2e_kubectl_apply_host_namespace_deny",
+			kind:   "kubectl.apply",
 			target: map[string]interface{}{"namespace": "default"},
 			payload: map[string]interface{}{
-				"namespace":  "default",
-				"resource":   "pod",
-				"host_pid":   true,
+				"namespace": "default",
+				"resource":  "pod",
+				"host_pid":  true,
 				"containers": []interface{}{
 					map[string]interface{}{"image": "nginx:1.25"},
 				},
@@ -354,8 +369,8 @@ func TestKillswitch(t *testing.T) {
 		},
 		{
 			// Container without image field is not "real"
-			name: "e2e_kubectl_apply_container_no_image_deny",
-			kind: "kubectl.apply",
+			name:   "e2e_kubectl_apply_container_no_image_deny",
+			kind:   "kubectl.apply",
 			target: map[string]interface{}{"namespace": "default"},
 			payload: map[string]interface{}{
 				"namespace": "default",
@@ -376,6 +391,42 @@ func TestKillswitch(t *testing.T) {
 			},
 			wantPass:    false,
 			wantRuleIDs: []string{"ops.insufficient_context"},
+		},
+		// ── Additional domain rule interaction tests ──
+		{
+			// Verify run_as_root domain rule fires through kill-switch
+			name:   "e2e_kubectl_apply_run_as_root_deny",
+			kind:   "kubectl.apply",
+			target: map[string]interface{}{"namespace": "default"},
+			payload: map[string]interface{}{
+				"namespace": "default",
+				"resource":  "pod",
+				"containers": []interface{}{
+					map[string]interface{}{
+						"image": "nginx:1.25",
+						"security_context": map[string]interface{}{
+							"run_as_user": 0,
+						},
+					},
+				},
+			},
+			wantPass:    false,
+			wantRuleIDs: []string{"k8s.run_as_root"},
+		},
+		{
+			// Verify argocd domain rule fires through kill-switch
+			name: "e2e_argocd_wildcard_dest_deny",
+			kind: "argocd.project",
+			payload: map[string]interface{}{
+				"destinations": []interface{}{
+					map[string]interface{}{
+						"namespace": "*",
+						"server":    "*",
+					},
+				},
+			},
+			wantPass:    false,
+			wantRuleIDs: []string{"argocd.wildcard_destination"},
 		},
 	}
 
@@ -430,10 +481,10 @@ func TestKillswitch_BreakglassWarning(t *testing.T) {
 func TestKillswitch_TruncatedContext(t *testing.T) {
 	t.Parallel()
 	sc := killswitchScenario("terraform.apply", nil, map[string]interface{}{
-		"destroy_count":                0,
-		"total_changes":               1,
-		"resource_types":              []interface{}{"aws_instance"},
-		"resource_changes_truncated":  true,
+		"destroy_count":              0,
+		"total_changes":              1,
+		"resource_types":             []interface{}{"aws_instance"},
+		"resource_changes_truncated": true,
 	}, nil)
 	opts := safeOpts(t)
 	opts.SkipEvidence = true
@@ -447,5 +498,43 @@ func TestKillswitch_TruncatedContext(t *testing.T) {
 	}
 	if !containsString(result.RuleIDs, "ops.truncated_context") {
 		t.Errorf("RuleIDs=%v, want ops.truncated_context", result.RuleIDs)
+	}
+}
+
+// TestKillswitch_BaselineProfile verifies that golden rules do not fire
+// when ops.profile resolves to "baseline". Kill-switch rules remain active.
+func TestKillswitch_BaselineProfile(t *testing.T) {
+	t.Parallel()
+	// kubectl.apply with privileged container + sufficient context
+	sc := killswitchScenario("kubectl.apply",
+		map[string]interface{}{"namespace": "default"},
+		map[string]interface{}{
+			"namespace": "default",
+			"resource":  "deployment",
+			"containers": []interface{}{
+				map[string]interface{}{
+					"image": "nginx:1.25",
+					"security_context": map[string]interface{}{
+						"privileged": true,
+					},
+				},
+			},
+		},
+		nil,
+	)
+	opts := safeOpts(t)
+	opts.SkipEvidence = true
+	// Use by_env override: ops.profile resolves to "baseline" when
+	// input.environment = "baseline-test".
+	opts.Environment = "baseline-test"
+
+	result, err := validate.EvaluateScenario(context.Background(), sc, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// With baseline profile, privileged container should PASS
+	// (golden rule gated, kill-switch allows because context is sufficient)
+	if !result.Pass {
+		t.Errorf("Pass=false, want true in baseline; RuleIDs=%v", result.RuleIDs)
 	}
 }
