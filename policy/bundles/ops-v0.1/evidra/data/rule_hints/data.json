@@ -94,6 +94,11 @@
     "Replace Principal:* with specific AWS account IDs or service principals.",
     "Add Condition keys to restrict who can assume the role."
   ],
+  "ops.terraform_metadata_only": [
+    "Payload contains plan metadata only (counts, resource_types) — no resource-specific fields.",
+    "Ops rules for security groups, IAM, and S3 need: security_group_rules, iam_policy_statements, s3_public_access_block.",
+    "Options: use MCP mode (AI agent extracts resource config), adapter v2 (deep extraction), or switch to baseline profile."
+  ],
   "ops.insufficient_context": [
     "Provide required context in payload for this operation.",
     "For kubectl: include namespace. For workload resources (pod/deployment/statefulset/daemonset/job/cronjob): also include containers[] with image.",

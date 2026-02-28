@@ -198,6 +198,9 @@ func TestKillswitch(t *testing.T) {
 				"destroy_count":  0,
 				"total_changes":  1,
 				"resource_types": []interface{}{"aws_instance"},
+				"security_group_rules": []interface{}{
+					map[string]interface{}{"type": "ingress", "from_port": 443, "to_port": 443, "cidr": "10.0.0.0/8"},
+				},
 			},
 			wantPass: true,
 		},
@@ -391,6 +394,38 @@ func TestKillswitch(t *testing.T) {
 			},
 			wantPass:    false,
 			wantRuleIDs: []string{"ops.insufficient_context"},
+		},
+		// ── Terraform metadata-only tests ──
+		{
+			// terraform.apply with metadata-only payload in ops profile → DENY
+			name: "e2e_terraform_metadata_only_deny",
+			kind: "terraform.apply",
+			payload: map[string]interface{}{
+				"destroy_count":  0,
+				"total_changes":  3,
+				"resource_types": []interface{}{"aws_instance", "aws_security_group"},
+			},
+			wantPass:    false,
+			wantRuleIDs: []string{"ops.terraform_metadata_only"},
+		},
+		{
+			// terraform.apply with deep fields → ALLOW (deny doesn't fire)
+			name: "e2e_terraform_with_deep_fields_allow",
+			kind: "terraform.apply",
+			payload: map[string]interface{}{
+				"destroy_count":  0,
+				"total_changes":  1,
+				"resource_types": []interface{}{"aws_security_group"},
+				"security_group_rules": []interface{}{
+					map[string]interface{}{
+						"from_port":   443,
+						"to_port":     443,
+						"protocol":    "tcp",
+						"cidr_blocks": []interface{}{"10.0.0.0/8"},
+					},
+				},
+			},
+			wantPass: true,
 		},
 		// ── Additional domain rule interaction tests ──
 		{
