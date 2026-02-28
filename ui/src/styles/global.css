@@ -1,19 +1,26 @@
 :root {
-  --color-bg: #1e2d28;
-  --color-surface: #273d36;
-  --color-surface-hover: #304840;
-  --color-border: #3f5c52;
-  --color-text: #d4e9e0;
-  --color-text-muted: #86a89a;
-  --color-primary: #34d399;
-  --color-primary-hover: #6ee7b7;
-  --color-success: #22c55e;
-  --color-danger: #ef4444;
-  --color-warning: #f59e0b;
-  --color-code-bg: #192822;
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f5f5f5;
+  --color-border: #e5e5e5;
+  --color-text: #1a1a1a;
+  --color-text-muted: #555;
+  --color-text-dim: #999;
+  --color-primary: #16a34a;
+  --color-primary-hover: #15803d;
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-code-bg: #f0f0f0;
+
+  --color-terminal-bg: #2a2f35;
+  --color-terminal-border: #363b42;
+  --color-terminal-text: #ccc;
+  --color-terminal-muted: #666;
 
   --radius: 8px;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-serif: "Source Serif 4", Georgia, serif;
   --font-sans: "Inter", -apple-system, sans-serif;
 
   --space-xs: 4px;

@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evidra — Kill-switch for AI agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --border: #e5e5e5;
+  --text: #1a1a1a;
+  --text-dim: #555;
+  --text-muted: #999;
+  --red: #dc2626;
+  --red-dim: #fef2f2;
+  --green: #16a34a;
+  --green-dim: #f0fdf4;
+  --amber: #d97706;
+  --amber-dim: #fffbeb;
+  --mono: 'JetBrains Mono', monospace;
+  --serif: 'Source Serif 4', Georgia, serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--red);
+  color: white;
+}
+
+.container {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── HERO ─────────────────────────────────── */
+
+.hero {
+  padding: 72px 0 48px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero-label {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--red);
+  border: 1px solid var(--red);
+  padding: 4px 12px;
+  margin-bottom: 32px;
+  animation: fadeIn 0.6s ease-out;
+}
+
+.hero h1 {
+  font-family: var(--serif);
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text);
+  margin-bottom: 28px;
+  animation: fadeIn 0.6s ease-out 0.1s both;
+}
+
+.hero h1 .danger {
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 0.72em;
+  background: var(--red-dim);
+  padding: 2px 10px;
+  border-radius: 3px;
+  white-space: nowrap;
+  border: 1px solid #fecaca;
+}
+
+.hero-sub {
+  font-size: 17px;
+  color: var(--text-dim);
+  max-width: 600px;
+  line-height: 1.8;
+  animation: fadeIn 0.6s ease-out 0.2s both;
+}
+
+.hero-tagline {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 20px;
+  animation: fadeIn 0.6s ease-out 0.25s both;
+}
+
+.hero-cta {
+  margin-top: 40px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  animation: fadeIn 0.6s ease-out 0.3s both;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-family: var(--mono);
+  font-size: 14px;
+  text-decoration: none;
+  border: 1px solid;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #2a2f35;
+  color: #e0e0e0;
+  border-color: #2a2f35;
+}
+.btn-primary:hover {
+  background: #363b42;
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+.btn-ghost:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+/* ── TERMINAL ─────────────────────────────── */
+
+.terminal-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.terminal {
+  background: #2a2f35;
+  border: 1px solid #363b42;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #363b42;
+}
+
+.terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #555;
+}
+
+.terminal-title {
+  font-size: 12px;
+  color: #777;
+  margin-left: 8px;
+}
+
+.terminal-body {
+  padding: 20px 24px;
+  font-size: 13px;
+  line-height: 2;
+  overflow-x: auto;
+  color: #ccc;
+}
+
+.t-prompt::before { content: "$ "; color: #666; }
+.t-comment { color: #555; font-style: italic; }
+.t-cmd { color: #eee; }
+.t-flag { color: #f59e0b; }
+.t-string { color: #4ade80; }
+.t-deny { color: #ef4444; font-weight: 700; }
+.t-allow { color: #4ade80; }
+.t-key { color: #888; }
+.t-arrow { color: #555; }
+
+/* ── SCENARIOS ────────────────────────────── */
+
+.scenarios {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.scenarios h2 {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 28px;
+}
+
+.scenario-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.scenario {
+  background: var(--surface);
+  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 20px;
+  align-items: start;
+}
+
+.scenario-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+
+.scenario-icon.deny {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid #fecaca;
+}
+
+.scenario-desc {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.scenario-desc strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.scenario-cmd {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+  margin-top: 3px;
+}
+
+/* ── HOW IT WORKS ─────────────────────────── */
+
+.how-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.how-section h2 {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 28px;
+}
+
+.steps {
+  display: grid;
+  gap: 24px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 20px;
+}
+
+.step-num {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.step-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.step-desc {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.step-code {
+  margin-top: 12px;
+  background: #f0f0f0;
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-dim);
+  overflow-x: auto;
+}
+
+/* ── LEVELS ────────────────────────────────── */
+
+.levels-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.levels-section h2 {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 28px;
+}
+
+.levels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .levels-grid { grid-template-columns: 1fr; }
+}
+
+.level-card {
+  background: var(--surface);
+  padding: 32px;
+}
+
+.level-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.level-tag {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.level-tag.default {
+  color: var(--green);
+  font-weight: 500;
+}
+
+.level-tag.caution {
+  color: var(--amber);
+  font-weight: 500;
+}
+
+.level-desc {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+.level-rules {
+  list-style: none;
+  font-size: 13px;
+}
+
+.level-rules li {
+  padding: 5px 0;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+}
+
+.level-rules li:first-child { border-top: none; }
+
+.level-rules li::before {
+  content: "×";
+  color: var(--red);
+  margin-right: 8px;
+  font-weight: 700;
+}
+
+/* ── CI / GITOPS ───────────────────────────── */
+
+.ci-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ci-section h2 {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.ci-sub {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  max-width: 620px;
+  margin-bottom: 24px;
+}
+
+/* ── MCP ───────────────────────────────────── */
+
+.mcp-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.mcp-section h2 {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.mcp-sub {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  max-width: 620px;
+  margin-bottom: 32px;
+}
+
+.mcp-sub code {
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.mcp-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 32px;
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mcp-node {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  padding: 12px 24px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  min-width: 260px;
+}
+
+.mcp-node.active {
+  border-color: var(--green);
+  background: #f0fdf4;
+  color: var(--green);
+}
+
+.mcp-node span.mcp-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.mcp-node.active span.mcp-label {
+  color: #6aad7a;
+}
+
+.mcp-arrow {
+  font-size: 18px;
+  color: var(--text-muted);
+  padding: 6px 0;
+  text-align: center;
+}
+
+.mcp-proto {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+.mcp-points {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .mcp-points { grid-template-columns: 1fr; }
+}
+
+.mcp-point {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mcp-point strong {
+  color: var(--text);
+}
+
+/* ── DIFFERENTIATION ───────────────────────── */
+
+.diff-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.diff-section h2 {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.diff-sub {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin-bottom: 28px;
+}
+
+.diff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .diff-grid { grid-template-columns: 1fr; }
+}
+
+.diff-card {
+  background: var(--surface);
+  padding: 28px;
+}
+
+.diff-card.highlight {
+  background: #f8fffe;
+  border-left: 3px solid var(--green);
+}
+
+.diff-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.diff-desc {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+/* ── CORPORATE ADOPT ──────────────────────── */
+
+.adopt-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.adopt-headline {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.adopt-desc {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  max-width: 620px;
+}
+
+/* ── EVIDENCE ─────────────────────────────── */
+
+.evidence-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.evidence-section h2 {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.evidence-sub {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+  max-width: 560px;
+  line-height: 1.7;
+}
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.evidence-card {
+  background: var(--surface);
+  padding: 24px;
+}
+
+.evidence-q {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.evidence-a {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── FOOTER ───────────────────────────────── */
+
+.footer {
+  padding: 40px 0 48px;
+  text-align: center;
+}
+
+.footer-line {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  line-height: 1.8;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
+.footer-links a {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.footer-links a:hover {
+  color: var(--text);
+  border-bottom-color: var(--text-dim);
+}
+
+/* ── ANIMATIONS ───────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── RESPONSIVE ───────────────────────────── */
+
+@media (max-width: 640px) {
+  .hero { padding: 48px 0 36px; }
+  .scenario { grid-template-columns: 1fr; gap: 8px; }
+  .scenario-icon { display: none; }
+  .scenario-cmd { text-align: left; }
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+<div class="container">
+  <div class="hero-label">your infrastructure · your rules · your evidence</div>
+  <h1>Your AI agent is one wrong guess away from <span class="danger">kubectl delete --all</span></h1>
+  <p class="hero-sub">Evidra is a kill-switch for AI agents managing infrastructure. AI can suggest. Evidra decides. Destructive changes are blocked unless proven safe. Every decision is recorded to a tamper-proof evidence chain.</p>
+  <p class="hero-tagline">Adopt AI in infrastructure — without giving it the keys to production.</p>
+  <div class="hero-cta">
+    <a href="#install" class="btn btn-primary">Get started →</a>
+    <a href="https://github.com" class="btn btn-ghost">View on GitHub</a>
+  </div>
+</div>
+</section>
+
+<!-- TERMINAL DEMO -->
+<section class="terminal-section">
+<div class="container">
+  <div class="section-label">What it looks like</div>
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot"></div>
+      <div class="terminal-dot"></div>
+      <div class="terminal-dot"></div>
+      <span class="terminal-title">claude-code — ~/infrastructure</span>
+    </div>
+    <div class="terminal-body">
+      <div class="t-comment"># Agent wants to delete pods in kube-system</div>
+      <div><span class="t-prompt"></span><span class="t-cmd">evidra validate</span> <span class="t-flag">--tool</span> kubectl <span class="t-flag">--op</span> delete <span class="t-flag">--payload</span> <span class="t-string">'{"namespace":"kube-system"}'</span></div>
+      <br>
+      <div><span class="t-key">allow:</span>  <span class="t-deny">false</span></div>
+      <div><span class="t-key">risk:</span>   <span class="t-deny">high</span></div>
+      <div><span class="t-key">rule:</span>   k8s.protected_namespace</div>
+      <div><span class="t-key">hint:</span>   <span class="t-string">"Apply changes outside kube-system"</span></div>
+      <br>
+      <div class="t-comment"># Agent sees deny → stops → asks user for guidance</div>
+      <br>
+      <div class="t-comment"># Same agent, safe namespace</div>
+      <div><span class="t-prompt"></span><span class="t-cmd">evidra validate</span> <span class="t-flag">--tool</span> kubectl <span class="t-flag">--op</span> delete <span class="t-flag">--payload</span> <span class="t-string">'{"namespace":"staging"}'</span></div>
+      <br>
+      <div><span class="t-key">allow:</span>  <span class="t-allow">true</span></div>
+      <div><span class="t-key">risk:</span>   low</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SCENARIOS -->
+<section class="scenarios reveal">
+<div class="container">
+  <h2>What goes wrong without a kill-switch</h2>
+  <div class="scenario-grid">
+    <div class="scenario">
+      <div class="scenario-icon deny">✕</div>
+      <div class="scenario-desc"><strong>Agent deletes pods in kube-system.</strong> It needed to restart a service, picked the wrong namespace. DNS resolves to nothing. Everything goes down.</div>
+      <div class="scenario-cmd">kubectl.delete</div>
+    </div>
+    <div class="scenario">
+      <div class="scenario-icon deny">✕</div>
+      <div class="scenario-desc"><strong>Terraform apply with 47 resource deletions.</strong> Agent said "looks good" without understanding the plan. Three databases gone. No backup was recent enough.</div>
+      <div class="scenario-cmd">terraform.apply</div>
+    </div>
+    <div class="scenario">
+      <div class="scenario-icon deny">✕</div>
+      <div class="scenario-desc"><strong>Security group opened to 0.0.0.0/0 on port 22.</strong> The agent "fixed" connectivity by making SSH public. You find out from a security alert. Or worse.</div>
+      <div class="scenario-cmd">terraform.apply</div>
+    </div>
+    <div class="scenario">
+      <div class="scenario-icon deny">✕</div>
+      <div class="scenario-desc"><strong>IAM policy with Action:* Resource:*.</strong> The quickest way to "make it work." Also the quickest way to give the internet admin access to your AWS account.</div>
+      <div class="scenario-cmd">terraform.apply</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section reveal" id="install">
+<div class="container">
+  <h2>Three steps. Zero config.</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>
+        <div class="step-title">Install — 30 seconds, any environment</div>
+        <div class="step-desc">Runs as an MCP server. Agents discover it automatically. Pick your method:</div>
+        <div class="step-code"><span class="t-prompt"></span>go install samebits.com/evidra@latest<br><br><span class="t-prompt"></span>brew install evidra<br><br><span class="t-prompt"></span>docker run -v $(pwd):/config ghcr.io/samebits/evidra</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>
+        <div class="step-title">Agent calls validate</div>
+        <div class="step-desc">Before any destructive operation — kubectl apply, terraform destroy, helm upgrade — the agent asks Evidra: "is this safe?"</div>
+        <div class="step-code"><span class="t-key">tool:</span> kubectl &nbsp;<span class="t-key">op:</span> delete &nbsp;<span class="t-key">payload:</span> {namespace: "production", resource: "pod"}</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>
+        <div class="step-title">Evidra decides</div>
+        <div class="step-desc">Allow, deny, or "I need more context." Every decision is recorded to a tamper-evident evidence chain. The agent sees actionable hints on deny — not just "no."</div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- LEVELS -->
+<section class="levels-section reveal">
+<div class="container">
+  <h2>Two levels. Default is maximum safety.</h2>
+  <div class="levels-grid">
+    <div class="level-card">
+      <div class="level-name">baseline</div>
+      <div class="level-tag caution">kill-switch only</div>
+      <div class="level-desc">Blocks destructive operations with missing context. Guards against unknown tools. No opinions on what's "bad config."</div>
+      <ul class="level-rules">
+        <li>Empty payload on destructive op</li>
+        <li>Unknown/unregistered tools</li>
+        <li>Protected namespaces (kube-system)</li>
+        <li>Mass deletions above threshold</li>
+        <li>Truncated/incomplete data</li>
+      </ul>
+    </div>
+    <div class="level-card">
+      <div class="level-name">ops</div>
+      <div class="level-tag default">default — full protection</div>
+      <div class="level-desc">Everything in baseline plus 23 curated rules targeting configs that cause real outages.</div>
+      <ul class="level-rules">
+        <li>Privileged containers</li>
+        <li>Host namespace / hostPath mounts</li>
+        <li>Wildcard IAM (Action:* Resource:*)</li>
+        <li>Public S3 without encryption</li>
+        <li>Security groups open to 0.0.0.0/0</li>
+        <li>Dangerous ArgoCD sync settings</li>
+        <li>Capability escalation (SYS_ADMIN)</li>
+        <li>+ 16 more rules</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- MCP -->
+<section class="mcp-section reveal">
+<div class="container">
+  <h2>Built for AI agents. Not a CLI wrapper.</h2>
+  <p class="mcp-sub">Evidra runs as a standard MCP (Model Context Protocol) server. AI agents discover it automatically and call <code>validate</code> before destructive operations. No wrapper scripts. No custom plugins. No patching the agent.</p>
+  <div class="mcp-flow">
+    <div class="mcp-node">AI agent<span class="mcp-label">Claude Code, Cursor, etc.</span></div>
+    <div class="mcp-arrow">↓ <span class="mcp-proto">MCP: validate</span></div>
+    <div class="mcp-node active">Evidra<span class="mcp-label">allow / deny + evidence</span></div>
+    <div class="mcp-arrow">↓ <span class="mcp-proto">only if allowed</span></div>
+    <div class="mcp-node">kubectl · terraform · helm<span class="mcp-label">actual execution</span></div>
+  </div>
+  <div class="mcp-points">
+    <div class="mcp-point"><strong>Standard protocol</strong> — MCP, not a proprietary integration. Works with Claude Code, Cursor, and any MCP-compatible agent.</div>
+    <div class="mcp-point"><strong>Pre-execution</strong> — policy runs before any command reaches your infrastructure. Not after.</div>
+  </div>
+</div>
+</section>
+
+<!-- CI / GITOPS -->
+<section class="ci-section reveal">
+<div class="container">
+  <h2>Also works in CI and GitOps pipelines</h2>
+  <p class="ci-sub">Same policy engine. Same evidence chain. Evidra validates Terraform plans, rendered manifests, or change bundles before merge — not just in AI workflows.</p>
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot"></div>
+      <div class="terminal-dot"></div>
+      <div class="terminal-dot"></div>
+      <span class="terminal-title">github-actions — ci/validate</span>
+    </div>
+    <div class="terminal-body">
+      <div class="t-comment"># Validate terraform plan in CI before merge</div>
+      <div><span class="t-prompt"></span><span class="t-cmd">terraform show -json tfplan</span> | <span class="t-cmd">evidra validate</span> <span class="t-flag">--tool</span> terraform <span class="t-flag">--op</span> apply</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- NOT AN ADMISSION CONTROLLER -->
+<section class="diff-section reveal">
+<div class="container">
+  <h2>Not a replacement for OPA</h2>
+  <p class="diff-sub">Admission controllers run at deploy time, inside the cluster. Evidra runs before execution — across kubectl, terraform, helm, argocd. Especially in AI-driven workflows.</p>
+</div>
+</section>
+
+<!-- EVIDENCE SCENARIO -->
+<section class="evidence-section reveal">
+<div class="container">
+  <h2>When something goes wrong, you'll have proof</h2>
+  <p class="evidence-sub">3 databases deleted. Incident review starts. With Evidra, you have the exact decision record: who triggered it, what policy was active, whether it was approved or bypassed. No guessing. No "we think it was..."</p>
+  <div class="evidence-grid">
+    <div class="evidence-card">
+      <div class="evidence-q">"Who ran this?"</div>
+      <div class="evidence-a">actor.type · actor.id · actor.origin</div>
+    </div>
+    <div class="evidence-card">
+      <div class="evidence-q">"Was it approved?"</div>
+      <div class="evidence-a">policy_decision · rule_ids · hints</div>
+    </div>
+    <div class="evidence-card">
+      <div class="evidence-q">"Was breakglass used?"</div>
+      <div class="evidence-a">breakglass_used · evidence chain</div>
+    </div>
+    <div class="evidence-card">
+      <div class="evidence-q">"What policy was active?"</div>
+      <div class="evidence-a">policy_ref · bundle_revision</div>
+    </div>
+    <div class="evidence-card">
+      <div class="evidence-q">"Can I verify the input?"</div>
+      <div class="evidence-a">payload_digest · target_digest</div>
+    </div>
+    <div class="evidence-card">
+      <div class="evidence-q">"Is the chain intact?"</div>
+      <div class="evidence-a">evidra evidence verify ✓</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+<div class="container">
+  <p class="footer-line">Open source. Apache 2.0 license. No SaaS. No telemetry.<br>Runs locally or on-prem. Your infrastructure, your rules, your evidence.</p>
+  <div class="footer-links">
+    <a href="#">GitHub</a>
+    <a href="#">Documentation</a>
+    <a href="#">Policy catalog</a>
+    <a href="#">Discord</a>
+  </div>
+</div>
+</footer>
+
+<script>
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
