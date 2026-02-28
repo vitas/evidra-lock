@@ -114,6 +114,18 @@ docker run --rm -i ghcr.io/vitas/evidra-mcp:latest
 go install samebits.com/evidra/cmd/evidra-mcp@latest
 ```
 
+If `go install` fails due module proxy/network resolution, use one of these fallbacks:
+
+```bash
+GOPROXY=direct go install samebits.com/evidra/cmd/evidra-mcp@latest
+```
+
+```bash
+git clone https://github.com/vitas/evidra.git
+cd evidra
+go install ./cmd/evidra-mcp
+```
+
 Binary downloads available on [GitHub Releases](https://github.com/vitas/evidra/releases).
 
 ---

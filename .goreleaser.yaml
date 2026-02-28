@@ -109,7 +109,7 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: "https://github.com/vitas/evidra"
-    description: "Policy guardrail MCP server for AI agents"
+    description: "Evidra is a kill-switch for AI agents managing infrastructure."
     license: "Apache-2.0"
     install: |
       bin.install "evidra-mcp"

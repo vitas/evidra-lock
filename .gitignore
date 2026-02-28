@@ -21,6 +21,7 @@ coverage.out
 bin/
 dist/
 /release/
+.tmp/
 
 # Node
 node_modules/

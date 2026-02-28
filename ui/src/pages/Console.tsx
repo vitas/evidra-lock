@@ -348,7 +348,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
             <summary>Or install locally (offline, no key needed)</summary>
             <div className="local-fallback-content">
               <h3>1. Install</h3>
-              <CodeBlock code={`brew install evidra/tap/evidra-mcp`} />
+              <CodeBlock code={`brew install vitas/tap/evidra-mcp`} />
               <p>
                 Or: <code>go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
               </p>

@@ -505,10 +505,10 @@ export function Landing({ onGetStarted }: LandingProps) {
                 </div>
                 <div className="step-code">
                   <span className="t-prompt"></span>go install
-                  samebits.com/evidra@latest
+                  samebits.com/evidra/cmd/evidra-mcp@latest
                   <br />
                   <br />
-                  <span className="t-prompt"></span>brew install evidra
+                  <span className="t-prompt"></span>brew install vitas/tap/evidra-mcp
                   <br />
                   <br />
                   <span className="t-prompt"></span>docker run -v

@@ -212,7 +212,7 @@ export function Docs() {
         </p>
 
         <h3>Install</h3>
-        <CodeBlock code={`brew install evidra/tap/evidra-mcp`} />
+        <CodeBlock code={`brew install vitas/tap/evidra-mcp`} />
         <p>
           Or: <code>go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
         </p>
