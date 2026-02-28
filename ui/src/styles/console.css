@@ -261,32 +261,64 @@
   margin-bottom: var(--space-sm);
 }
 
-/* Editor config collapsibles */
+/* Editor tab selector */
 
-.editor-config {
+.editor-tabs {
+  display: flex;
+  gap: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  margin-bottom: var(--space-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-md);
 }
 
-.editor-config summary {
-  padding: var(--space-sm) var(--space-md);
-  font-size: 0.875rem;
+.editor-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: var(--space-sm) var(--space-xs);
+  font-size: 0.8125rem;
   font-weight: 500;
-  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.editor-tab:not(:last-child) {
+  border-right: 1px solid var(--color-border);
+}
+
+.editor-tab:hover {
   color: var(--color-text);
 }
 
-.editor-config summary:hover {
+.editor-tab--active {
+  background: var(--color-surface);
   color: var(--color-primary);
+  font-weight: 600;
 }
 
-.editor-config[open] summary {
-  border-bottom: 1px solid var(--color-border);
+.editor-tab-content {
+  margin-bottom: var(--space-md);
 }
 
-.editor-config p {
-  padding: var(--space-sm) var(--space-md) 0;
+.config-path-note {
+  font-size: 0.8125rem;
+  line-height: 1.8;
+}
+
+.config-path-note code {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.75rem;
+}
+
+.optional-note {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-md);
 }
 
 /* Console footer */

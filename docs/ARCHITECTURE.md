@@ -73,7 +73,7 @@ Stdio transport for AI agents (Claude Code, Cursor, etc.). Exposes two MCP tools
 - **Online mode** (`EVIDRA_URL` set): delegates evaluation to the API server.
 - **Offline mode** (default): embedded OPA, local JSONL evidence.
 - **Fallback**: if online API is unreachable and `EVIDRA_FALLBACK=offline`, falls back to local evaluation.
-- **Modes**: `enforce` (default, deny blocks) vs `observe` (policy recorded but never blocks).
+- **Enforcement**: deny decisions block the action (enforce mode).
 
 Key package: `pkg/mcpserver`.
 

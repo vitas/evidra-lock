@@ -19,7 +19,6 @@ type Mode string
 
 const (
 	ModeEnforce Mode = "enforce"
-	ModeObserve Mode = "observe"
 )
 
 // Error codes used in ErrorSummary.Code.
@@ -94,9 +93,7 @@ func NewServer(opts Options) *mcp.Server {
 	if opts.Version == "" {
 		opts.Version = "v0.1.0"
 	}
-	if opts.Mode != ModeObserve {
-		opts.Mode = ModeEnforce
-	}
+	opts.Mode = ModeEnforce
 	if opts.EvidencePath == "" {
 		resolved, err := config.ResolveEvidencePath("")
 		if err == nil {
@@ -248,12 +245,8 @@ func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvoc
 	if s.isOnline && s.apiClient != nil {
 		result, _, err := s.apiClient.Validate(ctx, inv)
 		if err == nil {
-			ok := result.Pass
-			if s.mode == ModeObserve {
-				ok = true
-			}
 			return ValidateOutput{
-				OK:      ok,
+				OK:      result.Pass,
 				EventID: result.EvidenceID,
 				Source:  "api",
 				Policy: PolicySummary{
@@ -324,13 +317,8 @@ func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvoc
 		source = "local-fallback"
 	}
 
-	ok := res.Pass
-	if s.mode == ModeObserve {
-		ok = true
-	}
-
 	return ValidateOutput{
-		OK:      ok,
+		OK:      res.Pass,
 		EventID: res.EvidenceID,
 		Source:  source,
 		Policy: PolicySummary{

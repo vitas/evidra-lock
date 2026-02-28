@@ -45,7 +45,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	envFlag := fs.String("environment", "", "Environment label for policy evaluation")
 	evidenceFlag := fs.String("evidence-dir", "", "Path to store evidence records")
 	evidenceStoreFlag := fs.String("evidence-store", "", "Alias for --evidence-dir")
-	observeFlag := fs.Bool("observe", false, "Enable observe mode (policy advises but execution proceeds)")
 	offlineFlag := fs.Bool("offline", false, "Force offline mode (skip API)")
 	fallbackOffline := fs.Bool("fallback-offline", false, "Allow local eval when API unreachable")
 	helpFlag := fs.Bool("help", false, "Show help")
@@ -130,11 +129,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		policyRef = ref
 	}
 
-	mcpMode, err := resolveMode(*observeFlag)
-	if err != nil {
-		fmt.Fprintf(stderr, "%v\n", err)
-		return 1
-	}
+	mcpMode := mcpserver.ModeEnforce
 	evidenceExplicit, err := resolveEvidenceFlagValue(*evidenceStoreFlag, *evidenceFlag)
 	if err != nil {
 		fmt.Fprintf(stderr, "%v\n", err)
@@ -167,7 +162,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if resolved.IsOnline {
 		modeLabel = "online"
 	}
-	logger.Printf("evidra-mcp running in %s mode (%s)", mcpMode, modeLabel)
+	logger.Printf("evidra-mcp running (%s)", modeLabel)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		fmt.Fprintf(stderr, "run mcp server: %v\n", err)
@@ -183,23 +178,6 @@ func coalesce(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func resolveMode(observeFlag bool) (mcpserver.Mode, error) {
-	if observeFlag {
-		return mcpserver.ModeObserve, nil
-	}
-	if raw := strings.TrimSpace(os.Getenv("EVIDRA_MODE")); raw != "" {
-		switch strings.ToLower(raw) {
-		case string(mcpserver.ModeEnforce):
-			return mcpserver.ModeEnforce, nil
-		case string(mcpserver.ModeObserve):
-			return mcpserver.ModeObserve, nil
-		default:
-			return "", fmt.Errorf("invalid EVIDRA_MODE %q (allowed: enforce, observe)", raw)
-		}
-	}
-	return mcpserver.ModeEnforce, nil
 }
 
 func resolveEvidenceFlagValue(evidenceStoreFlag, evidenceDirFlag string) (string, error) {
@@ -317,7 +295,6 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --environment <env>     Environment label for policy evaluation (e.g. prod, staging)")
 	fmt.Fprintf(w, "  --evidence-dir <dir>    Where to store evidence chain (default: %s)\n", defaultEvidence)
 	fmt.Fprintln(w, "  --evidence-store <dir>  Alias for --evidence-dir")
-	fmt.Fprintln(w, "  --observe               Observe-only: do not block, only report (default: enforce)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "ENVIRONMENT VARIABLES:")
 	fmt.Fprintln(w, "  EVIDRA_URL              API endpoint (enables online mode, e.g. https://api.evidra.rest)")

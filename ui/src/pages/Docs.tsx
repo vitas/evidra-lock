@@ -5,13 +5,14 @@ const mcpClaudeDesktop = `{
   "mcpServers": {
     "evidra": {
       "command": "evidra-mcp",
-      "args": ["--observe"]
+      "args": []
     }
   }
 }`;
 
-const mcpClaudeCode = `# .claude/settings.json
-{
+const mcpClaudeCode = `claude mcp add evidra evidra-mcp`;
+
+const mcpCursor = `{
   "mcpServers": {
     "evidra": {
       "command": "evidra-mcp",
@@ -20,12 +21,27 @@ const mcpClaudeCode = `# .claude/settings.json
   }
 }`;
 
-const mcpCursor = `# .cursor/mcp.json
-{
+const mcpCodex = `[mcp_servers.evidra]
+command = "evidra-mcp"`;
+
+const mcpCodexCustom = `[mcp_servers.evidra]
+command = "evidra-mcp"
+args = ["--offline", "--evidence-dir", "/path/to/evidence"]`;
+
+const mcpGemini = `{
   "mcpServers": {
     "evidra": {
       "command": "evidra-mcp",
       "args": []
+    }
+  }
+}`;
+
+const mcpGeminiCustom = `{
+  "mcpServers": {
+    "evidra": {
+      "command": "evidra-mcp",
+      "args": ["--offline", "--evidence-dir", "/path/to/evidence"]
     }
   }
 }`;
@@ -139,7 +155,7 @@ const validateDenyExample = `{
     "reason": "denied by policy",
     "reasons": [
       "ops.insufficient_context: destructive operation missing required payload fields",
-      "namespace.protected: kube-system is a protected namespace"
+      "k8s.protected_namespace: kube-system is a protected namespace"
     ],
     "hints": [
       "Include payload.resource and payload.name for delete operations",
@@ -147,7 +163,7 @@ const validateDenyExample = `{
     ],
     "rule_ids": [
       "ops.insufficient_context",
-      "namespace.protected"
+      "k8s.protected_namespace"
     ]
   },
   "signing_payload": "evidra.v1\\nevent_id=evt_01J...",
@@ -178,9 +194,6 @@ evidra validate -f scenario.yaml
 # Run MCP server (local mode, no API key needed)
 evidra-mcp
 
-# Run MCP server in observe mode (policy evaluated but never blocks)
-evidra-mcp --observe
-
 # Inspect a stored evidence event
 evidra-mcp get_event --event-id evt_01J...`;
 
@@ -199,29 +212,60 @@ export function Docs() {
         </p>
 
         <h3>Install</h3>
-        <CodeBlock code={`go install samebits.com/evidra/cmd/evidra-mcp@latest`} />
-
-        <h3>Claude Desktop</h3>
-        <p>Add to <code>claude_desktop_config.json</code>:</p>
-        <CodeBlock code={mcpClaudeDesktop} />
+        <CodeBlock code={`brew install evidra/tap/evidra-mcp`} />
+        <p>
+          Or: <code>go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
+        </p>
 
         <h3>Claude Code</h3>
-        <p>Add to your project <code>.claude/settings.json</code>:</p>
+        <p>Run in your terminal:</p>
         <CodeBlock code={mcpClaudeCode} />
+
+        <h3>Claude Desktop</h3>
+        <p>
+          Config file location (OS-specific):
+        </p>
+        <ul className="config-paths">
+          <li><strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code></li>
+          <li><strong>Linux:</strong> <code>~/.config/Claude/claude_desktop_config.json</code></li>
+          <li><strong>Windows:</strong> <code>%APPDATA%\Claude\claude_desktop_config.json</code></li>
+        </ul>
+        <CodeBlock code={mcpClaudeDesktop} />
 
         <h3>Cursor</h3>
         <p>Add to <code>.cursor/mcp.json</code>:</p>
         <CodeBlock code={mcpCursor} />
 
+        <h3>Codex (OpenAI)</h3>
+        <p>
+          Codex CLI and VS Code extension share MCP config in{" "}
+          <code>~/.codex/config.toml</code>.
+        </p>
+        <p>Quick setup (CLI):</p>
+        <CodeBlock code={`codex mcp add evidra -- evidra-mcp`} />
+        <p>Or edit <code>~/.codex/config.toml</code> manually:</p>
+        <CodeBlock code={mcpCodex} />
+        <p>With custom flags:</p>
+        <CodeBlock code={mcpCodexCustom} />
+
+        <h3>Gemini CLI</h3>
+        <p>
+          Gemini CLI configures MCP servers in <code>~/.gemini/settings.json</code>{" "}
+          (global) or <code>.gemini/settings.json</code> (project-scoped).
+        </p>
+        <CodeBlock code={mcpGemini} />
+        <p>With custom flags:</p>
+        <CodeBlock code={mcpGeminiCustom} />
+
         <h3>Verify</h3>
         <ol>
           <li>
-            Ask the agent: <em>"What tools does evidra provide?"</em> — it should
-            list <code>validate</code> and <code>get_event</code>.
+            Test a <strong>deny</strong>: <em>"Validate kubectl.delete in kube-system"</em> — the
+            agent should report <code>allow: false</code> and stop.
           </li>
           <li>
-            Test a deny: <em>"Validate kubectl.delete in kube-system"</em> — the
-            agent should report <code>allow: false</code> and stop.
+            Test an <strong>allow</strong>: <em>"Validate kubectl.get pods in default"</em> — the
+            agent should report <code>allow: true</code>.
           </li>
         </ol>
       </section>
@@ -251,10 +295,12 @@ export function Docs() {
         <CodeBlock code={curlValidateDeny} />
 
         <div className="docs-warning">
-          HTTP 200 does not mean allow. Policy deny returns HTTP 200 with{" "}
-          <code>decision.allow: false</code>. Always check <code>decision.allow</code>,
-          not the HTTP status code.
+          <strong>HTTP 200 does not mean allow.</strong> Policy deny returns HTTP 200
+          with <code>decision.allow: false</code>. HTTP 4xx/5xx means a request error
+          (bad auth, invalid input, server failure) — not a policy deny. Always check
+          the decision field:
         </div>
+        <CodeBlock code={`jq '.decision.allow' evidence.json`} />
 
         <h3>4. Verify evidence offline</h3>
         <p>
@@ -354,9 +400,102 @@ export function Docs() {
               <td>Ensure adapter produces complete output, or increase output limits</td>
             </tr>
             <tr>
-              <td><code>namespace.protected</code></td>
+              <td><code>k8s.protected_namespace</code></td>
               <td>Target namespace is protected (kube-system, kube-public, etc.)</td>
               <td>Use a non-system namespace or add <code>breakglass</code> risk tag</td>
+            </tr>
+            <tr>
+              <td><code>ops.mass_delete</code></td>
+              <td>Delete count exceeds threshold (default: 5, production: 3)</td>
+              <td>Reduce scope or add <code>breakglass</code> risk tag</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      {/* Minimum Payload Reference — Fix 8 */}
+      <section className="docs-section">
+        <h2>Minimum Payload Reference</h2>
+        <p>
+          The <code>ops.insufficient_context</code> rule requires certain payload fields
+          for destructive operations. This table shows the minimum fields needed per tool:
+        </p>
+        <table className="rule-table">
+          <thead>
+            <tr>
+              <th>Kind</th>
+              <th>Minimum fields</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>kubectl.apply</code> (workload)</td>
+              <td><code>target.namespace</code> + <code>payload.containers[].image</code></td>
+            </tr>
+            <tr>
+              <td><code>kubectl.apply</code> (non-workload)</td>
+              <td><code>target.namespace</code></td>
+            </tr>
+            <tr>
+              <td><code>kubectl.delete</code></td>
+              <td><code>target.namespace</code></td>
+            </tr>
+            <tr>
+              <td><code>terraform.apply</code></td>
+              <td><code>payload.resource_types</code> (or <code>security_group_rules</code>, <code>iam_policy_statements</code>)</td>
+            </tr>
+            <tr>
+              <td><code>terraform.destroy</code></td>
+              <td><code>payload.destroy_count</code></td>
+            </tr>
+            <tr>
+              <td><code>helm.upgrade</code> / <code>helm.uninstall</code></td>
+              <td><code>target.namespace</code></td>
+            </tr>
+            <tr>
+              <td><code>argocd.sync</code></td>
+              <td><code>payload.app_name</code> or <code>payload.sync_policy</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      {/* Supported Operations — Fix 10 */}
+      <section className="docs-section">
+        <h2>Supported Operations</h2>
+        <p>
+          Evidra validates destructive operations and automatically allows safe (read-only)
+          operations. Custom tools can be added to <code>ops.destructive_operations</code>{" "}
+          in policy <code>data.json</code>.
+        </p>
+        <table className="rule-table">
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Destructive (validated)</th>
+              <th>Safe (bypass)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>kubectl</code></td>
+              <td>apply, delete, patch, rollout</td>
+              <td>get, list, describe, show, diff</td>
+            </tr>
+            <tr>
+              <td><code>terraform</code></td>
+              <td>apply, destroy</td>
+              <td>plan, show</td>
+            </tr>
+            <tr>
+              <td><code>helm</code></td>
+              <td>install, upgrade, uninstall, rollback</td>
+              <td>list, status, show</td>
+            </tr>
+            <tr>
+              <td><code>argocd</code></td>
+              <td>sync, rollback, terminate-op</td>
+              <td>get, list</td>
             </tr>
           </tbody>
         </table>
@@ -379,8 +518,16 @@ export function Docs() {
         <h3>What is an evidence record?</h3>
         <p>
           Every <code>/v1/validate</code> response is a cryptographically signed
-          evidence record. The server signs it but does not store it.
-          You store it wherever you want: filesystem, S3, database, git.
+          evidence record. The API server signs it but <strong>does not store it</strong> —
+          you store it wherever you want: filesystem, S3, database, git.
+          There is no <code>GET /v1/evidence/&#123;event_id&#125;</code> endpoint
+          on the API.
+        </p>
+        <p>
+          The MCP server (<code>evidra-mcp</code>) in offline mode writes evidence
+          to a local JSONL chain and supports <code>get_event</code> for lookup.
+          In online mode, the MCP server delegates to the API and does not store
+          evidence locally.
         </p>
 
         <h3>Storage recommendations</h3>
@@ -414,15 +561,27 @@ export function Docs() {
         </p>
       </section>
 
-      {/* MCP Troubleshooting — K7 */}
+      {/* MCP Troubleshooting — K7 + Fix 7 */}
       <section className="docs-section">
         <h2>MCP Troubleshooting</h2>
 
-        <h3>Tool not showing in agent</h3>
+        <h3>Tool not visible in editor</h3>
         <p>
-          Check that <code>evidra-mcp</code> is on your PATH. Run{" "}
-          <code>which evidra-mcp</code> to verify. Restart the editor after
-          adding the MCP config.
+          Restart the editor/IDE completely (not just reload window).
+          Verify the config file path is correct for your OS.
+          Check that <code>evidra-mcp --version</code> works in your terminal.
+        </p>
+
+        <h3>"command not found: evidra-mcp"</h3>
+        <p>
+          Check that your PATH includes the install location:
+        </p>
+        <ul>
+          <li><strong>brew:</strong> <code>/opt/homebrew/bin</code> (macOS ARM) or <code>/usr/local/bin</code> (Intel)</li>
+          <li><strong>go install:</strong> <code>~/go/bin</code></li>
+        </ul>
+        <p>
+          Run <code>which evidra-mcp</code> — if empty, PATH is wrong.
         </p>
 
         <h3>Permission denied</h3>
@@ -432,19 +591,20 @@ export function Docs() {
           allow it in System Settings &gt; Privacy &amp; Security.
         </p>
 
+        <h3>Deny: ops.insufficient_context</h3>
+        <p>
+          The policy needs more fields to evaluate. Check the{" "}
+          <a href="#minimum-payload-reference">Minimum Payload Reference</a> table
+          above for required fields per tool. Copy the skeleton from the hint
+          in the deny response, fill in real values, and retry.
+          This is the most common support question.
+        </p>
+
         <h3>Agent doesn't call validate</h3>
         <p>
           The <code>validate</code> tool description instructs the agent to call
           it before destructive operations. If the agent skips it, remind it:
           <em> "Always call evidra validate before kubectl apply or terraform apply."</em>
-        </p>
-
-        <h3>Insufficient context deny</h3>
-        <p>
-          The <code>ops.insufficient_context</code> rule requires payload fields
-          for destructive operations. Ensure the agent provides{" "}
-          <code>payload.resource</code> and <code>payload.name</code> for
-          delete/apply operations.
         </p>
 
         <h3>Unknown destructive deny</h3>
@@ -453,6 +613,19 @@ export function Docs() {
           tools. Known tools: kubectl, terraform, helm, argocd. For other tools,
           add <code>"risk_tags": ["breakglass"]</code> to override.
         </p>
+
+        <h3>All requests return allow</h3>
+        <p>
+          Check that the policy bundle is loaded correctly. Run{" "}
+          <code>evidra-mcp --version</code> — it should show the bundle revision.
+          If you use a custom <code>--bundle</code> path, verify the bundle contains{" "}
+          <code>.manifest</code> and rule files. Without rules, all operations are allowed
+          by default.
+        </p>
+
+        <h3>Evidence directory permission error</h3>
+        <CodeBlock code={`mkdir -p ~/.evidra && chmod 700 ~/.evidra
+evidra-mcp --offline --evidence-dir ~/.evidra`} />
       </section>
     </div>
   );

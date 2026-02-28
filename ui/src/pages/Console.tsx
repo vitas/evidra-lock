@@ -7,22 +7,24 @@ import { InlineError } from "../components/InlineError";
 import "../styles/console.css";
 
 type Track = "mcp" | "api";
+type EditorTab = "claude-code" | "claude-desktop" | "cursor" | "codex" | "gemini";
 
 interface ConsoleProps {
   onKeyCreated: () => void;
 }
 
+const mcpClaudeCode = `claude mcp add evidra evidra-mcp`;
+
 const mcpClaudeDesktop = `{
   "mcpServers": {
     "evidra": {
       "command": "evidra-mcp",
-      "args": ["--observe"]
+      "args": []
     }
   }
 }`;
 
-const mcpClaudeCode = `# .claude/settings.json
-{
+const mcpCursor = `{
   "mcpServers": {
     "evidra": {
       "command": "evidra-mcp",
@@ -31,8 +33,10 @@ const mcpClaudeCode = `# .claude/settings.json
   }
 }`;
 
-const mcpCursor = `# .cursor/mcp.json
-{
+const mcpCodex = `[mcp_servers.evidra]
+command = "evidra-mcp"`;
+
+const mcpGemini = `{
   "mcpServers": {
     "evidra": {
       "command": "evidra-mcp",
@@ -40,10 +44,67 @@ const mcpCursor = `# .cursor/mcp.json
     }
   }
 }`;
+
+const editorTabs: { id: EditorTab; label: string }[] = [
+  { id: "claude-code", label: "Claude Code" },
+  { id: "claude-desktop", label: "Claude Desktop" },
+  { id: "cursor", label: "Cursor" },
+  { id: "codex", label: "Codex" },
+  { id: "gemini", label: "Gemini CLI" },
+];
+
+function EditorConfig({ editor }: { editor: EditorTab }) {
+  switch (editor) {
+    case "claude-code":
+      return (
+        <>
+          <p>Run in your terminal:</p>
+          <CodeBlock code={mcpClaudeCode} />
+        </>
+      );
+    case "claude-desktop":
+      return (
+        <>
+          <p className="config-path-note">
+            Config file location:<br />
+            <code>macOS: ~/Library/Application Support/Claude/claude_desktop_config.json</code><br />
+            <code>Linux: ~/.config/Claude/claude_desktop_config.json</code><br />
+            <code>Windows: %APPDATA%\Claude\claude_desktop_config.json</code>
+          </p>
+          <CodeBlock code={mcpClaudeDesktop} />
+        </>
+      );
+    case "cursor":
+      return (
+        <>
+          <p>Add to <code>.cursor/mcp.json</code>:</p>
+          <CodeBlock code={mcpCursor} />
+        </>
+      );
+    case "codex":
+      return (
+        <>
+          <p>
+            CLI: <code>codex mcp add evidra -- evidra-mcp</code>
+          </p>
+          <p>Or edit <code>~/.codex/config.toml</code>:</p>
+          <CodeBlock code={mcpCodex} />
+        </>
+      );
+    case "gemini":
+      return (
+        <>
+          <p>Add to <code>~/.gemini/settings.json</code>:</p>
+          <CodeBlock code={mcpGemini} />
+        </>
+      );
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
   const [track, setTrack] = useState<Track>("mcp");
+  const [editor, setEditor] = useState<EditorTab>("claude-code");
   const [label, setLabel] = useState("");
   const [loading, setLoading] = useState(false);
   const [keyData, setKeyData] = useState<KeyResponse | null>(null);
@@ -121,36 +182,44 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
           </p>
 
           <h3>1. Install</h3>
-          <CodeBlock code={`go install samebits.com/evidra/cmd/evidra-mcp@latest`} />
+          <CodeBlock code={`brew install evidra/tap/evidra-mcp`} />
+          <p>
+            Or: <code>go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
+          </p>
 
-          <h3>2. Configure your editor</h3>
+          <h3>2. Add to your editor</h3>
 
-          <details className="editor-config">
-            <summary>Claude Desktop</summary>
-            <p>Add to <code>claude_desktop_config.json</code>:</p>
-            <CodeBlock code={mcpClaudeDesktop} />
-          </details>
-
-          <details className="editor-config">
-            <summary>Claude Code</summary>
-            <p>Add to <code>.claude/settings.json</code>:</p>
-            <CodeBlock code={mcpClaudeCode} />
-          </details>
-
-          <details className="editor-config">
-            <summary>Cursor</summary>
-            <p>Add to <code>.cursor/mcp.json</code>:</p>
-            <CodeBlock code={mcpCursor} />
-          </details>
+          <div className="editor-tabs">
+            {editorTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`editor-tab${editor === tab.id ? " editor-tab--active" : ""}`}
+                onClick={() => setEditor(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="editor-tab-content">
+            <EditorConfig editor={editor} />
+          </div>
 
           <h3>3. Verify</h3>
           <p>
-            Ask the agent: <em>"What tools does evidra provide?"</em> — it should
-            list <code>validate</code> and <code>get_event</code>.
+            Test a <strong>deny</strong>: <em>"Validate kubectl.delete in kube-system"</em> — should
+            return <code>allow: false</code>.
           </p>
           <p>
-            Then test a deny: <em>"Validate kubectl.delete in kube-system"</em> — it
-            should return <code>allow: false</code>.
+            Test an <strong>allow</strong>: <em>"Validate kubectl.get pods in default"</em> — should
+            return <code>allow: true</code>.
+          </p>
+          <p>
+            Both correct? You're set. <a href="#docs">Full setup guide</a>
+          </p>
+          <p className="optional-note">
+            Optional: store evidence locally with{" "}
+            <code>evidra-mcp --offline --evidence-dir ~/.evidra</code>
           </p>
         </div>
       ) : (

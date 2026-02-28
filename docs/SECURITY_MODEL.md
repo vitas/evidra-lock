@@ -37,12 +37,7 @@ In online mode, the API server runs the same OPA engine server-side. The evaluat
 
 ## Enforcement Model
 
-Two modes are supported across all binaries (CLI, MCP, API):
-
-- **Enforce** (default): Deny decisions block the action. The AI agent receives a structured denial and cannot proceed without addressing the policy violation.
-- **Observe** (`--observe` / `EVIDRA_MODE=observe`): Policy is evaluated and recorded, but denials are downgraded to advisories. Useful for rollout and tuning.
-
-In both modes, every decision is recorded to evidence. Observe mode does not skip logging.
+Deny decisions block the action. The AI agent receives a structured denial and cannot proceed without addressing the policy violation. Every decision (allow and deny) is recorded to evidence.
 
 ---
 
@@ -159,4 +154,4 @@ Evidra uses `log/slog` (structured JSON) for the API server and `log` for CLI/MC
 - Place the API server behind a reverse proxy (Traefik, nginx) with TLS termination. Do not expose the API without TLS.
 - Use a persistent Ed25519 signing key in production (`EVIDRA_SIGNING_KEY` or `EVIDRA_SIGNING_KEY_PATH`). Ephemeral keys are for development only.
 - Export evidence segments to a hardened store for long-term auditing: `evidra evidence export`.
-- Start with `--observe` mode to validate policy against real workloads before switching to enforce.
+- Review evidence records after deployment to validate policy against real workloads.
