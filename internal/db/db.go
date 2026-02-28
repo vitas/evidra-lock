@@ -81,18 +81,14 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 func splitStatements(sql string) []string {
 	var stmts []string
 	for _, raw := range strings.Split(sql, ";") {
-		s := strings.TrimSpace(raw)
-		if s == "" || strings.HasPrefix(s, "--") {
-			continue
-		}
-		// Strip inline comments (lines starting with --).
+		// Strip comment-only lines first, then check if anything remains.
 		var lines []string
-		for _, line := range strings.Split(s, "\n") {
+		for _, line := range strings.Split(raw, "\n") {
 			if !strings.HasPrefix(strings.TrimSpace(line), "--") {
 				lines = append(lines, line)
 			}
 		}
-		s = strings.TrimSpace(strings.Join(lines, "\n"))
+		s := strings.TrimSpace(strings.Join(lines, "\n"))
 		if s != "" {
 			stmts = append(stmts, s)
 		}
