@@ -152,3 +152,11 @@ has_argocd_context(payload) if {
 has_argocd_context(payload) if {
 	_ = payload.sync_policy
 }
+
+# ── argocd.project ───────────────────────────
+
+has_sufficient_context(action) if {
+	action.kind == "argocd.project"
+	payload := object.get(action, "payload", {})
+	count(payload) > 0
+}

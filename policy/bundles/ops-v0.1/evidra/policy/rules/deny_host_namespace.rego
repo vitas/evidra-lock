@@ -3,7 +3,7 @@ package evidra.policy
 
 deny["k8s.host_namespace_escape"] = "Pod uses host namespace (hostPID, hostIPC, or hostNetwork)" if {
 	action := input.actions[_]
-	action.kind == "k8s.apply"
+	action.kind == "kubectl.apply"
 	host_namespace_enabled(action.payload)
 }
 

@@ -130,11 +130,9 @@ func TestKillswitch(t *testing.T) {
 			wantRuleIDs: []string{"terraform.iam_wildcard_policy"},
 		},
 		{
-			// Existing privileged container rule checks k8s.apply kind.
-			// Using k8s.apply also triggers ops.unknown_destructive since
-			// k8s is not a known tool prefix (kubectl is).
-			name: "e2e_privileged_container_deny",
-			kind: "k8s.apply",
+			name:   "e2e_privileged_container_deny",
+			kind:   "kubectl.apply",
+			target: map[string]interface{}{"namespace": "default"},
 			payload: map[string]interface{}{
 				"namespace": "default",
 				"resource":  "deployment",
@@ -263,6 +261,121 @@ func TestKillswitch(t *testing.T) {
 			kind:     "kubectl.version",
 			payload:  map[string]interface{}{},
 			wantPass: true,
+		},
+		// ── Helm kill-switch tests ──
+		{
+			name:        "e2e_helm_upgrade_no_namespace_deny",
+			kind:        "helm.upgrade",
+			payload:     map[string]interface{}{"chart": "nginx"},
+			wantPass:    false,
+			wantRuleIDs: []string{"ops.insufficient_context"},
+		},
+		{
+			name:   "e2e_helm_upgrade_with_namespace_allow",
+			kind:   "helm.upgrade",
+			target: map[string]interface{}{"namespace": "default"},
+			payload: map[string]interface{}{
+				"namespace": "default",
+				"chart":     "nginx",
+			},
+			wantPass: true,
+		},
+		{
+			name:   "e2e_helm_uninstall_with_namespace_allow",
+			kind:   "helm.uninstall",
+			target: map[string]interface{}{"namespace": "default"},
+			payload: map[string]interface{}{
+				"namespace": "default",
+				"release":   "my-release",
+			},
+			wantPass: true,
+		},
+		// ── ArgoCD kill-switch tests ──
+		{
+			name:        "e2e_argocd_sync_no_context_deny",
+			kind:        "argocd.sync",
+			payload:     map[string]interface{}{},
+			wantPass:    false,
+			wantRuleIDs: []string{"ops.insufficient_context"},
+		},
+		{
+			name: "e2e_argocd_sync_with_app_name_allow",
+			kind: "argocd.sync",
+			payload: map[string]interface{}{
+				"app_name": "staging-app",
+			},
+			wantPass: true,
+		},
+		// ── Domain rule + kill-switch interaction ──
+		{
+			// Verify domain rule fires THROUGH kill-switch (not blocked by it)
+			name: "e2e_kubectl_apply_host_namespace_deny",
+			kind: "kubectl.apply",
+			target: map[string]interface{}{"namespace": "default"},
+			payload: map[string]interface{}{
+				"namespace":  "default",
+				"resource":   "pod",
+				"host_pid":   true,
+				"containers": []interface{}{
+					map[string]interface{}{"image": "nginx:1.25"},
+				},
+			},
+			wantPass:    false,
+			wantRuleIDs: []string{"k8s.host_namespace_escape"},
+		},
+		{
+			// Verify terraform domain rule fires (rule matches terraform.plan)
+			name: "e2e_terraform_plan_sg_open_world_deny",
+			kind: "terraform.plan",
+			payload: map[string]interface{}{
+				"security_group_rules": []interface{}{
+					map[string]interface{}{
+						"type":        "ingress",
+						"from_port":   22,
+						"to_port":     22,
+						"protocol":    "tcp",
+						"cidr_blocks": []interface{}{"0.0.0.0/0"},
+					},
+				},
+			},
+			wantPass:    false,
+			wantRuleIDs: []string{"terraform.sg_open_world"},
+		},
+		// ── Garbage input tests ──
+		{
+			// Empty resource_types array is NOT sufficient detail
+			name: "e2e_terraform_empty_resource_types_deny",
+			kind: "terraform.apply",
+			payload: map[string]interface{}{
+				"resource_types": []interface{}{},
+			},
+			wantPass:    false,
+			wantRuleIDs: []string{"ops.insufficient_context"},
+		},
+		{
+			// Container without image field is not "real"
+			name: "e2e_kubectl_apply_container_no_image_deny",
+			kind: "kubectl.apply",
+			target: map[string]interface{}{"namespace": "default"},
+			payload: map[string]interface{}{
+				"namespace": "default",
+				"resource":  "deployment",
+				"containers": []interface{}{
+					map[string]interface{}{"name": "app"},
+				},
+			},
+			wantPass:    false,
+			wantRuleIDs: []string{"ops.insufficient_context"},
+		},
+		{
+			// argocd.sync with empty app_name is not sufficient
+			name: "e2e_argocd_sync_empty_app_name_deny",
+			kind: "argocd.sync",
+			payload: map[string]interface{}{
+				"app_name": "",
+			},
+			wantPass:    false,
+			wantRuleIDs: []string{"ops.insufficient_context"},
 		},
 	}
 

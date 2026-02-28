@@ -32,7 +32,8 @@
         "terraform.destroy",
         "helm.upgrade",
         "helm.uninstall",
-        "argocd.sync"
+        "argocd.sync",
+        "argocd.project"
       ]
     }
   },

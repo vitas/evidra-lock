@@ -3,7 +3,7 @@ package evidra.policy
 
 deny["k8s.hostpath_mount"] = "Pod uses hostPath volume mount" if {
 	action := input.actions[_]
-	action.kind == "k8s.apply"
+	action.kind == "kubectl.apply"
 	vol := action.payload.volumes[_]
 	vol.host_path
 }
