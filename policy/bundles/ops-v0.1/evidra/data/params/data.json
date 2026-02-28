@@ -42,5 +42,35 @@
       "default": "ops",
       "baseline-test": "baseline"
     }
+  },
+  "ops.context_requirements": {
+    "by_env": {
+      "default": {
+        "kubectl.delete": {
+          "hint": "Provide: namespace",
+          "skeleton": "{\"namespace\": \"...\", \"resource_count\": 0}"
+        },
+        "kubectl.apply": {
+          "hint": "Provide: namespace + containers[].image (for workload resources)",
+          "skeleton": "{\"namespace\": \"...\", \"resource\": \"configmap\"}"
+        },
+        "terraform.apply": {
+          "hint": "Provide: at least one of resource_types, security_group_rules, iam_policy_statements, s3_public_access_block",
+          "skeleton": "{\"resource_types\": [\"...\"]}"
+        },
+        "terraform.destroy": {
+          "hint": "Provide: destroy_count (number)",
+          "skeleton": "{\"destroy_count\": 0}"
+        },
+        "helm.*": {
+          "hint": "Provide: namespace",
+          "skeleton": "{\"namespace\": \"...\"}"
+        },
+        "argocd.sync": {
+          "hint": "Provide: app_name or sync_policy",
+          "skeleton": "{\"app_name\": \"...\"}"
+        }
+      }
+    }
   }
 }

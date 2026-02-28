@@ -7,7 +7,9 @@ denies := [{"label": l, "message": m} | data.evidra.policy.deny[l] = m]
 warnings := [{"label": l, "message": m} | data.evidra.policy.warn[l] = m]
 
 allow := count(denies) == 0
-reasons := [entry.message | entry := denies[_]]
+deny_messages := [entry.message | entry := denies[_]]
+insufficient_reasons := [m | some m; data.evidra.policy.insufficient_context_reason[m]]
+reasons := dedupe(array.concat(deny_messages, insufficient_reasons))
 reason := reasons[0] if {
 	count(reasons) > 0
 }
@@ -19,11 +21,13 @@ hit_labels := [entry.label | entry := denies[_]]
 warn_labels := [entry.label | entry := warnings[_]]
 
 hits := dedupe(array.concat(hit_labels, warn_labels))
-hints := dedupe([hint |
+rule_hints := [hint |
 	label := hits[_]
 	hs := data.evidra.data.rule_hints[label]
 	hint := hs[_]
-])
+]
+context_hints := [h | some h; data.evidra.policy.insufficient_context_hint[h]]
+hints := dedupe(array.concat(rule_hints, context_hints))
 
 risk_level := "high" if {
 	count(denies) > 0

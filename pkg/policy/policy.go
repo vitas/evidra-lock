@@ -83,7 +83,11 @@ func (e *Engine) Evaluate(inv invocation.ToolInvocation) (Decision, error) {
 		"params":    inv.Params,
 		"context":   inv.Context,
 	}
-	if actions := buildActionList(inv.Params); len(actions) > 0 {
+	actions, err := buildActionList(inv.Params, inv.Actor.Origin)
+	if err != nil {
+		return Decision{Allow: false, RiskLevel: "high", Reason: "invalid_input"}, err
+	}
+	if len(actions) > 0 {
 		input["actions"] = actions
 	}
 	if env := inv.Environment; env != "" {
@@ -168,16 +172,19 @@ func isValidRiskLevel(level string) bool {
 	}
 }
 
-func buildActionList(params map[string]interface{}) []map[string]interface{} {
+func buildActionList(params map[string]interface{}, origin string) ([]map[string]interface{}, error) {
 	if params == nil {
-		return nil
+		return nil, nil
 	}
 	if raw, ok := params["action"]; ok {
 		if action, ok2 := normalizeAction(raw); ok2 {
-			return []map[string]interface{}{action}
+			return []map[string]interface{}{action}, nil
 		}
 	}
 	if raw, ok := params["actions"]; ok {
+		if isMCPOrigin(origin) {
+			return nil, fmt.Errorf("MCP must use params.action (single action); for multiple operations call validate once per action")
+		}
 		if arr, ok2 := raw.([]interface{}); ok2 {
 			var actions []map[string]interface{}
 			for _, item := range arr {
@@ -185,10 +192,14 @@ func buildActionList(params map[string]interface{}) []map[string]interface{} {
 					actions = append(actions, action)
 				}
 			}
-			return actions
+			return actions, nil
 		}
 	}
-	return nil
+	return nil, nil
+}
+
+func isMCPOrigin(origin string) bool {
+	return origin == "mcp" || origin == "mcp-server"
 }
 
 func normalizeAction(raw interface{}) (map[string]interface{}, bool) {

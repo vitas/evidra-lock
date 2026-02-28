@@ -14,41 +14,58 @@ deny["ops.insufficient_context"] = msg if {
 	action := input.actions[_]
 	is_destructive(action.kind)
 	not has_sufficient_context(action)
+	req := context_requirements(action.kind)
 	msg := sprintf(
 		"Destructive operation %s lacks required context. %s",
-		[action.kind, context_hint(action.kind)],
+		[action.kind, req.hint],
 	)
 }
 
-context_hint(kind) := "Provide: namespace" if {
-	kind == "kubectl.delete"
+# Per-kind reason for decision.reasons (richer than the deny message label).
+insufficient_context_reason[msg] if {
+	action := input.actions[_]
+	is_destructive(action.kind)
+	not has_sufficient_context(action)
+	req := context_requirements(action.kind)
+	msg := sprintf("%s: %s", [action.kind, req.hint])
 }
 
-context_hint(kind) := "Provide: namespace + containers[].image (for workload resources)" if {
-	kind == "kubectl.apply"
+# Per-kind skeleton for decision.hints (actionable payload example).
+insufficient_context_hint[s] if {
+	action := input.actions[_]
+	is_destructive(action.kind)
+	not has_sufficient_context(action)
+	req := context_requirements(action.kind)
+	s := req.skeleton
 }
 
-context_hint(kind) := "Provide: at least one of resource_types, security_group_rules, iam_policy_statements, s3_public_access_block" if {
-	kind == "terraform.apply"
+# context_requirements returns {hint, skeleton} for a kind.
+# Clause 1: exact match in data.
+context_requirements(kind) := req if {
+	reqs := defaults.resolve_param("ops.context_requirements")
+	req := reqs[kind]
 }
 
-context_hint(kind) := "Provide: destroy_count (number)" if {
-	kind == "terraform.destroy"
+# Clause 2: prefix wildcard match (e.g. "helm.*").
+context_requirements(kind) := req if {
+	reqs := defaults.resolve_param("ops.context_requirements")
+	not reqs[kind]
+	parts := split(kind, ".")
+	wildcard := concat(".", [parts[0], "*"])
+	req := reqs[wildcard]
 }
 
-context_hint(kind) := "Provide: namespace" if {
-	startswith(kind, "helm.")
-}
-
-context_hint(kind) := "Provide: app_name or sync_policy" if {
-	kind == "argocd.sync"
-}
-
-context_hint(kind) := "Add a has_sufficient_context clause for this tool" if {
-	not startswith(kind, "kubectl.")
-	not startswith(kind, "terraform.")
-	not startswith(kind, "helm.")
-	not startswith(kind, "argocd.")
+# Clause 3: fallback for unknown tools.
+context_requirements(kind) := req if {
+	reqs := defaults.resolve_param("ops.context_requirements")
+	not reqs[kind]
+	parts := split(kind, ".")
+	wildcard := concat(".", [parts[0], "*"])
+	not reqs[wildcard]
+	req := {
+		"hint": "Add a has_sufficient_context clause for this tool",
+		"skeleton": "{}",
+	}
 }
 
 is_destructive(kind) if {

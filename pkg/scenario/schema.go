@@ -20,7 +20,7 @@ type Actor struct {
 type Action struct {
 	Kind     string                 `json:"kind"`
 	Target   map[string]interface{} `json:"target"`
-	Intent   string                 `json:"intent"`
+	Intent   string                 `json:"intent"` // Log-only. Recorded in evidence for audit trail. Not evaluated by policy.
 	Payload  map[string]interface{} `json:"payload"`
 	RiskTags []string               `json:"risk_tags"`
 }

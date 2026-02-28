@@ -38,26 +38,39 @@ type Options struct {
 	SkipEvidence bool
 }
 
+// ActionResult holds the per-action policy evaluation breakdown.
+type ActionResult struct {
+	Index     int      `json:"index"`
+	Kind      string   `json:"kind"`
+	Pass      bool     `json:"pass"`
+	RiskLevel string   `json:"risk_level"`
+	RuleIDs   []string `json:"rule_ids"`
+	Reasons   []string `json:"reasons"`
+	Hints     []string `json:"hints"`
+}
+
 type Result struct {
-	Pass        bool
-	RiskLevel   string
-	EvidenceID  string   // Single-action shortcut (most common case)
-	EvidenceIDs []string // All evidence IDs for multi-action scenarios
-	RequestIDs  []string // X-Request-ID per API call (online only, empty in offline)
-	Reasons     []string
-	RuleIDs     []string
-	Hints       []string
-	Source      string // "api", "local", "local-fallback"
-	PolicyRef   string // Policy bundle ref (from server or local)
+	Pass          bool
+	RiskLevel     string
+	EvidenceID    string         // Single-action shortcut (most common case)
+	EvidenceIDs   []string       // All evidence IDs for multi-action scenarios
+	RequestIDs    []string       // X-Request-ID per API call (online only, empty in offline)
+	Reasons       []string
+	RuleIDs       []string
+	Hints         []string
+	ActionResults []ActionResult // Per-action breakdown. Always present (never nil).
+	Source        string         // "api", "local", "local-fallback"
+	PolicyRef     string         // Policy bundle ref (from server or local)
 }
 
 type scenarioEvaluation struct {
-	Pass      bool
-	RiskLevel string
-	Reasons   []string
-	RuleIDs   []string
-	Hints     []string
-	PolicyRef string
+	Pass          bool
+	RiskLevel     string
+	Reasons       []string
+	RuleIDs       []string
+	Hints         []string
+	PolicyRef     string
+	ActionResults []ActionResult
 }
 
 func EvaluateFile(ctx context.Context, path string, opts Options) (Result, error) {
@@ -165,14 +178,15 @@ func EvaluateScenario(ctx context.Context, sc scenario.Scenario, opts Options) (
 	}
 
 	return Result{
-		Pass:       finalPass,
-		RiskLevel:  finalRisk,
-		EvidenceID: evidenceID,
-		Reasons:    sortedDedupeStrings(finalReasons),
-		RuleIDs:    finalRuleIDs,
-		Hints:      finalHints,
-		Source:     "local",
-		PolicyRef:  evalResult.PolicyRef,
+		Pass:          finalPass,
+		RiskLevel:     finalRisk,
+		EvidenceID:    evidenceID,
+		Reasons:       sortedDedupeStrings(finalReasons),
+		RuleIDs:       finalRuleIDs,
+		Hints:         finalHints,
+		ActionResults: evalResult.ActionResults,
+		Source:        "local",
+		PolicyRef:     evalResult.PolicyRef,
 	}, nil
 }
 
@@ -330,8 +344,9 @@ func fileExists(path string) bool {
 
 func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evaluator, sc scenario.Scenario, environment string) (scenarioEvaluation, error) {
 	res := scenarioEvaluation{
-		Pass:      true,
-		RiskLevel: "low",
+		Pass:          true,
+		RiskLevel:     "low",
+		ActionResults: make([]ActionResult, 0, len(sc.Actions)),
 	}
 	for i, action := range sc.Actions {
 		tool, operation, ok := splitKind(action.Kind)
@@ -340,6 +355,15 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 			res.RiskLevel = "high"
 			reason := fmt.Sprintf("action[%d] invalid kind: %s", i, action.Kind)
 			res.Reasons = append(res.Reasons, reason)
+			res.ActionResults = append(res.ActionResults, ActionResult{
+				Index:     i,
+				Kind:      action.Kind,
+				Pass:      false,
+				RiskLevel: "high",
+				RuleIDs:   []string{"sys.invalid_kind"},
+				Reasons:   []string{reason},
+				Hints:     []string{},
+			})
 			continue
 		}
 
@@ -395,11 +419,47 @@ func evaluateScenarioWithRuntime(ctx context.Context, runtimeEval *runtime.Evalu
 		if !decision.Allow && len(decision.Hits) == 0 {
 			res.RuleIDs = append(res.RuleIDs, "sys.unlabeled_deny")
 		}
+
+		// Build per-action result.
+		ar := ActionResult{
+			Index:   i,
+			Kind:    action.Kind,
+			Pass:    decision.Allow,
+			RuleIDs: decision.Hits,
+			Reasons: decision.Reasons,
+			Hints:   decision.Hints,
+		}
+		if !decision.Allow {
+			ar.RiskLevel = "high"
+		} else if hasBreakglassTag(action) {
+			ar.RiskLevel = "medium"
+		} else {
+			ar.RiskLevel = "low"
+		}
+		if ar.RuleIDs == nil {
+			ar.RuleIDs = []string{}
+		}
+		if ar.Reasons == nil {
+			ar.Reasons = []string{}
+		}
+		if ar.Hints == nil {
+			ar.Hints = []string{}
+		}
+		res.ActionResults = append(res.ActionResults, ar)
 	}
 	res.RuleIDs = sortedDedupeStrings(res.RuleIDs)
 	res.Hints = sortedDedupeStrings(res.Hints)
 	res.Reasons = sortedDedupeStrings(res.Reasons)
 	return res, nil
+}
+
+func hasBreakglassTag(action scenario.Action) bool {
+	for _, tag := range action.RiskTags {
+		if tag == "breakglass" {
+			return true
+		}
+	}
+	return false
 }
 
 func splitKind(kind string) (string, string, bool) {

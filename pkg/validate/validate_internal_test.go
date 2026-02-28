@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"samebits.com/evidra/pkg/invocation"
+	"samebits.com/evidra/pkg/scenario"
 )
 
 // ---------------------------------------------------------------------------
@@ -186,6 +187,34 @@ func TestScenarioIDFromInvocation_PriorityChain(t *testing.T) {
 			t.Errorf("expected generated ID, got %q", got)
 		}
 	})
+}
+
+// ---------------------------------------------------------------------------
+// hasBreakglassTag
+// ---------------------------------------------------------------------------
+
+func TestHasBreakglassTag(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		tags []string
+		want bool
+	}{
+		{"nil tags", nil, false},
+		{"empty tags", []string{}, false},
+		{"breakglass present", []string{"breakglass"}, true},
+		{"breakglass among others", []string{"change-approved", "breakglass"}, true},
+		{"no breakglass", []string{"change-approved"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			action := scenario.Action{RiskTags: tt.tags}
+			if got := hasBreakglassTag(action); got != tt.want {
+				t.Errorf("hasBreakglassTag(%v) = %v, want %v", tt.tags, got, tt.want)
+			}
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------

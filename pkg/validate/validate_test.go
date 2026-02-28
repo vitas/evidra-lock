@@ -206,6 +206,181 @@ func TestEvaluateScenario_MultiAction_OneDeny(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// ActionResults
+// ---------------------------------------------------------------------------
+
+func TestActionResults_AlwaysPresent(t *testing.T) {
+	result, err := validate.EvaluateScenario(context.Background(), safeScenario(), safeOpts(t))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.ActionResults == nil {
+		t.Fatal("ActionResults is nil, want non-nil slice")
+	}
+	if len(result.ActionResults) != 1 {
+		t.Fatalf("ActionResults len=%d, want 1", len(result.ActionResults))
+	}
+	ar := result.ActionResults[0]
+	if ar.Index != 0 {
+		t.Errorf("Index=%d, want 0", ar.Index)
+	}
+	if ar.Kind != "kubectl.apply" {
+		t.Errorf("Kind=%q, want kubectl.apply", ar.Kind)
+	}
+	if !ar.Pass {
+		t.Errorf("Pass=false, want true")
+	}
+	if ar.RiskLevel != "low" {
+		t.Errorf("RiskLevel=%q, want low", ar.RiskLevel)
+	}
+}
+
+func TestActionResults_MultiAction_Breakdown(t *testing.T) {
+	sc := scenario.Scenario{
+		ScenarioID: "multi-action-results",
+		Actor:      scenario.Actor{Type: "human", ID: "u1", Origin: "test"},
+		Source:     "test",
+		Timestamp:  time.Now().UTC(),
+		Actions: []scenario.Action{
+			{
+				Kind:    "kubectl.apply",
+				Target:  map[string]interface{}{"namespace": "default"},
+				Payload: map[string]interface{}{"namespace": "default", "resource": "configmap"},
+			},
+			{
+				Kind:   "kubectl.delete",
+				Target: map[string]interface{}{"namespace": "prod"},
+				Payload: map[string]interface{}{
+					"namespace":      "prod",
+					"resource_count": 3,
+				},
+			},
+		},
+	}
+	result, err := validate.EvaluateScenario(context.Background(), sc, safeOpts(t))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.ActionResults) != 2 {
+		t.Fatalf("ActionResults len=%d, want 2", len(result.ActionResults))
+	}
+	// First action should pass
+	if !result.ActionResults[0].Pass {
+		t.Errorf("action[0] Pass=false, want true")
+	}
+	if result.ActionResults[0].RiskLevel != "low" {
+		t.Errorf("action[0] RiskLevel=%q, want low", result.ActionResults[0].RiskLevel)
+	}
+	// Second action should be denied (prod without approval)
+	if result.ActionResults[1].Pass {
+		t.Errorf("action[1] Pass=true, want false")
+	}
+	if result.ActionResults[1].RiskLevel != "high" {
+		t.Errorf("action[1] RiskLevel=%q, want high", result.ActionResults[1].RiskLevel)
+	}
+	// Summary should be the union
+	if result.Pass {
+		t.Error("overall Pass=true, want false")
+	}
+}
+
+func TestActionResults_BreakglassRiskLevel(t *testing.T) {
+	sc := scenario.Scenario{
+		ScenarioID: "breakglass-results",
+		Actor:      scenario.Actor{Type: "human", ID: "u1", Origin: "test"},
+		Source:     "test",
+		Timestamp:  time.Now().UTC(),
+		Actions: []scenario.Action{
+			{
+				Kind:     "kubectl.apply",
+				RiskTags: []string{"breakglass"},
+				Target:   map[string]interface{}{"namespace": "default"},
+				Payload:  map[string]interface{}{"namespace": "default"},
+			},
+		},
+	}
+	result, err := validate.EvaluateScenario(context.Background(), sc, safeOpts(t))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.ActionResults) != 1 {
+		t.Fatalf("ActionResults len=%d, want 1", len(result.ActionResults))
+	}
+	ar := result.ActionResults[0]
+	if !ar.Pass {
+		t.Errorf("Pass=false, want true")
+	}
+	if ar.RiskLevel != "medium" {
+		t.Errorf("RiskLevel=%q, want medium (breakglass)", ar.RiskLevel)
+	}
+}
+
+func TestActionResults_InvalidKind(t *testing.T) {
+	sc := scenario.Scenario{
+		ScenarioID: "invalid-kind-results",
+		Actor:      scenario.Actor{Type: "human", ID: "u1", Origin: "test"},
+		Source:     "test",
+		Timestamp:  time.Now().UTC(),
+		Actions: []scenario.Action{
+			{Kind: "nodot"},
+		},
+	}
+	result, err := validate.EvaluateScenario(context.Background(), sc, safeOpts(t))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.ActionResults) != 1 {
+		t.Fatalf("ActionResults len=%d, want 1", len(result.ActionResults))
+	}
+	ar := result.ActionResults[0]
+	if ar.Pass {
+		t.Error("Pass=true, want false for invalid kind")
+	}
+	if ar.RiskLevel != "high" {
+		t.Errorf("RiskLevel=%q, want high", ar.RiskLevel)
+	}
+	if !containsString(ar.RuleIDs, "sys.invalid_kind") {
+		t.Errorf("RuleIDs=%v, want sys.invalid_kind", ar.RuleIDs)
+	}
+}
+
+func TestActionResults_SummaryIsUnion(t *testing.T) {
+	// Two actions: one passes, one fails. Summary reasons/rule_ids must be union.
+	sc := scenario.Scenario{
+		ScenarioID: "summary-union",
+		Actor:      scenario.Actor{Type: "human", ID: "u1", Origin: "test"},
+		Source:     "test",
+		Timestamp:  time.Now().UTC(),
+		Actions: []scenario.Action{
+			{
+				Kind:    "kubectl.apply",
+				Target:  map[string]interface{}{"namespace": "default"},
+				Payload: map[string]interface{}{"namespace": "default", "resource": "configmap"},
+			},
+			{
+				Kind:   "kubectl.delete",
+				Target: map[string]interface{}{"namespace": "prod"},
+				Payload: map[string]interface{}{
+					"namespace":      "prod",
+					"resource_count": 3,
+				},
+			},
+		},
+	}
+	result, err := validate.EvaluateScenario(context.Background(), sc, safeOpts(t))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Top-level RuleIDs should contain the deny rule from the second action.
+	if !containsString(result.RuleIDs, "ops.unapproved_change") {
+		t.Errorf("RuleIDs=%v, want ops.unapproved_change in union", result.RuleIDs)
+	}
+	if len(result.Reasons) == 0 {
+		t.Error("Reasons empty, want at least one from denied action")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // EvaluateInvocation — field mapping reaches OPA
 // ---------------------------------------------------------------------------
 
