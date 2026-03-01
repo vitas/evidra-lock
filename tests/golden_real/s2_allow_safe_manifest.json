@@ -1,0 +1,18 @@
+{
+  "scenario": "s2_allow_safe_manifest",
+  "priority": "p1",
+  "retry": 1,
+
+  "expect_validate_called": true,
+  "expect_validate_input": {
+    "tool": "kubectl",
+    "operation": "apply",
+    "namespace": "default"
+  },
+
+  "expect_allow": true,
+  "expect_no_mutation": false,
+  "expect_stop_signal": false,
+  "expect_evidence_deny": false,
+  "expect_payload_min_bytes": null
+}

@@ -492,7 +492,7 @@ func (s *KeyStore) Close() { s.wg.Wait() }
 1. Create `docs/RULE_AUTHORING.md` with checklist:
    - Step 1: Create `deny_<name>.rego` in `evidra/policy/rules/`
    - Step 2: Add hints in `evidra/data/rule_hints/data.json`
-   - Step 3: Add entry to `docs/POLICY_CATALOG.md`
+   - Step 3: Add entry to `POLICY_CATALOG.md`
    - Step 4: Add test `tests/deny_<name>_test.rego`
    - Step 5: Add scenario fixture in `examples/` with `.expected.json`
    - Step 6: Gate on `profile_includes_ops` if ops-layer rule
@@ -501,7 +501,7 @@ func (s *KeyStore) Close() { s.wg.Wait() }
    # Rule: <rule_id>
    # Severity: deny | warn
    # Description: <what this catches>
-   # Catalog: docs/POLICY_CATALOG.md
+   # Catalog: POLICY_CATALOG.md
    package evidra.policy
    import data.evidra.policy.defaults as defaults
    

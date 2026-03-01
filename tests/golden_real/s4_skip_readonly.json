@@ -1,0 +1,14 @@
+{
+  "scenario": "s4_skip_readonly",
+  "priority": "p0",
+  "retry": 3,
+
+  "expect_validate_called": false,
+  "expect_validate_input": null,
+
+  "expect_allow": null,
+  "expect_no_mutation": false,
+  "expect_stop_signal": false,
+  "expect_evidence_deny": false,
+  "expect_payload_min_bytes": null
+}

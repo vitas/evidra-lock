@@ -6,7 +6,7 @@ POLICY_CATALOG_PATH ?= POLICY_CATALOG.md
 # instead of silently attempting a network download.
 export GOTOOLCHAIN ?= off
 
-.PHONY: test fmt lint build tidy skill skill-check
+.PHONY: test fmt lint build tidy skill skill-check test-skill-e2e test-skill-e2e-full test-skill-e2e-weekly
 
 test:
 	go test ./...
@@ -31,3 +31,12 @@ skill:
 
 skill-check:
 	diff $(POLICY_CATALOG_PATH) skills/evidra-infra-safety/references/policy-rules.md
+
+test-skill-e2e:
+	SCENARIOS=p0 bash tests/e2e/run_e2e.sh
+
+test-skill-e2e-full:
+	SCENARIOS=all bash tests/e2e/run_e2e.sh
+
+test-skill-e2e-weekly:
+	SCENARIOS=all RETRY_ALL=3 bash tests/e2e/run_e2e.sh

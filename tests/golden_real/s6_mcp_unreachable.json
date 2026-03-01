@@ -1,0 +1,14 @@
+{
+  "scenario": "s6_mcp_unreachable",
+  "priority": "p2",
+  "retry": 1,
+
+  "expect_validate_called": null,
+  "expect_validate_input": null,
+
+  "expect_allow": null,
+  "expect_no_mutation": true,
+  "expect_stop_signal": false,
+  "expect_evidence_deny": false,
+  "expect_payload_min_bytes": null
+}

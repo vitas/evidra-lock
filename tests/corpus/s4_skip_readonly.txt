@@ -1,0 +1,1 @@
+Show me all pods in the default namespace. Run kubectl get pods -n default

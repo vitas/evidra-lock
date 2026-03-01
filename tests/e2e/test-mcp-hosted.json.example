@@ -1,0 +1,14 @@
+{
+  "_comment": "Reference config for hosted api.evidra.rest. DO NOT commit real API keys.",
+  "_usage": "Use run_e2e.sh with EVIDRA_URL + EVIDRA_API_KEY — it generates this config automatically.",
+  "mcpServers": {
+    "evidra": {
+      "command": "evidra-mcp",
+      "args": ["--evidence-store", "/tmp/evidra-test-evidence"],
+      "env": {
+        "EVIDRA_URL": "https://api.evidra.rest",
+        "EVIDRA_API_KEY": "ev1_YOUR_KEY_HERE"
+      }
+    }
+  }
+}
