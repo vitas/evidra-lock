@@ -10,9 +10,75 @@ permissions:
   contents: write
   packages: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  # ── Guard: tag format + repo version alignment ───────────────────
+  release-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag and version alignment
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF:-}" != refs/tags/* ]]; then
+            echo "::error::Release workflow must run from a tag ref (refs/tags/vX.Y.Z). Current ref: ${GITHUB_REF:-<unset>}"
+            exit 1
+          fi
+
+          tag="${GITHUB_REF#refs/tags/}"
+          if ! [[ "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid tag '${tag}'. Expected semver like v0.1.24 or v0.1.24-rc1."
+            exit 1
+          fi
+
+          tag_sha="$(git rev-list -n1 "${tag}")"
+          if [ "${tag_sha}" != "${GITHUB_SHA}" ]; then
+            echo "::error::Tag ${tag} points to ${tag_sha}, but workflow SHA is ${GITHUB_SHA}."
+            exit 1
+          fi
+
+          repo_version="$(tr -d '[:space:]' < VERSION)"
+          if [ -z "${repo_version}" ]; then
+            echo "::error::VERSION file is empty."
+            exit 1
+          fi
+
+          code_version="$(sed -nE 's/^[[:space:]]*Version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' pkg/version/version.go | head -n1)"
+          if [ -z "${code_version}" ]; then
+            echo "::error::Could not parse Version constant from pkg/version/version.go."
+            exit 1
+          fi
+
+          tag_mm="$(echo "${tag#v}" | cut -d. -f1-2)"
+          repo_mm="$(echo "${repo_version}" | sed -E 's/^([0-9]+)\.([0-9]+).*/\1.\2/')"
+          code_mm="$(echo "${code_version}" | sed -E 's/^([0-9]+)\.([0-9]+).*/\1.\2/')"
+
+          if [ "${repo_mm}" != "${tag_mm}" ]; then
+            echo "::error::Tag ${tag} is ${tag_mm}, but VERSION baseline is ${repo_version}."
+            echo "::error::Update VERSION before releasing a new major/minor line."
+            exit 1
+          fi
+
+          if [ "${code_mm}" != "${tag_mm}" ]; then
+            echo "::error::Tag ${tag} is ${tag_mm}, but pkg/version baseline is ${code_version}."
+            echo "::error::Update pkg/version/version.go before releasing a new major/minor line."
+            exit 1
+          fi
+
+          echo "Release guard passed for ${tag} (VERSION=${repo_version}, code=${code_version})."
+
   # ── Gate: tests must pass before any release job runs ───────────
   test:
+    needs: [release-guard]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
