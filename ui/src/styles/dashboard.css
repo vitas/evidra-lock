@@ -26,6 +26,12 @@
   justify-content: space-between;
 }
 
+.dash-section-header--primary {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
 .dash-section-body {
   padding: var(--space-md);
 }
@@ -151,6 +157,7 @@
 .tab--active {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
+  font-weight: 600;
 }
 
 /* Simple form */
@@ -237,17 +244,67 @@
   margin-bottom: var(--space-md);
 }
 
-.result-evidence-toggle {
-  background: transparent;
-  border: none;
-  color: var(--color-text-muted);
+.result-evidence-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  background: linear-gradient(180deg, rgba(22, 163, 74, 0.08), rgba(22, 163, 74, 0.02));
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  border-radius: var(--radius);
+}
+
+.result-evidence-cta-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+}
+
+.result-evidence-cta-label {
   font-size: 0.8125rem;
-  padding: 0;
-  margin-bottom: var(--space-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.result-evidence-cta-text {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.result-evidence-toggle {
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
 
 .result-evidence-toggle:hover {
-  color: var(--color-text);
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.result-evidence-toggle:focus-visible {
+  outline: 2px solid rgba(22, 163, 74, 0.35);
+  outline-offset: 2px;
+}
+
+.result-evidence-toggle--active {
+  background: #166534;
+  border-color: #166534;
+}
+
+@media (max-width: 640px) {
+  .result-evidence-toggle {
+    width: 100%;
+  }
 }
 
 /* JSON editor */

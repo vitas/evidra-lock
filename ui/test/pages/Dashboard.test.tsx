@@ -83,6 +83,45 @@ describe("Dashboard", () => {
     });
   });
 
+  it("reveals the full evidence record when requested", async () => {
+    localStorage.setItem("evidra_api_key", "ev1_testkey12345678901234567890");
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          event_id: "evt_01JTEST",
+          timestamp: "2026-02-26T14:23:01Z",
+          tenant_id: "static",
+          server_id: "srv_test",
+          policy_ref: "bundle://evidra/default:0.1.0",
+          actor: { type: "agent", id: "claude", origin: "web-ui" },
+          tool: "kubectl",
+          operation: "apply",
+          environment: "production",
+          input_hash: "sha256:abc",
+          decision: {
+            allow: true,
+            risk_level: "low",
+            reason: "all checks passed",
+            reasons: [],
+            hints: [],
+            rule_ids: [],
+          },
+          signing_payload: "test",
+          signature: "sig",
+        }),
+    });
+
+    render(<Dashboard />);
+    await userEvent.click(screen.getByRole("button", { name: /evaluate/i }));
+
+    const showEvidenceButton = await screen.findByRole("button", { name: /show evidence record/i });
+    await userEvent.click(showEvidenceButton);
+
+    expect(screen.getByRole("button", { name: /hide evidence record/i })).toBeInTheDocument();
+    expect(screen.getByText(/"event_id": "evt_01JTEST"/i)).toBeInTheDocument();
+  });
+
   it("shows error with change key action on 401", async () => {
     localStorage.setItem("evidra_api_key", "ev1_testkey12345678901234567890");
     // First call is pubkey fetch (success), second is validate (401)

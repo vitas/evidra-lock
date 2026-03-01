@@ -178,15 +178,15 @@ export function Dashboard() {
 
   // If no API key, show prompt
   if (!apiKey) {
-    return (
-      <div className="dashboard">
-        <div className="dash-section">
-          <div className="dash-section-header">API Key</div>
-          <KeyPrompt
-            onSubmit={setApiKey}
-            ephemeral={ephemeral}
-            onEphemeralChange={setEphemeral}
-          />
+      return (
+        <div className="dashboard">
+          <div className="dash-section">
+            <div className="dash-section-header dash-section-header--primary">API Key</div>
+            <KeyPrompt
+              onSubmit={setApiKey}
+              ephemeral={ephemeral}
+              onEphemeralChange={setEphemeral}
+            />
         </div>
       </div>
     );
@@ -199,7 +199,7 @@ export function Dashboard() {
     <div className="dashboard">
       {/* API Key section */}
       <div className="dash-section">
-        <div className="dash-section-header">API Key</div>
+        <div className="dash-section-header dash-section-header--primary">API Key</div>
         <div className="dash-section-body">
           <div className="api-key-display">
             <code>{apiKey.slice(0, 8)}****</code>
@@ -219,7 +219,7 @@ export function Dashboard() {
 
       {/* Try Validate */}
       <div className="dash-section">
-        <div className="dash-section-header">Try Validate</div>
+        <div className="dash-section-header dash-section-header--primary">Try Validate</div>
         <div className="dash-section-body">
           {/* Tabs */}
           <div className="tabs" role="tablist">
@@ -406,6 +406,23 @@ export function Dashboard() {
                 </Badge>
               </div>
 
+              <div className="result-evidence-cta">
+                <div className="result-evidence-cta-copy">
+                  <span className="result-evidence-cta-label">Evidence JSON</span>
+                  <span className="result-evidence-cta-text">
+                    Open the full signed evidence record for copy/export.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={`result-evidence-toggle${showEvidence ? " result-evidence-toggle--active" : ""}`}
+                  onClick={() => setShowEvidence(!showEvidence)}
+                  aria-expanded={showEvidence}
+                >
+                  {showEvidence ? "Hide" : "Show"} Evidence Record
+                </button>
+              </div>
+
               {/* Reasons */}
               {result.decision.reasons?.length > 0 && (
                 <div className="result-reasons">
@@ -475,14 +492,6 @@ export function Dashboard() {
               {!result.decision.reasons?.length && result.decision.reason && (
                 <div className="result-reason">{result.decision.reason}</div>
               )}
-
-              <button
-                type="button"
-                className="result-evidence-toggle"
-                onClick={() => setShowEvidence(!showEvidence)}
-              >
-                {showEvidence ? "Hide" : "Show"} Evidence Record
-              </button>
               {showEvidence && (
                 <CodeBlock
                   code={JSON.stringify(result, null, 2)}

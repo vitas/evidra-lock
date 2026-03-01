@@ -42,6 +42,14 @@ export function Layout({ currentPage, onNavigate, children }: LayoutProps) {
               {label}
             </a>
           ))}
+          <a
+            href="https://github.com/vitas/evidra"
+            className="nav-link"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub
+          </a>
         </nav>
       </header>
       <main className="main">{children}</main>

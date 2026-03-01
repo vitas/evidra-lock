@@ -208,7 +208,15 @@ export function Docs() {
         <p>
           The fastest way to use Evidra: run the MCP server locally. Your AI agent
           calls <code>validate</code> before every destructive operation. No API
-          key needed for local mode.
+          key needed for local mode.{" "}
+          <a
+            href="https://github.com/vitas/evidra/blob/main/docs/EVIDRA_MCP_SETUP_GUIDE.md"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Full MCP setup guide on GitHub
+          </a>
+          .
         </p>
 
         <h3>Install</h3>
@@ -626,6 +634,21 @@ export function Docs() {
         <h3>Evidence directory permission error</h3>
         <CodeBlock code={`mkdir -p ~/.evidra && chmod 700 ~/.evidra
 evidra-mcp --offline --evidence-dir ~/.evidra`} />
+      </section>
+
+      <section className="docs-section">
+        <h2>More Docs on GitHub</h2>
+        <p>
+          Full documentation set (architecture notes, release plans, and security docs):
+          {" "}
+          <a
+            href="https://github.com/vitas/evidra/tree/main/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            github.com/vitas/evidra/docs
+          </a>
+        </p>
       </section>
     </div>
   );

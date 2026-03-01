@@ -345,11 +345,12 @@
   padding: var(--space-sm) var(--space-md);
   background: transparent;
   border: none;
+  border-bottom: 2px solid transparent;
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
   white-space: nowrap;
 }
 
@@ -363,8 +364,9 @@
 
 .setup-tab--active {
   background: var(--color-surface);
-  color: var(--color-text);
+  color: var(--color-primary);
   font-weight: 600;
+  border-bottom-color: var(--color-primary);
 }
 
 .setup-desc {

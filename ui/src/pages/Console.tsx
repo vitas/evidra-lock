@@ -97,7 +97,7 @@ const editorTabs: { id: EditorTab; label: string }[] = [
 
 const setupPaths: { id: SetupPath; label: string }[] = [
   { id: "hosted", label: "Hosted (no install)" },
-  { id: "local-api", label: "Local + API" },
+  { id: "local-api", label: "Local + Remote API" },
   { id: "offline", label: "Fully Offline" },
 ];
 

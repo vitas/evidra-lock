@@ -94,69 +94,14 @@ Every decision - allow or deny - is written to `~/.evidra/evidence` as an append
 
 ---
 
-## Install
+## Install & Setup
 
-**Homebrew** (macOS / Linux)
+Use the dedicated setup guide for install methods and MCP client configuration:
 
-```bash
-brew install vitas/tap/evidra-mcp
-```
+- [docs/EVIDRA_MCP_SETUP_GUIDE.md](docs/EVIDRA_MCP_SETUP_GUIDE.md)
+- [GitHub version](https://github.com/vitas/evidra/blob/main/docs/EVIDRA_MCP_SETUP_GUIDE.md)
 
-**Docker**
-
-```bash
-docker run --rm -i ghcr.io/vitas/evidra-mcp:latest
-```
-
-**Go install**
-
-```bash
-go install samebits.com/evidra/cmd/evidra-mcp@latest
-```
-
-If `go install` fails due module proxy/network resolution, use one of these fallbacks:
-
-```bash
-GOPROXY=direct go install samebits.com/evidra/cmd/evidra-mcp@latest
-```
-
-```bash
-git clone https://github.com/vitas/evidra.git
-cd evidra
-go install ./cmd/evidra-mcp
-```
-
-Binary downloads available on [GitHub Releases](https://github.com/vitas/evidra/releases).
-
----
-
-## Connect to Claude Code
-
-**Hosted (no install required)** - add to `~/.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "evidra": {
-      "url": "https://evidra.samebits.com/mcp"
-    }
-  }
-}
-```
-
-**Local binary** - runs offline with the embedded policy bundle:
-
-```json
-{
-  "mcpServers": {
-    "evidra": {
-      "command": "evidra-mcp"
-    }
-  }
-}
-```
-
-For other MCP clients (Cursor, Windsurf, etc.), use the same `url` or `command` shape in their respective config.
+Binary downloads are available on [GitHub Releases](https://github.com/vitas/evidra/releases).
 
 ---
 
@@ -167,6 +112,31 @@ For other MCP clients (Cursor, Windsurf, etc.), use the same `url` or `command` 
 | MCP server | `https://evidra.samebits.com/mcp` |
 | REST API | `https://api.evidra.rest/v1` |
 | Landing / Console | `https://evidra.samebits.com` |
+
+---
+
+## UI Dev Mock Mode (No Backend)
+
+If you want to review the UI locally without running `evidra-api`, start the UI with:
+
+```bash
+cd ui
+VITE_MOCK_API=1 npm run dev
+```
+
+This enables a mocked API for:
+
+- `POST /v1/keys`
+- `POST /v1/validate`
+- `GET /v1/evidence/pubkey`
+
+Safety guardrails:
+
+- Mock mode is enabled only when **both** are true:
+  - `VITE_MOCK_API=1`
+  - Vite mode is `development`
+- Production builds (`npm --prefix ui run build`) do **not** enable mock mode.
+- To disable locally, unset `VITE_MOCK_API` (or set it to `0`).
 
 ---
 
