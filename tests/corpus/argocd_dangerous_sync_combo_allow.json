@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "id": "argocd_dangerous_sync_combo_allow",
+    "rules": ["argocd.dangerous_sync_combo"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "argocd",
+    "operation": "sync",
+    "environment": "production",
+    "params": {
+      "action": {
+        "kind": "argocd.sync",
+        "target": "my-app",
+        "risk_tags": [],
+        "payload": {"sync_policy": {"automated": {"prune": true, "self_heal": false}}}
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["argocd.dangerous_sync_combo"],
+    "hints_min_count": 0
+  }
+}

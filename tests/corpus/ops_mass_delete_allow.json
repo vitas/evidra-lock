@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "id": "ops_mass_delete_allow",
+    "rules": ["ops.mass_delete"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "delete",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "kubectl.delete",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {"resource_count": 2, "namespace": "default"}
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["ops.mass_delete"],
+    "hints_min_count": 0
+  }
+}

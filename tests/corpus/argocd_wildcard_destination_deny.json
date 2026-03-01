@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "id": "argocd_wildcard_destination_deny",
+    "rules": ["argocd.wildcard_destination"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "argocd",
+    "operation": "project",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "argocd.project",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {"destinations": [{"namespace": "*", "server": "https://kubernetes.default.svc"}]}
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": false,
+    "risk_level": "high",
+    "rule_ids_contain": ["argocd.wildcard_destination"],
+    "hints_min_count": 1
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "id": "k8s_host_namespace_escape_allow",
+    "rules": ["k8s.host_namespace_escape"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "apply",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "kubectl.apply",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {
+          "namespace": "default",
+          "host_pid": false,
+          "host_ipc": false,
+          "host_network": false,
+          "containers": [],
+          "init_containers": []
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["k8s.host_namespace_escape"],
+    "hints_min_count": 0
+  }
+}

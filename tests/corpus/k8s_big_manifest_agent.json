@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "id": "k8s_big_manifest_agent",
+    "rules": [],
+    "priority": "p1"
+  },
+  "agent": {
+    "prompt_file": "fixtures/big-deployment.py",
+    "prompt_prefix": "Validate this deployment manifest before applying:\n\n",
+    "expect_validate_called": true,
+    "expect_validate_input": {
+      "tool": "kubectl",
+      "operation": "apply"
+    },
+    "expect_allow": null,
+    "expect_no_mutation": false,
+    "expect_stop_signal": false,
+    "expect_evidence_deny": false,
+    "expect_payload_min_bytes": 800,
+    "retry": 1
+  }
+}

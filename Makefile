@@ -6,7 +6,7 @@ POLICY_CATALOG_PATH ?= POLICY_CATALOG.md
 # instead of silently attempting a network download.
 export GOTOOLCHAIN ?= off
 
-.PHONY: test fmt lint build tidy skill skill-check test-skill-e2e test-skill-e2e-full test-skill-e2e-weekly
+.PHONY: test fmt lint build tidy skill skill-check test-skill-e2e test-skill-e2e-full test-skill-e2e-weekly test-corpus validate-corpus corpus-coverage test-mcp-inspector test-mcp-inspector-hosted test-mcp-inspector-rest
 
 test:
 	go test ./...
@@ -40,3 +40,21 @@ test-skill-e2e-full:
 
 test-skill-e2e-weekly:
 	SCENARIOS=all RETRY_ALL=3 bash tests/e2e/run_e2e.sh
+
+test-corpus:
+	go test ./tests/corpus/...
+
+validate-corpus:
+	bash tests/corpus/scripts/validate_corpus.sh
+
+corpus-coverage:
+	bash tests/corpus/scripts/coverage_report.sh
+
+test-mcp-inspector:
+	bash tests/inspector/run_inspector_tests.sh
+
+test-mcp-inspector-hosted:
+	EVIDRA_TEST_MODE=hosted EVIDRA_MCP_URL=$${EVIDRA_MCP_URL:-https://evidra.samebits.com/mcp} bash tests/inspector/run_inspector_tests.sh
+
+test-mcp-inspector-rest:
+	EVIDRA_TEST_MODE=rest EVIDRA_API_URL=$${EVIDRA_API_URL:-https://api.evidra.rest} bash tests/inspector/run_inspector_tests.sh

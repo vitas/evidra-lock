@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "id": "ops_unknown_destructive_deny",
+    "rules": ["ops.unknown_destructive"],
+    "priority": "p0"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "ansible",
+    "operation": "apply",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "ansible.apply",
+        "target": "servers",
+        "risk_tags": [],
+        "payload": {"playbook": "deploy.yml"}
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": false,
+    "risk_level": "high",
+    "rule_ids_contain": ["ops.unknown_destructive"],
+    "hints_min_count": 1
+  }
+}

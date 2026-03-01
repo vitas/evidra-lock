@@ -1,0 +1,29 @@
+{
+  "_meta": {
+    "id": "aws_iam_wildcard_principal_allow",
+    "rules": ["aws_iam.wildcard_principal"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "terraform",
+    "operation": "plan",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "terraform.plan",
+        "target": "infra",
+        "risk_tags": [],
+        "payload": {
+          "trust_policy_statements": [{"effect": "Allow", "principal": {"AWS": "arn:aws:iam::123456789012:root"}}]
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["aws_iam.wildcard_principal"],
+    "hints_min_count": 0
+  }
+}

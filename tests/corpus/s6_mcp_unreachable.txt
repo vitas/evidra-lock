@@ -1,1 +1,0 @@
-Apply nginx deployment to the production namespace

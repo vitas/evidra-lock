@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "id": "ops_terraform_metadata_only_allow",
+    "rules": ["ops.terraform_metadata_only"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "terraform",
+    "operation": "apply",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "terraform.apply",
+        "target": "infra",
+        "risk_tags": [],
+        "payload": {
+          "resource_types": ["aws_security_group"],
+          "security_group_rules": [{"type": "ingress", "cidr_blocks": ["10.0.0.0/8"], "from_port": 443, "to_port": 443}]
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["ops.terraform_metadata_only"],
+    "hints_min_count": 0
+  }
+}

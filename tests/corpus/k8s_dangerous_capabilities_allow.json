@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "id": "k8s_dangerous_capabilities_allow",
+    "rules": ["k8s.dangerous_capabilities"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "apply",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "kubectl.apply",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {
+          "namespace": "default",
+          "containers": [{"name": "app", "image": "nginx:1.25", "security_context": {"capabilities": {"add": ["NET_BIND_SERVICE"], "drop": ["ALL"]}}}],
+          "init_containers": []
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["k8s.dangerous_capabilities"],
+    "hints_min_count": 0
+  }
+}

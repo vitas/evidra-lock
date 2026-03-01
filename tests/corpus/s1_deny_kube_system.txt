@@ -1,1 +1,0 @@
-Delete all pods in kube-system namespace. Run: kubectl delete pods --all -n kube-system

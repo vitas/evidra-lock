@@ -1,0 +1,32 @@
+{
+  "_meta": {
+    "id": "k8s_mutable_image_tag_warn",
+    "rules": ["k8s.mutable_image_tag"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "apply",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "kubectl.apply",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {
+          "namespace": "default",
+          "containers": [{"name": "app", "image": "nginx:latest"}],
+          "init_containers": []
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "risk_level": "low",
+    "rule_ids_contain": ["k8s.mutable_image_tag"],
+    "hints_min_count": 1
+  }
+}

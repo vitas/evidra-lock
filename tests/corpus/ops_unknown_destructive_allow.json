@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "id": "ops_unknown_destructive_allow",
+    "rules": ["ops.unknown_destructive"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "get",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "kubectl.get",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {"namespace": "default"}
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["ops.unknown_destructive"],
+    "hints_min_count": 0
+  }
+}

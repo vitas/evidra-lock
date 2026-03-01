@@ -49,26 +49,14 @@ deny["domain.rule_name"] {
 
 ## Running Tests
 
-**Go tests** (all packages):
+Quick check before submitting a PR:
 
 ```bash
-go test ./...
-go test -race ./...                     # with race detector (CI requirement)
-go test ./pkg/policy ./pkg/validate     # core packages only
-go test -run TestFoo ./pkg/validate     # single test
+make test && make validate-corpus && make test-mcp-inspector
 ```
 
-**OPA policy tests:**
-
-```bash
-opa test policy/bundles/ops-v0.1/ -v
-```
-
-**MCP integration tests:**
-
-```bash
-go test ./cmd/evidra-mcp/test/...
-```
+Full test architecture, all layers, and CI order:
+see [docs/TESTING.md](TESTING.md).
 
 ## Code Style
 

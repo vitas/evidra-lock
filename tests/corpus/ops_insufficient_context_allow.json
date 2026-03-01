@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "id": "ops_insufficient_context_allow",
+    "rules": ["ops.insufficient_context"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "delete",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "kubectl.delete",
+        "target": {"namespace": "default"},
+        "risk_tags": [],
+        "payload": {"namespace": "default", "resource_count": 1}
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["ops.insufficient_context"],
+    "hints_min_count": 0
+  }
+}

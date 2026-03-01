@@ -1,0 +1,37 @@
+{
+  "_meta": {
+    "id": "aws_s3_no_versioning_prod_allow",
+    "rules": ["aws_s3.no_versioning_prod"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "terraform",
+    "operation": "plan",
+    "environment": "production",
+    "params": {
+      "action": {
+        "kind": "terraform.plan",
+        "target": "infra",
+        "risk_tags": [],
+        "payload": {
+          "resource_type": "aws_s3_bucket",
+          "versioning": {"enabled": true},
+          "server_side_encryption": {"enabled": true},
+          "s3_public_access_block": {
+            "block_public_acls": true,
+            "ignore_public_acls": true,
+            "block_public_policy": true,
+            "restrict_public_buckets": true
+          }
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["aws_s3.no_versioning_prod"],
+    "hints_min_count": 0
+  }
+}

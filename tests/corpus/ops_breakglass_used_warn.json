@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "id": "ops_breakglass_used_warn",
+    "rules": ["ops.breakglass_used"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "human", "id": "test-user", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "apply",
+    "environment": "prod",
+    "params": {
+      "action": {
+        "kind": "kubectl.apply",
+        "target": "kube-system",
+        "risk_tags": ["breakglass"],
+        "payload": {"namespace": "kube-system"}
+      }
+    },
+    "context": {"source": "cli"}
+  },
+  "expect": {
+    "allow": true,
+    "risk_level": "medium",
+    "rule_ids_contain": ["ops.breakglass_used"],
+    "hints_min_count": 1
+  }
+}

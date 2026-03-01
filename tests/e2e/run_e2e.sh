@@ -2,7 +2,7 @@
 # Evidra Skill E2E Test Runner
 #
 # Runs real AI agent (Claude Code headless) against real Evidra MCP server.
-# Data-driven: prompts from tests/corpus/, expectations from tests/golden_real/.
+# Data-driven: prompts and expectations from tests/corpus/ (files with "agent" section).
 #
 # Usage:
 #   bash tests/e2e/run_e2e.sh                          # p0 scenarios, sonnet
@@ -41,7 +41,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CORPUS_DIR="$REPO_ROOT/tests/corpus"
-GOLDEN_DIR="$REPO_ROOT/tests/golden_real"
 FIXTURES_DIR="$SCRIPT_DIR/fixtures"
 MCP_CONFIG="$SCRIPT_DIR/test-mcp.json"
 MCP_CONFIG_BROKEN="$SCRIPT_DIR/test-mcp-broken.json"
@@ -107,7 +106,6 @@ check_prereqs() {
     command -v jq >/dev/null 2>&1 || die "jq not found"
     command -v evidra-mcp >/dev/null 2>&1 || die "evidra-mcp not found in PATH"
     [ -d "$CORPUS_DIR" ] || die "corpus dir not found: $CORPUS_DIR"
-    [ -d "$GOLDEN_DIR" ] || die "golden_real dir not found: $GOLDEN_DIR"
     mkdir -p "$OUT_DIR"
 
     if [ -n "$EVIDRA_URL" ]; then
@@ -455,57 +453,40 @@ run_with_retry() {
 
 # ── Scenario execution ────────────────────────────────────────────────────
 
+find_corpus_file() {
+    local scenario_id="$1"
+    for f in "$CORPUS_DIR"/*.json; do
+        local id
+        id=$(jq -r '._meta.id' "$f" 2>/dev/null || true)
+        if [ "$id" = "$scenario_id" ]; then
+            echo "$f"
+            return 0
+        fi
+    done
+    return 1
+}
+
 run_scenario() {
     local scenario="$1"
-    local golden_file="$GOLDEN_DIR/${scenario}.json"
-    local corpus_file="$CORPUS_DIR/${scenario}.txt"
+    local corpus_file
+    corpus_file=$(find_corpus_file "$scenario") || { fail "corpus file not found for $scenario"; return 1; }
 
-    # Read golden expectations
-    local golden
-    golden=$(cat "$golden_file")
+    local agent
+    agent=$(jq -c '.agent' "$corpus_file")
 
-    local expect_validate
-    expect_validate=$(echo "$golden" | jq -r '.expect_validate_called')
-    local expect_tool
-    expect_tool=$(echo "$golden" | jq -r '.expect_validate_input.tool // empty')
-    local expect_op
-    expect_op=$(echo "$golden" | jq -r '.expect_validate_input.operation // empty')
-    local expect_ns
-    expect_ns=$(echo "$golden" | jq -r '.expect_validate_input.namespace // empty')
-    local expect_allow
-    expect_allow=$(echo "$golden" | jq -r '.expect_allow')
-    local expect_no_mutation
-    expect_no_mutation=$(echo "$golden" | jq -r '.expect_no_mutation')
-    local expect_stop
-    expect_stop=$(echo "$golden" | jq -r '.expect_stop_signal')
-    local expect_evidence_deny
-    expect_evidence_deny=$(echo "$golden" | jq -r '.expect_evidence_deny')
-    local expect_payload_min
-    expect_payload_min=$(echo "$golden" | jq -r '.expect_payload_min_bytes')
     local retry_count
-    retry_count=$(echo "$golden" | jq -r '.retry // 1')
+    retry_count=$(echo "$agent" | jq -r '.retry // 1')
 
     # Override retry if RETRY_ALL is set
     if [ -n "$RETRY_ALL" ]; then
         retry_count="$RETRY_ALL"
     fi
 
-    # Read prompt
-    local prompt
-    if [ "$scenario" = "s7_big_manifest" ]; then
-        # S7: generate at runtime
-        local big_yaml
-        big_yaml=$(python3 "$FIXTURES_DIR/big-deployment.py")
-        prompt="Validate this deployment manifest before applying:
-
-$big_yaml"
-    else
-        prompt=$(cat "$corpus_file")
-    fi
-
     # Select MCP config
     local mcp_config="$MCP_CONFIG"
-    if [ "$scenario" = "s6_mcp_unreachable" ]; then
+    local mcp_override
+    mcp_override=$(echo "$agent" | jq -r '.mcp_config_override // empty')
+    if [ "$mcp_override" = "broken" ]; then
         mcp_config="$MCP_CONFIG_BROKEN"
     fi
 
@@ -513,52 +494,55 @@ $big_yaml"
 
     # Run with retry
     if [ "$retry_count" -gt 1 ]; then
-        run_with_retry "$retry_count" "run_single_attempt '$scenario' '$mcp_config'" || return 1
+        run_with_retry "$retry_count" "run_single_attempt '$scenario' '$mcp_config' '$corpus_file'" || return 1
     else
-        run_single_attempt "$scenario" "$mcp_config" || return 1
+        run_single_attempt "$scenario" "$mcp_config" "$corpus_file" || return 1
     fi
 }
 
 run_single_attempt() {
     local scenario="$1"
     local mcp_config="$2"
-    local golden_file="$GOLDEN_DIR/${scenario}.json"
+    local corpus_file="$3"
     local attempt_id="${scenario}_$(date +%s)_$$"
     local out_file="$OUT_DIR/${attempt_id}.ndjson"
 
-    # Read golden expectations
-    local golden
-    golden=$(cat "$golden_file")
+    # Read agent expectations from corpus file
+    local agent
+    agent=$(jq -c '.agent' "$corpus_file")
 
     local expect_validate
-    expect_validate=$(echo "$golden" | jq -r '.expect_validate_called')
+    expect_validate=$(echo "$agent" | jq -r '.expect_validate_called')
     local expect_tool
-    expect_tool=$(echo "$golden" | jq -r '.expect_validate_input.tool // empty')
+    expect_tool=$(echo "$agent" | jq -r '.expect_validate_input.tool // empty')
     local expect_op
-    expect_op=$(echo "$golden" | jq -r '.expect_validate_input.operation // empty')
+    expect_op=$(echo "$agent" | jq -r '.expect_validate_input.operation // empty')
     local expect_ns
-    expect_ns=$(echo "$golden" | jq -r '.expect_validate_input.namespace // empty')
+    expect_ns=$(echo "$agent" | jq -r '.expect_validate_input.namespace // empty')
     local expect_allow
-    expect_allow=$(echo "$golden" | jq -r '.expect_allow')
+    expect_allow=$(echo "$agent" | jq -r '.expect_allow')
     local expect_no_mutation
-    expect_no_mutation=$(echo "$golden" | jq -r '.expect_no_mutation')
+    expect_no_mutation=$(echo "$agent" | jq -r '.expect_no_mutation')
     local expect_stop
-    expect_stop=$(echo "$golden" | jq -r '.expect_stop_signal')
+    expect_stop=$(echo "$agent" | jq -r '.expect_stop_signal')
     local expect_evidence_deny
-    expect_evidence_deny=$(echo "$golden" | jq -r '.expect_evidence_deny')
+    expect_evidence_deny=$(echo "$agent" | jq -r '.expect_evidence_deny')
     local expect_payload_min
-    expect_payload_min=$(echo "$golden" | jq -r '.expect_payload_min_bytes')
+    expect_payload_min=$(echo "$agent" | jq -r '.expect_payload_min_bytes')
 
-    # Read prompt
+    # Read prompt — supports direct prompt, prompt_file (generated), or prompt_prefix
     local prompt
-    if [ "$scenario" = "s7_big_manifest" ]; then
-        local big_yaml
-        big_yaml=$(python3 "$FIXTURES_DIR/big-deployment.py")
-        prompt="Validate this deployment manifest before applying:
-
-$big_yaml"
+    local prompt_file
+    prompt_file=$(echo "$agent" | jq -r '.prompt_file // empty')
+    if [ -n "$prompt_file" ]; then
+        # Generated prompt (e.g., big manifest via python script)
+        local prompt_prefix
+        prompt_prefix=$(echo "$agent" | jq -r '.prompt_prefix // empty')
+        local generated
+        generated=$(python3 "$FIXTURES_DIR/$(basename "$prompt_file")")
+        prompt="${prompt_prefix}${generated}"
     else
-        prompt=$(cat "$CORPUS_DIR/${scenario}.txt")
+        prompt=$(echo "$agent" | jq -r '.prompt')
     fi
 
     # Reset evidence before each attempt
@@ -612,10 +596,10 @@ $big_yaml"
         if [ -n "$expect_op" ]; then
             # Handle array of operations (e.g., ["apply", "create"])
             local op_is_array
-            op_is_array=$(echo "$golden" | jq -r '.expect_validate_input.operation | if type=="array" then "true" else "false" end')
+            op_is_array=$(echo "$agent" | jq -r '.expect_validate_input.operation | if type=="array" then "true" else "false" end')
             if [ "$op_is_array" = "true" ]; then
                 local op_values
-                op_values=$(echo "$golden" | jq -r '.expect_validate_input.operation[]')
+                op_values=$(echo "$agent" | jq -r '.expect_validate_input.operation[]')
                 local op_matched=false
                 for op in $op_values; do
                     if assert_validate_input "$out_file" \
@@ -677,15 +661,26 @@ get_scenarios() {
     local priority="$1"
     local scenarios=""
 
-    for golden_file in "$GOLDEN_DIR"/s[0-9]_*.json; do
-        [ -f "$golden_file" ] || continue
-        local name
-        name=$(basename "$golden_file" .json)
+    for corpus_file in "$CORPUS_DIR"/*.json; do
+        [ -f "$corpus_file" ] || continue
+        # Skip non-test files
+        local base
+        base=$(basename "$corpus_file")
+        if [ "$base" = "sources.json" ] || [ "$base" = "manifest.json" ]; then
+            continue
+        fi
+        # Only include files with an agent section
+        local has_agent
+        has_agent=$(jq -r 'if .agent then "yes" else "no" end' "$corpus_file" 2>/dev/null || echo "no")
+        [ "$has_agent" = "yes" ] || continue
+
         local p
-        p=$(jq -r '.priority' "$golden_file")
+        p=$(jq -r '._meta.priority' "$corpus_file")
+        local id
+        id=$(jq -r '._meta.id' "$corpus_file")
 
         if [ "$priority" = "all" ] || [ "$p" = "$priority" ]; then
-            scenarios="$scenarios $name"
+            scenarios="$scenarios $id"
         fi
     done
 
@@ -864,29 +859,8 @@ main() {
     # Run each scenario
     for scenario in $scenario_list; do
         TOTAL=$((TOTAL + 1))
-        local golden_file="$GOLDEN_DIR/${scenario}.json"
-        local corpus_file="$CORPUS_DIR/${scenario}.txt"
         local scenario_status=""
         local scenario_start scenario_end scenario_dur
-
-        # Verify files exist
-        if [ ! -f "$golden_file" ]; then
-            skip "$scenario: golden file missing"
-            SKIPPED=$((SKIPPED + 1))
-            scenario_status="skip"
-            jq -cn --arg n "$scenario" --arg s "skip" --argjson d 0 \
-                --argjson f '["golden file missing"]' \
-                '{scenario:$n,status:$s,duration_s:$d,failures:$f}' >> "$RESULTS_FILE"
-            continue
-        fi
-        if [ ! -f "$corpus_file" ] && [ "$scenario" != "s7_big_manifest" ]; then
-            skip "$scenario: corpus file missing"
-            SKIPPED=$((SKIPPED + 1))
-            jq -cn --arg n "$scenario" --arg s "skip" --argjson d 0 \
-                --argjson f '["corpus file missing"]' \
-                '{scenario:$n,status:$s,duration_s:$d,failures:$f}' >> "$RESULTS_FILE"
-            continue
-        fi
 
         # Reset per-scenario failure log
         : > "$FAILURE_LOG"

@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "id": "ops_autonomous_execution_allow",
+    "rules": ["ops.autonomous_execution"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "human", "id": "test-user", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "apply",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "kubectl.apply",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {"namespace": "default", "resource": "configmap"}
+      }
+    },
+    "context": {"source": "cli"}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["ops.autonomous_execution"],
+    "hints_min_count": 0
+  }
+}

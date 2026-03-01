@@ -272,6 +272,13 @@ Exit codes: `0` = PASS, `2` = FAIL, `1` = error.
 
 ---
 
+## Testing
+
+See [docs/TESTING.md](docs/TESTING.md) for the full test architecture,
+layers, and how to run each test suite.
+
+---
+
 ## License
 
 Apache 2.0. No SaaS required. No telemetry. Runs locally or on-prem.

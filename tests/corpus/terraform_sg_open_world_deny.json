@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "id": "terraform_sg_open_world_deny",
+    "rules": ["terraform.sg_open_world"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "terraform",
+    "operation": "plan",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "terraform.plan",
+        "target": "infra",
+        "risk_tags": [],
+        "payload": {
+          "security_group_rules": [{"type": "ingress", "cidr_blocks": ["0.0.0.0/0"], "from_port": 22, "to_port": 22}]
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": false,
+    "risk_level": "high",
+    "rule_ids_contain": ["terraform.sg_open_world"],
+    "hints_min_count": 1
+  }
+}

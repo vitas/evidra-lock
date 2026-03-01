@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "id": "ops_unapproved_change_deny",
+    "rules": ["ops.unapproved_change"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "apply",
+    "environment": "prod",
+    "params": {
+      "action": {
+        "kind": "kubectl.apply",
+        "target": "prod",
+        "risk_tags": [],
+        "payload": {"namespace": "prod"}
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": false,
+    "risk_level": "high",
+    "rule_ids_contain": ["ops.unapproved_change"],
+    "hints_min_count": 1
+  }
+}

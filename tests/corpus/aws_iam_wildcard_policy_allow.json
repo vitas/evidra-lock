@@ -1,0 +1,29 @@
+{
+  "_meta": {
+    "id": "aws_iam_wildcard_policy_allow",
+    "rules": ["aws_iam.wildcard_policy"],
+    "priority": "p1"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "terraform",
+    "operation": "plan",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "terraform.plan",
+        "target": "infra",
+        "risk_tags": [],
+        "payload": {
+          "iam_policy_statements": [{"effect": "Allow", "action": "s3:GetObject", "resource": "arn:aws:s3:::my-bucket/*"}]
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": true,
+    "rule_ids_absent": ["aws_iam.wildcard_policy"],
+    "hints_min_count": 0
+  }
+}
