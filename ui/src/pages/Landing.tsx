@@ -64,9 +64,6 @@ export function Landing({ onGetStarted }: LandingProps) {
     return () => observer.disconnect();
   }, []);
 
-  // suppress unused warning — onGetStarted kept for programmatic nav
-  void onGetStarted;
-
   return (
     <div className="landing" ref={landingRef}>
       {/* 1. Hero + Terminal demo (A2) */}
@@ -159,9 +156,9 @@ export function Landing({ onGetStarted }: LandingProps) {
           </div>
 
           <div className="hero-cta">
-            <a href="#hosted-mcp" className="btn btn-primary">
+            <button type="button" className="btn btn-primary" onClick={onGetStarted}>
               Try it now &rarr;
-            </a>
+            </button>
             <a
               href="https://github.com/vitas/evidra"
               className="btn btn-ghost"
