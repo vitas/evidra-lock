@@ -6,11 +6,8 @@
 [![Publish Hosted MCP](https://github.com/vitas/evidra/actions/workflows/publish-hosted.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/publish-hosted.yml)
 [![Latest Release](https://img.shields.io/github/v/release/vitas/evidra)](https://github.com/vitas/evidra/releases)
 
-Kill-switch for AI agents managing infrastructure.
-
-Your infrastructure. Your rules. Your evidence.
-
-AI can suggest. Evidra decides.
+Giving AI access to your cluster?
+Add a kill-switch before it learns the hard way.
 
 - **Kill-switch** - destructive operations are blocked unless proven safe.
   Empty payload? Denied. Unknown tool? Denied. Ambiguous target scope? Denied.

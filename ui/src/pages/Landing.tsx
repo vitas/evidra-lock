@@ -81,6 +81,7 @@ export function Landing({ onGetStarted }: LandingProps) {
           </h1>
           <p className="hero-sub">
             Evidra is a kill-switch for AI agents managing infrastructure.
+            Experimenting with AI in staging? Add a kill-switch first.
             Blocks dangerous ops. Allows safe ones. Every decision logged.
           </p>
           <p className="hero-tagline">
