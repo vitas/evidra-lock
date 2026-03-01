@@ -210,7 +210,7 @@ Design principles:
 - **Deterministic** - evaluated from static configuration without runtime API calls.
 - **Low false-positive rate** - every rule maps to a known attack chain or incident class.
 
-See [docs/POLICY_CATALOG.md](docs/POLICY_CATALOG.md) for the full rule catalog.
+See [POLICY_CATALOG.md](POLICY_CATALOG.md) for the full rule catalog.
 
 ---
 
