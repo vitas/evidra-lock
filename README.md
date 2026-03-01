@@ -100,6 +100,8 @@ Use the dedicated setup guide for install methods and MCP client configuration:
 
 - [docs/mcp-setup.md](docs/mcp-setup.md)
 - [GitHub version](https://github.com/vitas/evidra/blob/main/docs/mcp-setup.md)
+- [Architecture (Markdown)](docs/ARCHITECTURE.md)
+- [Architecture (Rendered HTML)](https://vitas.github.io/evidra/evidra-architecture-public.html)
 
 Binary downloads are available on [GitHub Releases](https://github.com/vitas/evidra/releases).
 
@@ -115,28 +117,9 @@ Binary downloads are available on [GitHub Releases](https://github.com/vitas/evi
 
 ---
 
-## UI Dev Mock Mode (No Backend)
+## Development Guide
 
-If you want to review the UI locally without running `evidra-api`, start the UI with:
-
-```bash
-cd ui
-VITE_MOCK_API=1 npm run dev
-```
-
-This enables a mocked API for:
-
-- `POST /v1/keys`
-- `POST /v1/validate`
-- `GET /v1/evidence/pubkey`
-
-Safety guardrails:
-
-- Mock mode is enabled only when **both** are true:
-  - `VITE_MOCK_API=1`
-  - Vite mode is `development`
-- Production builds (`npm --prefix ui run build`) do **not** enable mock mode.
-- To disable locally, unset `VITE_MOCK_API` (or set it to `0`).
+For local development notes (including UI mock mode without backend), see [docs/evidra-development-guide.md](docs/evidra-development-guide.md).
 
 ---
 
