@@ -103,7 +103,7 @@ brews:
   - name: evidra-mcp
     ids:
       - evidra-mcp
-    skip_upload: true
+    skip_upload: false
     repository:
       owner: samebits
       name: homebrew-tap
