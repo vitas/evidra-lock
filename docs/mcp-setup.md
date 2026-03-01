@@ -65,6 +65,46 @@ claude mcp add evidra -- evidra-mcp --bundle ops-v0.1
 }
 ```
 
+**OpenClaw:**
+```json
+// In ~/.openclaw/openclaw.json — MCP section:
+{
+  "mcp": {
+    "servers": {
+      "evidra": {
+        "command": "evidra-mcp",
+        "args": ["--bundle", "ops-v0.1"],
+        "transport": "stdio"
+      }
+    }
+  }
+}
+```
+
+Or in agent config (openclaw.yaml for Clawctl):
+
+```yaml
+agents:
+  - id: main
+    model: anthropic/claude-sonnet-4-5
+    mcp_servers:
+      - name: evidra
+        command: evidra-mcp
+        args: ["--bundle", "ops-v0.1"]
+```
+
+OpenClaw agents need explicit instructions to use Evidra. Add the system prompt block from the [Other Agents](#codex--gemini-cli--other-agents) section to your agent's `systemPrompt` in openclaw.json:
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "systemPrompt": "... your prompt ...\n\n## Infrastructure Safety Gate (Evidra)\n\nYou have access to an MCP tool called \"validate\". You MUST call it before executing any command that creates, modifies, or deletes infrastructure resources.\n\nWhen to call: kubectl apply/delete/create/patch, terraform apply/destroy, helm install/upgrade/uninstall, argocd sync, AWS mutations.\n\nSkip for: get, describe, list, plan, show, diff, status.\n\nCRITICAL: If validate returns allow=false, DO NOT execute the command. Show the deny reasons and hints to the user. If validate fails or is unreachable, DO NOT execute — fail closed."
+    }
+  }
+}
+```
+
 **Hosted endpoint (no local install):**
 ```json
 {
@@ -242,9 +282,9 @@ Expected: Claude calls validate → gets denied (protected namespace) → shows 
 
 ---
 
-## Codex / Gemini CLI / Other Agents
+## Codex / Gemini CLI / OpenClaw / Other Agents
 
-Agents without Claude Skill support need explicit instructions. Add the following to your agent's system prompt or instructions file:
+Agents without Claude Skill support need explicit instructions. Add the following to your agent's system prompt or instructions file (for OpenClaw, add it to `systemPrompt` in openclaw.json — see [connection config above](#2-connect-to-your-agent)):
 
 ```
 ## Infrastructure Safety Gate (Evidra)

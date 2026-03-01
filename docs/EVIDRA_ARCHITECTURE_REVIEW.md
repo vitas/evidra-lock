@@ -365,11 +365,11 @@ Implementation: a simple Go test in `pkg/validate` that iterates `examples/demo/
 
 ### P4. Rule Authoring Needs a Checklist
 
-The extension points exist (`docs/POLICY_CATALOG.md`, `docs/CONTRIBUTING.md`), but there's no step-by-step guide for adding a custom rule. A "Rule Authoring Checklist" would lower the barrier for contributors:
+The extension points exist (`POLICY_CATALOG.md`, `docs/CONTRIBUTING.md`), but there's no step-by-step guide for adding a custom rule. A "Rule Authoring Checklist" would lower the barrier for contributors:
 
 1. Create `deny_<name>.rego` in `evidra/policy/rules/` with consistent package declaration.
 2. Add hint entries in `evidra/data/rule_hints/data.json`.
-3. Add entry to `docs/POLICY_CATALOG.md` (ID, severity, description, remediation).
+3. Add entry to `POLICY_CATALOG.md` (ID, severity, description, remediation).
 4. Add test file `tests/deny_<name>_test.rego` with at least one allow and one deny case.
 5. Add a scenario fixture in `examples/` with the expected decision.
 6. Gate on `profile_includes_ops` if the rule is ops-layer (not baseline).

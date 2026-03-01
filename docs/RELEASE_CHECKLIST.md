@@ -12,4 +12,5 @@ Before tagging a release, verify:
       - Action digests: not yet (don't claim "per-action digest")
       - Canonical JSON: not yet (don't claim "deterministic digest")
 - [ ] Install methods listed (brew, docker, go install) actually work
+- [ ] `HOMEBREW_TAP_TOKEN` can access `samebits/homebrew-tap` (private repo) with `Contents: Read and write`
 - [ ] "Ops layer" copy matches the current bundle rule set
