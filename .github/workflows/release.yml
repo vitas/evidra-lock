@@ -333,6 +333,54 @@ jobs:
           echo "GOVERSION:    $(go env GOVERSION)"
           echo "GOMOD:        $(go env GOMOD)"
 
+      - name: Verify Homebrew tap token access
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "::error::Missing HOMEBREW_TAP_TOKEN secret."
+            exit 1
+          fi
+
+          repo_url="https://api.github.com/repos/samebits/homebrew-tap"
+          repo_code=$(curl -sS -o /tmp/homebrew_tap_repo.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${HOMEBREW_TAP_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${repo_url}")
+          if [ "${repo_code}" != "200" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN cannot access samebits/homebrew-tap (HTTP ${repo_code})."
+            echo "::error::Grant token access to samebits/homebrew-tap with Contents: Read and write, then update the secret."
+            cat /tmp/homebrew_tap_repo.json || true
+            exit 1
+          fi
+
+          branch_url="${repo_url}/branches/main"
+          branch_code=$(curl -sS -o /tmp/homebrew_tap_branch.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${HOMEBREW_TAP_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${branch_url}")
+          if [ "${branch_code}" != "200" ]; then
+            echo "::error::samebits/homebrew-tap main branch is not accessible with HOMEBREW_TAP_TOKEN (HTTP ${branch_code})."
+            cat /tmp/homebrew_tap_branch.json || true
+            exit 1
+          fi
+          echo "Homebrew tap token preflight passed: samebits/homebrew-tap (main) is reachable."
+
+      - name: Reset existing GitHub release for tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"
+          if gh release view "${tag}" -R "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Existing release found for ${tag}; deleting it to avoid duplicate asset upload failures."
+            gh release delete "${tag}" -R "${GITHUB_REPOSITORY}" --yes
+          else
+            echo "No existing release for ${tag}; continuing."
+          fi
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
