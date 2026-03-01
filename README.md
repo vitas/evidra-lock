@@ -174,11 +174,11 @@ misconfigurations. Extensible - add your own rules.
 **baseline** - kill-switch only. Blocks destructive operations with
 missing context and unknown tools. No opinion on what's "bad config."
 
-Switch with one env var:
+Select by bundle path:
 
 ```bash
-EVIDRA_PROFILE=baseline  # kill-switch only
-EVIDRA_PROFILE=ops       # default - full protection
+evidra-mcp --bundle policy/bundles/ops-v0.1       # full protection (default)
+evidra-mcp --bundle policy/bundles/baseline-v0.1   # kill-switch only
 ```
 
 ---
