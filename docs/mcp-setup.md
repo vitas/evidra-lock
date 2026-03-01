@@ -318,14 +318,16 @@ This prompt block works with any MCP-compatible agent. Adjust `actor.id` to matc
 ### Policy bundles
 
 Default bundle: `ops-v0.1` — covers Kubernetes, Terraform, ArgoCD, AWS.
+Ships embedded in the binary; extracted automatically on first run (zero-config).
 
 ```bash
-evidra-mcp --bundle ops-v0.1
+# Explicit bundle path (optional — embedded ops-v0.1 used by default)
+evidra-mcp --bundle ./policy/bundles/ops-v0.1
 ```
 
-Custom policy path:
+Legacy loose-file mode (individual `.rego` + `data.json`):
 ```bash
-evidra-mcp --policy-path ./my-policies --data-path ./my-data
+evidra-mcp --policy ./my-policy.rego --data ./my-data.json
 ```
 
 ### Evidence storage
@@ -341,19 +343,41 @@ evidra-mcp --evidence-store /var/lib/evidra/evidence
 
 Set the environment for policy evaluation:
 ```bash
-evidra-mcp --bundle ops-v0.1 --environment production
+evidra-mcp --environment production
 ```
 
-This affects rules like "production requires change-approved tag."
+This affects environment-dependent rules (e.g. "production requires change-approved tag",
+"S3 versioning required in production"). Values are normalized: `prod` → `production`,
+`stg` → `staging`.
 
-### Observe mode
+### Connection modes
 
-Log decisions without enforcing:
 ```bash
-evidra-mcp --bundle ops-v0.1 --observe
+# Local-only (default) — embedded bundle, no network
+evidra-mcp
+
+# Online — evaluations sent to API server
+EVIDRA_URL=https://api.evidra.rest EVIDRA_API_KEY=ev1_... evidra-mcp
+
+# Online with offline fallback — use API, fall back to local if unreachable
+EVIDRA_URL=https://api.evidra.rest EVIDRA_API_KEY=ev1_... evidra-mcp --fallback-offline
+
+# Force offline — skip API even if EVIDRA_URL is set
+evidra-mcp --offline
 ```
 
-All validations return `allow` but evidence is still recorded. Useful for rollout.
+### Environment variables
+
+| Variable | Description |
+|---|---|
+| `EVIDRA_URL` | API endpoint (enables online mode) |
+| `EVIDRA_API_KEY` | Bearer token (required when `EVIDRA_URL` is set) |
+| `EVIDRA_ENVIRONMENT` | Environment label (`prod`, `staging`, `development`) |
+| `EVIDRA_BUNDLE_PATH` | OPA bundle directory (alternative to `--bundle` flag) |
+| `EVIDRA_FALLBACK` | `closed` (default) or `offline` |
+| `EVIDRA_EVIDENCE_DIR` | Evidence store directory (alternative to `--evidence-store` flag) |
+| `EVIDRA_POLICY_PATH` | Rego file path (legacy, alternative to `--policy` flag) |
+| `EVIDRA_DATA_PATH` | Data JSON path (legacy, alternative to `--data` flag) |
 
 ---
 
@@ -371,9 +395,9 @@ All validations return `allow` but evidence is still recorded. Useful for rollou
 - Run `evidra-mcp` standalone to verify: `echo '{}' | evidra-mcp` should start without errors
 
 **All validations return allow:**
-- Check if `--observe` mode is enabled (disables enforcement)
 - Verify policy bundle has rules for your tool/operation
 - Check if the params provide enough context for rules to match
+- Ensure `--environment` matches the rules (some rules only apply in `production`)
 
 **Evidence not found:**
 - Default store: `~/.evidra/evidence`

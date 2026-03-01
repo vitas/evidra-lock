@@ -220,6 +220,7 @@ export function Dashboard() {
       {/* Try Validate */}
       <div className="dash-section">
         <div className="dash-section-header dash-section-header--primary">Try Validate</div>
+        <p className="dash-section-hint">Send a tool invocation to the policy engine and see the decision. Same API your AI agent calls before every destructive operation.</p>
         <div className="dash-section-body">
           {/* Tabs */}
           <div className="tabs" role="tablist">

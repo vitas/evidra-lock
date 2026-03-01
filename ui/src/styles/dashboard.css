@@ -32,6 +32,14 @@
   color: var(--color-text);
 }
 
+.dash-section-hint {
+  padding: 0 var(--space-md);
+  margin: var(--space-xs) 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
 .dash-section-body {
   padding: var(--space-md);
 }

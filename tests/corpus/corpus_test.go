@@ -30,8 +30,8 @@ type corpusCase struct {
 		Context     map[string]interface{} `json:"context"`
 	} `json:"input"`
 	Expect *struct {
-		Allow         *bool    `json:"allow"`
-		RiskLevel     string   `json:"risk_level,omitempty"`
+		Allow          *bool    `json:"allow"`
+		RiskLevel      string   `json:"risk_level,omitempty"`
 		RuleIDsContain []string `json:"rule_ids_contain,omitempty"`
 		RuleIDsAbsent  []string `json:"rule_ids_absent,omitempty"`
 		HintsMinCount  int      `json:"hints_min_count"`

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { createKey, ApiError } from "../api/client";
 import type { KeyResponse } from "../types/api";
 import { CopyButton } from "../components/CopyButton";
@@ -46,7 +46,11 @@ Authorization = "Bearer ${key}"`;
 }
 
 function localApiClaudeCode(key: string) {
-  return `claude mcp add evidra evidra-mcp -e EVIDRA_URL=${API_URL} -e EVIDRA_API_KEY=${key}`;
+  return `claude mcp add evidra evidra-mcp \\
+  -e EVIDRA_URL=${API_URL} \\
+  -e EVIDRA_API_KEY=${key} \\
+  -e EVIDRA_ENVIRONMENT=production \\
+  -e EVIDRA_FALLBACK=offline`;
 }
 
 function localApiJson(key: string) {
@@ -56,7 +60,10 @@ function localApiJson(key: string) {
       "command": "evidra-mcp",
       "env": {
         "EVIDRA_URL": "${API_URL}",
-        "EVIDRA_API_KEY": "${key}"
+        "EVIDRA_API_KEY": "${key}",
+        "EVIDRA_ENVIRONMENT": "production",
+        "EVIDRA_FALLBACK": "offline",
+        "EVIDRA_BUNDLE_PATH": ""
       }
     }
   }
@@ -69,21 +76,33 @@ command = "evidra-mcp"
 
 [mcp_servers.evidra.env]
 EVIDRA_URL = "${API_URL}"
-EVIDRA_API_KEY = "${key}"`;
+EVIDRA_API_KEY = "${key}"
+EVIDRA_ENVIRONMENT = "production"
+EVIDRA_FALLBACK = "offline"
+EVIDRA_BUNDLE_PATH = ""`;
 }
 
-const offlineClaudeCode = `claude mcp add evidra evidra-mcp`;
+const offlineClaudeCode = `claude mcp add evidra evidra-mcp \\
+  -e EVIDRA_ENVIRONMENT=production`;
 
 const offlineJson = `{
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp"
+      "command": "evidra-mcp",
+      "env": {
+        "EVIDRA_ENVIRONMENT": "production",
+        "EVIDRA_BUNDLE_PATH": ""
+      }
     }
   }
 }`;
 
 const offlineCodex = `[mcp_servers.evidra]
-command = "evidra-mcp"`;
+command = "evidra-mcp"
+
+[mcp_servers.evidra.env]
+EVIDRA_ENVIRONMENT = "production"
+EVIDRA_BUNDLE_PATH = ""`;
 
 // ── Tabs & paths ────────────────────────────────────────
 
@@ -183,6 +202,9 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
   const [loading, setLoading] = useState(false);
   const [keyData, setKeyData] = useState<KeyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [manualKey, setManualKey] = useState("");
+  const [keyInputOpen, setKeyInputOpen] = useState(false);
+  const keyInputRef = useRef<HTMLInputElement>(null);
 
   const handleGetKey = async () => {
     setLoading(true);
@@ -201,9 +223,15 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
     }
   };
 
-  const keyValue = keyData?.key || KEY_PLACEHOLDER;
+  const keyValue = keyData?.key || manualKey || KEY_PLACEHOLDER;
   const needsKey = setupPath !== "offline";
   const needsInstall = setupPath !== "hosted";
+
+  useEffect(() => {
+    if (keyInputOpen && keyInputRef.current) {
+      keyInputRef.current.focus();
+    }
+  }, [keyInputOpen]);
 
   const curlExample = keyData
     ? `curl -X POST ${API_URL}/v1/validate \\
@@ -276,19 +304,19 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
           {/* Path description */}
           {setupPath === "hosted" && (
             <p className="setup-desc">
-              No install needed. Evaluations run on the hosted endpoint. Requires an API key.
+              No install needed. Evaluations run on the hosted endpoint. <strong>Requires an API key.</strong>
             </p>
           )}
           {setupPath === "local-api" && (
             <p className="setup-desc">
               Install the binary locally. Evaluations sent to hosted API.
-              Evidence stored server-side. Requires an API key.
+              Evidence stored server-side. <strong>Requires an API key.</strong>
             </p>
           )}
           {setupPath === "offline" && (
             <p className="setup-desc">
               Install the binary locally. Evaluations run entirely offline using the
-              embedded policy bundle. Evidence stored to <code>~/.evidra/</code>. No API key needed.
+              embedded policy bundle. Evidence stored to <code>~/.evidra/</code>. <strong>No API key needed.</strong>
             </p>
           )}
 
@@ -305,19 +333,96 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
 
           {/* Key hint (paths 1 & 2) */}
           {needsKey && (
-            <p className="setup-key-hint">
-              Replace <code>{KEY_PLACEHOLDER}</code> with your API key.
-              Need one?{" "}
-              <a
-                href="#console"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setTrack("api");
-                }}
-              >
-                Get a key
-              </a>
-            </p>
+            <div className="setup-key-hint">
+              {keyData && !keyInputOpen ? (
+                <p>
+                  Using key: <code>{keyData.key.slice(0, 12)}...</code>{" "}
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setKeyData(null);
+                      setManualKey("");
+                    }}
+                  >
+                    Clear
+                  </a>
+                </p>
+              ) : keyInputOpen ? (
+                <div className="key-input-inline">
+                  <div className="key-input-row">
+                    <span className="key-input-label">Paste your API key</span>
+                    <input
+                      id="manual-key-input"
+                      ref={keyInputRef}
+                      type="text"
+                      placeholder="ev1_..."
+                      value={manualKey}
+                      onChange={(e) => setManualKey(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setKeyInputOpen(false);
+                          setManualKey("");
+                        }
+                      }}
+                    />
+                    <span className="key-hint-actions">
+                      {manualKey ? (
+                        <a
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setManualKey("");
+                            setKeyInputOpen(false);
+                          }}
+                        >
+                          Clear
+                        </a>
+                      ) : (
+                        <a
+                          href="#console"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setKeyInputOpen(false);
+                            setTrack("api");
+                          }}
+                        >
+                          Get a key
+                        </a>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="key-hint-row">
+                  <span>Replace <code
+                      className="key-placeholder-clickable"
+                      onClick={() => setKeyInputOpen(true)}
+                    >{KEY_PLACEHOLDER}</code> with your API key.</span>
+                  <span className="key-hint-actions">
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setKeyInputOpen(true);
+                      }}
+                    >
+                      I have one
+                    </a>
+                    {" "}&middot;{" "}
+                    <a
+                      href="#console"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setTrack("api");
+                      }}
+                    >
+                      Get a key
+                    </a>
+                  </span>
+                </p>
+              )}
+            </div>
           )}
 
           {/* Editor tabs */}
@@ -340,6 +445,32 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
           </div>
           <div className="editor-tab-content">
             <EditorConfig editor={editor} setupPath={setupPath} keyValue={keyValue} />
+          </div>
+
+          <div className="env-legend">
+            <div className="env-legend-title">Environment variables</div>
+            <dl className="env-legend-list">
+              {needsKey && (
+                <>
+                  <dt><code>EVIDRA_API_KEY</code></dt>
+                  <dd>Bearer token for API authentication</dd>
+                </>
+              )}
+              <dt><code>EVIDRA_ENVIRONMENT</code></dt>
+              <dd>Policy evaluation context: <code>production</code>, <code>staging</code>, or <code>development</code>. Affects environment-dependent rules.</dd>
+              {setupPath === "local-api" && (
+                <>
+                  <dt><code>EVIDRA_FALLBACK</code></dt>
+                  <dd><code>offline</code> = evaluate locally when API is unreachable. <code>closed</code> (default) = deny all if API is down.</dd>
+                </>
+              )}
+              {setupPath !== "hosted" && (
+                <>
+                  <dt><code>EVIDRA_BUNDLE_PATH</code></dt>
+                  <dd>Custom OPA bundle directory. Leave empty to use the embedded <code>ops-v0.1</code> bundle.</dd>
+                </>
+              )}
+            </dl>
           </div>
 
           {/* Verify step */}
