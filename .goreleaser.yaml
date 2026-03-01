@@ -105,7 +105,7 @@ brews:
       - evidra-mcp
     skip_upload: true
     repository:
-      owner: vitas
+      owner: samebits
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: "https://github.com/vitas/evidra"

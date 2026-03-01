@@ -1,5 +1,11 @@
 # Evidra
 
+[![CI](https://github.com/vitas/evidra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/ci.yml)
+[![Release](https://github.com/vitas/evidra/actions/workflows/release.yml/badge.svg)](https://github.com/vitas/evidra/actions/workflows/release.yml)
+[![Publish API](https://github.com/vitas/evidra/actions/workflows/publish-api.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/publish-api.yml)
+[![Publish Hosted MCP](https://github.com/vitas/evidra/actions/workflows/publish-hosted.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/publish-hosted.yml)
+[![Latest Release](https://img.shields.io/github/v/release/vitas/evidra)](https://github.com/vitas/evidra/releases)
+
 Kill-switch for AI agents managing infrastructure.
 
 Your infrastructure. Your rules. Your evidence.
