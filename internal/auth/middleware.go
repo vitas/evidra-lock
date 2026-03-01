@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -108,14 +109,25 @@ func extractBearerToken(r *http.Request) string {
 	return h[len("Bearer "):]
 }
 
+const authHelpURL = "https://evidra.samebits.com/get-started"
+
 func authFail(w http.ResponseWriter, r *http.Request) {
 	jitterSleep()
+
+	clientIP := r.Header.Get("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP = r.RemoteAddr
+	}
 	slog.Warn("auth failure",
 		"method", r.Method,
 		"path", r.URL.Path,
-		"remote", r.RemoteAddr,
+		"client_ip", clientIP,
 	)
-	http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+
+	w.Header().Set("WWW-Authenticate", `Bearer realm="evidra"`)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	fmt.Fprintf(w, `{"error":"unauthorized","help":"generate a key at %s"}`, authHelpURL)
 }
 
 // jitterSleep sleeps for a random duration between jitterMinMS and jitterMaxMS

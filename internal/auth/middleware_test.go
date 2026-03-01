@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -187,5 +188,57 @@ func TestExtractBearerToken_CaseSensitive(t *testing.T) {
 	got := extractBearerToken(req)
 	if got != "" {
 		t.Errorf("token = %q, want empty for lowercase 'bearer'", got)
+	}
+}
+
+func TestAuthFail_WWWAuthenticate(t *testing.T) {
+	t.Parallel()
+	handler := testHandler()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+
+	wwwAuth := rec.Header().Get("WWW-Authenticate")
+	if wwwAuth != `Bearer realm="evidra"` {
+		t.Errorf("WWW-Authenticate = %q, want Bearer realm=\"evidra\"", wwwAuth)
+	}
+}
+
+func TestAuthFail_HelpURL(t *testing.T) {
+	t.Parallel()
+	handler := testHandler()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var body map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["error"] != "unauthorized" {
+		t.Errorf("error = %q, want unauthorized", body["error"])
+	}
+	if body["help"] == "" {
+		t.Error("expected help URL in response body")
+	}
+}
+
+func TestAuthFail_ContentType(t *testing.T) {
+	t.Parallel()
+	handler := testHandler()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	ct := rec.Header().Get("Content-Type")
+	if ct != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", ct)
 	}
 }

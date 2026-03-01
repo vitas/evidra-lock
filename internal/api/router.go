@@ -49,6 +49,17 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		mux.Handle("GET /readyz", handleReadyz(cfg.DB))
 	}
 
+	// Auth check endpoint (forwardAuth target for Traefik).
+	authCheckHandler := authMW(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			tenantID := auth.TenantID(r.Context())
+			w.Header().Set("X-Evidra-Tenant", tenantID)
+			w.WriteHeader(http.StatusOK)
+		}),
+	)
+	mux.Handle("GET /auth/check", authCheckHandler)
+	mux.Handle("HEAD /auth/check", authCheckHandler)
+
 	// Authenticated endpoints.
 	mux.Handle("POST /v1/validate", authMW(
 		handleValidate(cfg.Engine, cfg.Signer, builderCfg),

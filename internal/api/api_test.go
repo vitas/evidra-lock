@@ -69,6 +69,73 @@ func validBody() string {
 	}`
 }
 
+// --- Auth check handler ---
+
+func TestAuthCheck_ValidKey(t *testing.T) {
+	t.Parallel()
+	handler := testRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/check", nil)
+	req.Header.Set("Authorization", "Bearer "+testAPIKey)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if tid := rec.Header().Get("X-Evidra-Tenant"); tid != "static" {
+		t.Errorf("X-Evidra-Tenant = %q, want static", tid)
+	}
+}
+
+func TestAuthCheck_HEAD(t *testing.T) {
+	t.Parallel()
+	handler := testRouter(t)
+
+	req := httptest.NewRequest(http.MethodHead, "/auth/check", nil)
+	req.Header.Set("Authorization", "Bearer "+testAPIKey)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if tid := rec.Header().Get("X-Evidra-Tenant"); tid != "static" {
+		t.Errorf("X-Evidra-Tenant = %q, want static", tid)
+	}
+}
+
+func TestAuthCheck_NoAuth(t *testing.T) {
+	t.Parallel()
+	handler := testRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/check", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	wwwAuth := rec.Header().Get("WWW-Authenticate")
+	if wwwAuth == "" {
+		t.Error("expected WWW-Authenticate header on 401")
+	}
+}
+
+func TestAuthCheck_WrongKey(t *testing.T) {
+	t.Parallel()
+	handler := testRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/check", nil)
+	req.Header.Set("Authorization", "Bearer wrong-key-definitely-not-correct")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
 // --- Health handler ---
 
 func TestHealthz(t *testing.T) {
