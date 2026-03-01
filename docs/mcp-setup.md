@@ -12,7 +12,7 @@ This guide covers connecting Evidra MCP server to your AI agent and getting the 
 
 ```bash
 # Option A: Homebrew
-brew install vitas/tap/evidra-mcp
+brew install samebits/tap/evidra-mcp
 
 # Option B: Go
 go install github.com/vitas/evidra/cmd/evidra-mcp@latest

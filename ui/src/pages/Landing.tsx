@@ -508,7 +508,7 @@ export function Landing({ onGetStarted }: LandingProps) {
                   samebits.com/evidra/cmd/evidra-mcp@latest
                   <br />
                   <br />
-                  <span className="t-prompt"></span>brew install vitas/tap/evidra-mcp
+                  <span className="t-prompt"></span>brew install samebits/tap/evidra-mcp
                   <br />
                   <br />
                   <span className="t-prompt"></span>docker run -v
