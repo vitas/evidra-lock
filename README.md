@@ -98,8 +98,8 @@ Every decision - allow or deny - is written to `~/.evidra/evidence` as an append
 
 Use the dedicated setup guide for install methods and MCP client configuration:
 
-- [docs/EVIDRA_MCP_SETUP_GUIDE.md](docs/EVIDRA_MCP_SETUP_GUIDE.md)
-- [GitHub version](https://github.com/vitas/evidra/blob/main/docs/EVIDRA_MCP_SETUP_GUIDE.md)
+- [docs/mcp-setup.md](docs/mcp-setup.md)
+- [GitHub version](https://github.com/vitas/evidra/blob/main/docs/mcp-setup.md)
 
 Binary downloads are available on [GitHub Releases](https://github.com/vitas/evidra/releases).
 

@@ -210,7 +210,7 @@ export function Docs() {
           calls <code>validate</code> before every destructive operation. No API
           key needed for local mode.{" "}
           <a
-            href="https://github.com/vitas/evidra/blob/main/docs/EVIDRA_MCP_SETUP_GUIDE.md"
+            href="https://github.com/vitas/evidra/blob/main/docs/mcp-setup.md"
             target="_blank"
             rel="noopener noreferrer"
           >
