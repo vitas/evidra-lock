@@ -183,6 +183,22 @@ CI behavior:
 These invariants are enforced by policy boundary guard tests in
 [`pkg/policy/policy_input_actions_guard_test.go`](../pkg/policy/policy_input_actions_guard_test.go).
 
+## Deny-Loop Prevention
+
+When actor.type is "agent" or "ci", the validate handler tracks
+recently denied intents. If the same intent is submitted again within
+the TTL window (default 10 minutes), the handler returns
+`stop_after_deny` immediately without re-evaluating policy.
+
+Intent identity is based on semantic fields: tool, operation, namespace,
+resource kind, resource name, container images, and security posture
+(privileged, run_as_user, capabilities, host_pid/ipc/network). Changes to
+labels, annotations, or formatting do not change the intent key. Changes to
+namespace, images, security posture, or resource identity do.
+
+This prevents infinite retry loops and makes deny behavior deterministic.
+See [PROTOCOL_ERRORS.md](PROTOCOL_ERRORS.md) for error code details.
+
 ## Engine v2 Regression Set
 
 The following checks must stay green for engine-v2 stability:

@@ -279,6 +279,12 @@ layers, and how to run each test suite.
 
 ---
 
+## Stability and Model Behavior
+
+See [docs/MODEL_BEHAVIOR_AND_DETERMINISM.md](docs/MODEL_BEHAVIOR_AND_DETERMINISM.md) for details about model variance and deterministic engine guarantees.
+
+---
+
 ## License
 
 Apache 2.0. No SaaS required. No telemetry. Runs locally or on-prem.

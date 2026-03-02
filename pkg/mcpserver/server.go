@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -30,6 +31,7 @@ const (
 	ErrCodeNotFound       = "not_found"
 	ErrCodeInternalError  = "internal_error"
 	ErrCodeAPIUnreachable = "api_unreachable"
+	ErrCodeStopAfterDeny  = "stop_after_deny"
 )
 
 type Options struct {
@@ -233,6 +235,7 @@ func newValidateService(opts Options, content GuidanceContent) *ValidateService 
 		docsEngineLogicV2Body:    content.DocsEngineLogicV2Body,
 		docsProtocolErrorsBody:   content.DocsProtocolErrorsBody,
 		agentContractV1Body:      content.AgentContractV1Body,
+		denyCache:                NewDenyCache(10 * time.Minute),
 	}
 }
 
@@ -251,6 +254,7 @@ type ValidateService struct {
 	docsEngineLogicV2Body    string
 	docsProtocolErrorsBody   string
 	agentContractV1Body      string
+	denyCache                *DenyCache
 }
 
 type GetEventOutput struct {
@@ -261,6 +265,49 @@ type GetEventOutput struct {
 }
 
 func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvocation) ValidateOutput {
+	// Deny-loop check (agents/CI only)
+	payload := extractPayloadMap(inv)
+	intent := ExtractSemanticIntent(inv.Tool, inv.Operation, payload)
+	intentKey := IntentKey(intent)
+
+	actorType := inv.Actor.Type
+	if actorType == "agent" || actorType == "ci" {
+		if gateErr := s.denyCache.CheckDenyLoop(intentKey); gateErr != nil {
+			return ValidateOutput{
+				OK:     false,
+				Source: s.sourceLabel(),
+				Policy: PolicySummary{
+					Allow:     false,
+					RiskLevel: "high",
+					Reason:    gateErr.Message,
+				},
+				Error: gateErr,
+				Hints: []string{
+					"This intent was previously denied with the same parameters.",
+					"Change your plan or escalate to a human.",
+					"Do not retry with unchanged input.",
+				},
+			}
+		}
+	}
+
+	// Run evaluation (online or offline)
+	output := s.doEvaluate(ctx, inv)
+
+	// Record deny or clear on allow
+	if output.Error == nil || output.Error.Code != ErrCodeStopAfterDeny {
+		if !output.Policy.Allow {
+			s.denyCache.RecordDeny(intentKey, output.Policy.Reason, output.RuleIDs, output.EventID)
+		} else {
+			s.denyCache.ClearIntent(intentKey)
+		}
+	}
+
+	return output
+}
+
+// doEvaluate runs the actual policy evaluation (online or offline).
+func (s *ValidateService) doEvaluate(ctx context.Context, inv invocation.ToolInvocation) ValidateOutput {
 	// ONLINE: try API first
 	if s.isOnline && s.apiClient != nil {
 		result, _, err := s.apiClient.Validate(ctx, inv)
@@ -494,6 +541,32 @@ func staticResourceText(requestURI, expectedURI, mimeType, text string) (*mcp.Re
 			Text:     text,
 		}},
 	}, nil
+}
+
+// extractPayloadMap extracts the payload map from a ToolInvocation.
+// Checks params.payload first, then params.action.payload.
+func extractPayloadMap(inv invocation.ToolInvocation) map[string]any {
+	if inv.Params == nil {
+		return nil
+	}
+	// Direct payload
+	if p, ok := inv.Params["payload"].(map[string]any); ok {
+		return p
+	}
+	// Nested under action
+	if action, ok := inv.Params["action"].(map[string]any); ok {
+		if p, ok := action["payload"].(map[string]any); ok {
+			return p
+		}
+	}
+	return nil
+}
+
+func (s *ValidateService) sourceLabel() string {
+	if s.isOnline {
+		return "api"
+	}
+	return "local"
 }
 
 func (s *ValidateService) effectivePolicyRef() string {
