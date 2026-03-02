@@ -35,6 +35,7 @@ const (
 type Options struct {
 	Name                     string
 	Version                  string
+	ContentDir               string
 	Mode                     Mode
 	PolicyRef                string
 	PolicyPath               string
@@ -86,72 +87,12 @@ type getEventInput struct {
 	EventID string `json:"event_id"`
 }
 
-const initializeInstructions = "Evidra policy enforcement is active.\n" +
-	"Always call `validate` before destructive or privileged operations.\n" +
-	"On deny: STOP and do not retry unchanged input.\n" +
-	"If hints indicate missing data, ask for required fields and re-run validate.\n" +
-	"Fetch canonical contract from `evidra://prompts/agent_contract_v1`."
-
 const (
 	resourceURIDocsEngineLogicV2 = "evidra://docs/engine_logic_v2"
 	resourceURIDocsProtocolError = "evidra://docs/protocol_errors"
 	resourceURIPolicySummary     = "evidra://policy/summary"
 	resourceURIAgentContractV1   = "evidra://prompts/agent_contract_v1"
 )
-
-const engineLogicV2ResourceMarkdown = "# Evidra Engine Logic v2 (MCP summary)\n\n" +
-	"- `actor.type` is the security classifier (`human|agent|ci`).\n" +
-	"- `actor.origin` is transport metadata (`mcp|cli|api`) and not a security classifier.\n" +
-	"- `context.source` is optional metadata and not a security classifier.\n" +
-	"- Canonicalization normalizes native and flat Kubernetes payloads before policy rules run.\n" +
-	"- If MCP schema validation fails, JSON-RPC returns `-32602` and tool handlers are not invoked.\n\n" +
-	"See repo docs: `docs/ENGINE_LOGIC_V2.md`."
-
-const protocolErrorsResourceMarkdown = "# Protocol Errors\n\n" +
-	"## `-32602` Invalid params\n\n" +
-	"- Means request arguments failed MCP schema validation.\n" +
-	"- In this path, tool handlers are not invoked.\n" +
-	"- Tool-level fields like `ok`, `policy`, or `error` are not produced.\n\n" +
-	"See repo docs: `docs/PROTOCOL_ERRORS.md`."
-
-const agentContractPromptV1Markdown = "# Evidra Agent Contract v1\n\n" +
-	"You are operating against an Evidra policy enforcement service.\n\n" +
-	"## 1. Always Validate First\n\n" +
-	"Before any destructive or privileged operation:\n\n" +
-	"- Call the `validate` tool.\n" +
-	"- Never execute mutations without prior validation.\n\n" +
-	"## 2. On Policy Deny\n\n" +
-	"If `validate` indicates deny (`ok=false` or `policy.allow=false`), you MUST:\n\n" +
-	"- STOP immediately.\n" +
-	"- Do NOT retry unchanged input.\n" +
-	"- Do NOT attempt alternate mutations.\n" +
-	"- Explain the denial.\n" +
-	"- Escalate if required.\n\n" +
-	"## 3. On `insufficient_context`\n\n" +
-	"If hints indicate missing fields:\n\n" +
-	"- Ask the user for missing data.\n" +
-	"- Re-run `validate`.\n" +
-	"- Do NOT guess Kubernetes fields.\n\n" +
-	"## 4. Kubernetes Payload Format\n\n" +
-	"You may send:\n\n" +
-	"- Native Kubernetes manifest\n" +
-	"- Flat schema\n\n" +
-	"Server canonicalizes internally.\n\n" +
-	"## 5. Actor Semantics\n\n" +
-	"- `actor.type = human | agent | ci`\n" +
-	"- `actor.origin = mcp | cli | api`\n\n" +
-	"`actor.type` is the security classifier.\n" +
-	"`context.source` is metadata only.\n\n" +
-	"## 6. Protocol Errors\n\n" +
-	"If you receive JSON-RPC error `-32602`:\n\n" +
-	"- Schema validation failed.\n" +
-	"- Tool handler was NOT executed.\n" +
-	"- Fix request structure before retrying.\n\n" +
-	"## 7. Large Manifests (Important)\n\n" +
-	"When validating large manifests:\n\n" +
-	"- Send the full manifest in ONE `validate` call.\n" +
-	"- Do NOT progressively enrich partial payloads.\n" +
-	"- Do NOT split across multiple attempts."
 
 func NewServer(opts Options) *mcp.Server {
 	if opts.Name == "" {
@@ -167,21 +108,22 @@ func NewServer(opts Options) *mcp.Server {
 			opts.EvidencePath = resolved
 		}
 	}
+	content := mustLoadGuidanceContent(opts.ContentDir)
 
-	svc := newValidateService(opts)
+	svc := newValidateService(opts, content)
 	validateTool := &validateHandler{service: svc}
 	getEventTool := &getEventHandler{service: svc}
 
 	server := mcp.NewServer(
 		&mcp.Implementation{Name: opts.Name, Version: opts.Version},
 		&mcp.ServerOptions{
-			Instructions: initializeInstructions,
+			Instructions: content.InitializeInstructions,
 		},
 	)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "validate",
 		Title:       "Validate Tool Invocation",
-		Description: "Evaluates intended infrastructure action(s) against the Evidra policy bundle.\nCall before destructive or privileged operations (for example: kubectl apply/delete, terraform apply/destroy, helm upgrade/uninstall, argocd sync).\nIf allow=false: STOP. Show reasons to the user. Do not retry unchanged input.\nIf hints indicate missing data, request required fields and re-run validate.\nKubernetes payload may be a native manifest or a flat schema (server canonicalizes).\nRead-only operations (plan/get/describe/list/show/diff) can usually skip validate.",
+		Description: content.ValidateToolDescription,
 		Annotations: &mcp.ToolAnnotations{
 			Title:           "Validate Scenario",
 			ReadOnlyHint:    true,
@@ -194,7 +136,7 @@ func NewServer(opts Options) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_event",
 		Title:       "Get Evidence Event",
-		Description: "Fetch one immutable evidence record by event_id.",
+		Description: content.GetEventToolDescription,
 		Annotations: &mcp.ToolAnnotations{
 			Title:           "Evidence Lookup",
 			ReadOnlyHint:    true,
@@ -229,28 +171,28 @@ func NewServer(opts Options) *mcp.Server {
 	server.AddResource(&mcp.Resource{
 		Name:        "evidra-docs-engine-logic-v2",
 		Title:       "Engine Logic v2",
-		Description: "MCP-facing summary of engine contract and classification semantics.",
+		Description: content.DocsEngineLogicV2Description,
 		MIMEType:    "text/markdown",
 		URI:         resourceURIDocsEngineLogicV2,
 	}, svc.readResourceEngineLogicV2)
 	server.AddResource(&mcp.Resource{
 		Name:        "evidra-docs-protocol-errors",
 		Title:       "Protocol Errors",
-		Description: "MCP/JSON-RPC error semantics used by Evidra tests and clients.",
+		Description: content.DocsProtocolErrorsDescription,
 		MIMEType:    "text/markdown",
 		URI:         resourceURIDocsProtocolError,
 	}, svc.readResourceProtocolErrors)
 	server.AddResource(&mcp.Resource{
 		Name:        "evidra-policy-summary",
 		Title:       "Policy Summary",
-		Description: "Active policy and guidance-surface summary for MCP clients.",
+		Description: content.PolicySummaryDescription,
 		MIMEType:    "application/json",
 		URI:         resourceURIPolicySummary,
 	}, svc.readResourcePolicySummary)
 	server.AddResource(&mcp.Resource{
 		Name:        "evidra-agent-contract-v1",
 		Title:       "Evidra Agent Contract v1",
-		Description: "Canonical vendor-agnostic agent guidance for Evidra-hosted MCP clients.",
+		Description: content.AgentContractDescription,
 		MIMEType:    "text/markdown",
 		URI:         resourceURIAgentContractV1,
 	}, svc.readResourceAgentContractV1)
@@ -275,7 +217,7 @@ func (h *getEventHandler) Handle(
 	return &mcp.CallToolResult{Content: resourceLinksToContent(output.Resources)}, output, nil
 }
 
-func newValidateService(opts Options) *ValidateService {
+func newValidateService(opts Options, content GuidanceContent) *ValidateService {
 	return &ValidateService{
 		policyPath:               opts.PolicyPath,
 		dataPath:                 opts.DataPath,
@@ -288,6 +230,9 @@ func newValidateService(opts Options) *ValidateService {
 		apiClient:                opts.APIClient,
 		fallbackPolicy:           opts.FallbackPolicy,
 		isOnline:                 opts.IsOnline,
+		docsEngineLogicV2Body:    content.DocsEngineLogicV2Body,
+		docsProtocolErrorsBody:   content.DocsProtocolErrorsBody,
+		agentContractV1Body:      content.AgentContractV1Body,
 	}
 }
 
@@ -303,6 +248,9 @@ type ValidateService struct {
 	apiClient                *client.Client
 	fallbackPolicy           string
 	isOnline                 bool
+	docsEngineLogicV2Body    string
+	docsProtocolErrorsBody   string
+	agentContractV1Body      string
 }
 
 type GetEventOutput struct {
@@ -487,11 +435,11 @@ func (s *ValidateService) readResourceSegments(_ context.Context, req *mcp.ReadR
 }
 
 func (s *ValidateService) readResourceEngineLogicV2(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-	return staticResourceText(req.Params.URI, resourceURIDocsEngineLogicV2, "text/markdown", engineLogicV2ResourceMarkdown)
+	return staticResourceText(req.Params.URI, resourceURIDocsEngineLogicV2, "text/markdown", s.docsEngineLogicV2Body)
 }
 
 func (s *ValidateService) readResourceProtocolErrors(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-	return staticResourceText(req.Params.URI, resourceURIDocsProtocolError, "text/markdown", protocolErrorsResourceMarkdown)
+	return staticResourceText(req.Params.URI, resourceURIDocsProtocolError, "text/markdown", s.docsProtocolErrorsBody)
 }
 
 func (s *ValidateService) readResourcePolicySummary(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
@@ -532,7 +480,7 @@ func (s *ValidateService) readResourcePolicySummary(_ context.Context, req *mcp.
 }
 
 func (s *ValidateService) readResourceAgentContractV1(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-	return staticResourceText(req.Params.URI, resourceURIAgentContractV1, "text/markdown", agentContractPromptV1Markdown)
+	return staticResourceText(req.Params.URI, resourceURIAgentContractV1, "text/markdown", s.agentContractV1Body)
 }
 
 func staticResourceText(requestURI, expectedURI, mimeType, text string) (*mcp.ReadResourceResult, error) {

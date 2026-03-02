@@ -1,0 +1,5 @@
+Evidra policy enforcement is active.
+Always call `validate` before destructive or privileged operations.
+On deny: STOP and do not retry unchanged input.
+If hints indicate missing data, ask for required fields and re-run validate.
+Fetch canonical contract from `evidra://prompts/agent_contract_v1`.

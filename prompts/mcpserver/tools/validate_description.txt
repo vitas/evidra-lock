@@ -1,0 +1,6 @@
+Evaluates intended infrastructure action(s) against the Evidra policy bundle.
+Call before destructive or privileged operations (for example: kubectl apply/delete, terraform apply/destroy, helm upgrade/uninstall, argocd sync).
+If allow=false: STOP. Show reasons to the user. Do not retry unchanged input.
+If hints indicate missing data, request required fields and re-run validate.
+Kubernetes payload may be a native manifest or a flat schema (server canonicalizes).
+Read-only operations (plan/get/describe/list/show/diff) can usually skip validate.

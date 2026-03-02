@@ -1,0 +1,1 @@
+Fetch one immutable evidence record by event_id.

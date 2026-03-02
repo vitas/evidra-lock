@@ -1,0 +1,1 @@
+Canonical vendor-agnostic agent guidance for Evidra-hosted MCP clients.

@@ -13,6 +13,11 @@ import (
 )
 
 var bundleDir = filepath.Join("..", "..", "policy", "bundles", "ops-v0.1")
+var guidanceDir = filepath.Join("..", "..", "prompts", "mcpserver")
+
+func testGuidanceContent() GuidanceContent {
+	return mustLoadGuidanceContent(guidanceDir)
+}
 
 func TestValidateServiceReturnsDeny(t *testing.T) {
 	opts := Options{
@@ -20,7 +25,7 @@ func TestValidateServiceReturnsDeny(t *testing.T) {
 		EvidencePath: t.TempDir(),
 		Mode:         ModeEnforce,
 	}
-	svc := newValidateService(opts)
+	svc := newValidateService(opts, testGuidanceContent())
 
 	inv := invocation.ToolInvocation{
 		Actor:     invocation.Actor{Type: "human", ID: "tester", Origin: "cli"},
@@ -65,7 +70,7 @@ func TestValidateServiceRecordsEvidence(t *testing.T) {
 		EvidencePath: t.TempDir(),
 		Mode:         ModeEnforce,
 	}
-	svc := newValidateService(opts)
+	svc := newValidateService(opts, testGuidanceContent())
 
 	inv := invocation.ToolInvocation{
 		Actor:     invocation.Actor{Type: "human", ID: "tester", Origin: "cli"},
@@ -300,6 +305,7 @@ func newTestServer(t *testing.T) *mcp.Server {
 	t.Helper()
 	opts := Options{
 		BundlePath:   bundleDir,
+		ContentDir:   filepath.Join("..", "..", "prompts", "mcpserver"),
 		EvidencePath: t.TempDir(),
 		Mode:         ModeEnforce,
 	}
@@ -441,7 +447,7 @@ func TestValidateServiceBadPolicyReturnsCode(t *testing.T) {
 		DataPath:     "nonexistent.json",
 		EvidencePath: t.TempDir(),
 		Mode:         ModeEnforce,
-	})
+	}, testGuidanceContent())
 	inv := invocation.ToolInvocation{
 		Actor:     invocation.Actor{Type: "human", ID: "u1", Origin: "test"},
 		Tool:      "kubectl",
@@ -462,7 +468,7 @@ func TestValidateServiceBadPolicyReturnsCode(t *testing.T) {
 }
 
 func TestValidateServiceInvalidInputReturnsCode(t *testing.T) {
-	svc := newValidateService(Options{Mode: ModeEnforce})
+	svc := newValidateService(Options{Mode: ModeEnforce}, testGuidanceContent())
 	out := svc.Validate(context.Background(), invocation.ToolInvocation{})
 	if out.OK {
 		t.Fatal("expected OK=false for invalid input")

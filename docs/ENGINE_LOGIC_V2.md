@@ -57,6 +57,10 @@ Initialize linkage:
 - Server Initialize instructions include a short directive to fetch `evidra://prompts/agent_contract_v1`.
 - Clients should use the fetched markdown as system guidance.
 
+Runtime content source (no recompile):
+- MCP guidance text is loaded from filesystem content directory (`prompts/mcpserver` by default).
+- Override via `--content-dir` or `EVIDRA_CONTENT_DIR`.
+
 E2E stability intent:
 - Contract `v1` includes explicit guidance for large manifests:
   - send full manifest in one validate call

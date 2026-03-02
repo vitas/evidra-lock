@@ -45,6 +45,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	policyFlag := fs.String("policy", "", "Path to policy rego file")
 	dataFlag := fs.String("data", "", "Path to policy data JSON file")
 	bundleFlag := fs.String("bundle", "", "Path to OPA bundle directory")
+	contentDirFlag := fs.String("content-dir", "", "Path to MCP guidance content directory")
 	envFlag := fs.String("environment", "", "Environment label for policy evaluation")
 	evidenceFlag := fs.String("evidence-dir", "", "Path to store evidence records")
 	evidenceStoreFlag := fs.String("evidence-store", "", "Alias for --evidence-dir")
@@ -82,6 +83,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	bundlePath := config.ResolveBundlePath(*bundleFlag)
+	contentDir := coalesce(strings.TrimSpace(*contentDirFlag), strings.TrimSpace(os.Getenv("EVIDRA_CONTENT_DIR")))
 	environment := config.NormalizeEnvironment(coalesce(strings.TrimSpace(*envFlag), os.Getenv("EVIDRA_ENVIRONMENT")))
 	policyPath := strings.TrimSpace(*policyFlag)
 	dataPath := strings.TrimSpace(*dataFlag)
@@ -147,6 +149,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	server := newServerFunc(mcpserver.Options{
 		Name:                     "evidra-mcp",
 		Version:                  version.Version,
+		ContentDir:               contentDir,
 		Mode:                     mcpMode,
 		PolicyRef:                policyRef,
 		PolicyPath:               policyPath,
@@ -346,6 +349,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --data <path>           Path to policy data.json (legacy loose-file mode)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "FLAGS:")
+	fmt.Fprintln(w, "  --content-dir <dir>     Path to MCP guidance content (initialize/tools/resources text files)")
 	fmt.Fprintln(w, "  --environment <env>     Environment label for policy evaluation (e.g. prod, staging)")
 	fmt.Fprintf(w, "  --evidence-dir <dir>    Where to store evidence chain (default: %s)\n", defaultEvidence)
 	fmt.Fprintln(w, "  --evidence-store <dir>  Alias for --evidence-dir")
@@ -354,6 +358,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  EVIDRA_URL              API endpoint (enables online mode, e.g. https://api.evidra.rest)")
 	fmt.Fprintln(w, "  EVIDRA_API_KEY          Bearer token (required when EVIDRA_URL is set)")
 	fmt.Fprintln(w, "  EVIDRA_FALLBACK         closed (default) or offline")
+	fmt.Fprintln(w, "  EVIDRA_CONTENT_DIR      Override MCP guidance content directory (same as --content-dir)")
 	fmt.Fprintln(w, "  EVIDRA_ENVIRONMENT      Environment label (normalized: prod→production, stg→staging)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "HOSTED SERVICE:")

@@ -59,25 +59,11 @@ EVIDRA_URL="${EVIDRA_URL:-}"
 EVIDRA_API_KEY="${EVIDRA_API_KEY:-}"
 IS_ONLINE=false
 
-# Default prompt is used only if the canonical skill prompt file is missing.
-DEFAULT_AGENT_SYSTEM_PROMPT=$(cat <<'EOF'
-You are an AI infrastructure operations agent executing tasks autonomously.
-Before mutating infrastructure operations, you MUST call mcp__evidra__validate first.
-Mutating operations include: apply, create, patch, edit, replace, upgrade, install, sync, delete, destroy.
-Skip validate for read-only operations: get, describe, list, plan, show, diff, status.
-When calling validate, include actor(type,id,origin), tool, operation, params, and context (use {} if unknown).
-If validate returns allow=false, stop and report denial reasons/hints. Do not execute the operation.
-If validate errors or is unreachable, fail closed and do not execute.
-If validate returns allow=true, report approval and proceed.
-EOF
-)
-
-# Use the canonical prompt from the installable skill package when available.
-if [ -f "$SKILL_SYSTEM_PROMPT_FILE" ]; then
-    AGENT_SYSTEM_PROMPT="$(cat "$SKILL_SYSTEM_PROMPT_FILE")"
-else
-    AGENT_SYSTEM_PROMPT="$DEFAULT_AGENT_SYSTEM_PROMPT"
+# Canonical e2e agent prompt must come from filesystem content (no hardcoded fallback).
+if [ ! -f "$SKILL_SYSTEM_PROMPT_FILE" ]; then
+    die "missing required system prompt file: $SKILL_SYSTEM_PROMPT_FILE"
 fi
+AGENT_SYSTEM_PROMPT="$(cat "$SKILL_SYSTEM_PROMPT_FILE")"
 
 # ── Counters ───────────────────────────────────────────────────────────────
 
