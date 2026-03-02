@@ -7,13 +7,12 @@
 package evidra.policy
 
 import data.evidra.policy.defaults as defaults
-import data.evidra.policy.insufficient_context as core
 
 deny["ops.terraform_metadata_only"] = msg if {
 	defaults.profile_includes_ops
 	action := defaults.actions[_]
 	action.kind == "terraform.apply"
-	core.has_sufficient_context(action)
+	has_sufficient_context(action)
 	not has_deep_fields(action)
 	msg := "terraform.apply payload contains only plan metadata. Ops rules for security groups, IAM, and S3 cannot evaluate."
 }
@@ -35,10 +34,10 @@ has_deep_fields(action) if {
 
 has_deep_fields(action) if {
 	payload := object.get(action, "payload", {})
-	core.has_nonempty_object(object.get(payload, "s3_public_access_block", null))
+	has_nonempty_object(object.get(payload, "s3_public_access_block", null))
 }
 
 has_deep_fields(action) if {
 	payload := object.get(action, "payload", {})
-	core.has_nonempty_object(object.get(payload, "server_side_encryption", null))
+	has_nonempty_object(object.get(payload, "server_side_encryption", null))
 }
