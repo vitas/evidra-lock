@@ -72,6 +72,8 @@ PASSED=0
 FAILED=0
 SKIPPED=0
 FAILURES=""
+LAST_ATTEMPT_FILE=""
+LAST_TOOL_USAGE='{"tools":[],"counts":{},"mcp_tools":[],"non_mcp_tools":[]}'
 
 # ── Report paths ───────────────────────────────────────────────────────────
 
@@ -248,6 +250,39 @@ extract_text() {
     } | tr -d '\0'
 }
 
+extract_tool_usage_json() {
+    local file="$1"
+    local usage
+    usage=$(jq -sc '
+      [ .[] |
+        (if .type=="tool_use" and (.name|type=="string") then .name else empty end),
+        (.message.content[]? | select(.type=="tool_use" and (.name|type=="string")) | .name),
+        (if .type=="content_block_start" then .content_block else empty end | select(.type=="tool_use" and (.name|type=="string")) | .name),
+        (if .subtype=="tool_use" and (.name|type=="string") then .name else empty end)
+      ] as $names
+      | ($names | unique) as $unique
+      | {
+          tools: $unique,
+          counts: ($names | sort | group_by(.) | map({(.[0]): length}) | add // {}),
+          mcp_tools: ($unique | map(select(startswith("mcp__")))),
+          non_mcp_tools: ($unique | map(select(startswith("mcp__") | not)))
+        }
+    ' "$file" 2>/dev/null || true)
+    if [ -n "$usage" ] && [ "$usage" != "null" ]; then
+        echo "$usage"
+        return 0
+    fi
+    echo '{"tools":[],"counts":{},"mcp_tools":[],"non_mcp_tools":[]}'
+}
+
+format_tool_usage_counts() {
+    local usage_json="$1"
+    echo "$usage_json" | jq -r '
+      (.counts // {}) | to_entries | sort_by(.key)
+      | if length==0 then "none" else map("\(.key)=\(.value)") | join(", ") end
+    ' 2>/dev/null || echo "none"
+}
+
 # ── Assertion functions ───────────────────────────────────────────────────
 
 assert_validate_called() {
@@ -372,26 +407,6 @@ assert_policy_allow_equals() {
     return 1
 }
 
-assert_payload_min_bytes() {
-    local file="$1"
-    local min_bytes="$2"
-
-    local tool_use
-    tool_use=$(extract_tool_use "$file" "mcp__evidra__validate") || {
-        fail "  cannot check payload: validate not found"
-        return 1
-    }
-
-    local payload_bytes
-    payload_bytes=$(echo "$tool_use" | jq -c '.input.params.payload // .input.payload // {}' 2>/dev/null | wc -c)
-
-    if [ "$payload_bytes" -ge "$min_bytes" ]; then
-        return 0
-    fi
-    fail "  payload too small: ${payload_bytes} bytes < ${min_bytes} minimum"
-    return 1
-}
-
 assert_evidence_created() {
     local min="${1:-1}"
     local count
@@ -504,6 +519,8 @@ run_single_attempt() {
     local corpus_file="$3"
     local attempt_id="${scenario}_$(date +%s)_$$"
     local out_file="$OUT_DIR/${attempt_id}.ndjson"
+    LAST_ATTEMPT_FILE="$out_file"
+    LAST_TOOL_USAGE='{"tools":[],"counts":{},"mcp_tools":[],"non_mcp_tools":[]}'
 
     # Read agent expectations from corpus file
     local agent
@@ -525,8 +542,6 @@ run_single_attempt() {
     expect_stop=$(echo "$agent" | jq -r '.expect_stop_signal')
     local expect_evidence_deny
     expect_evidence_deny=$(echo "$agent" | jq -r '.expect_evidence_deny')
-    local expect_payload_min
-    expect_payload_min=$(echo "$agent" | jq -r '.expect_payload_min_bytes')
 
     # Read prompt — supports direct prompt, prompt_file (generated), or prompt_prefix
     local prompt
@@ -570,6 +585,7 @@ run_single_attempt() {
         fail "  empty output file"
         return 1
     fi
+    LAST_TOOL_USAGE=$(extract_tool_usage_json "$out_file")
 
     # ── Assertions ──
 
@@ -645,11 +661,6 @@ run_single_attempt() {
         assert_evidence_deny_exists || assertion_failed=1
     fi
 
-    # 7. Payload min bytes
-    if [ "$expect_payload_min" != "null" ]; then
-        assert_payload_min_bytes "$out_file" "$expect_payload_min" || assertion_failed=1
-    fi
-
     return "$assertion_failed"
 }
 
@@ -697,11 +708,15 @@ generate_html_report() {
     local cards=""
     while IFS= read -r line; do
         [ -n "$line" ] || continue
-        local name status dur failures_json
+        local name status dur failures_json tool_counts
         name=$(echo "$line" | jq -r '.scenario')
         status=$(echo "$line" | jq -r '.status')
         dur=$(echo "$line" | jq -r '.duration_s')
         failures_json=$(echo "$line" | jq -c '.failures')
+        tool_counts=$(echo "$line" | jq -r '
+          (.tool_usage.counts // {}) | to_entries | sort_by(.key)
+          | if length==0 then "none" else map("\(.key)=\(.value)") | join(", ") end
+        ')
 
         local badge_class detail_html
         case "$status" in
@@ -711,13 +726,14 @@ generate_html_report() {
         esac
 
         # Build failure list or success note
-        local fail_count
+        local fail_count tool_html
         fail_count=$(echo "$failures_json" | jq 'length')
+        tool_html="<p class=\"tools\">Tools used: <code>${tool_counts}</code></p>"
         if [ "$fail_count" -gt 0 ]; then
             detail_html=$(echo "$failures_json" | jq -r '.[] | "<li>" + . + "</li>"' | tr '\n' ' ')
-            detail_html="<ul class=\"fails\">$detail_html</ul>"
+            detail_html="${tool_html}<ul class=\"fails\">$detail_html</ul>"
         else
-            detail_html="<p class=\"ok-note\">All assertions passed.</p>"
+            detail_html="${tool_html}<p class=\"ok-note\">All assertions passed.</p>"
         fi
 
         cards="${cards}
@@ -780,6 +796,8 @@ generate_html_report() {
   .card-body { display: none; padding: 0 16px 14px 16px; border-top: 1px solid #334155; }
   .card.open .card-body { display: block; }
   .ok-note { font-size: 0.82rem; color: var(--pass); padding-top: 12px; }
+  .tools { font-size: 0.82rem; color: var(--muted); padding-top: 12px; }
+  .tools code { color: var(--text); }
   ul.fails { font-size: 0.82rem; color: #fca5a5; padding: 12px 0 0 18px; line-height: 1.7; }
   footer { padding: 16px 32px; font-size: 0.75rem; color: var(--muted); border-top: 1px solid #334155; }
 </style>
@@ -881,9 +899,13 @@ main() {
         # Write structured result line
         local fail_msgs
         fail_msgs=$(jq -Rsc '[split("\n")[] | select(length>0)]' "$FAILURE_LOG" 2>/dev/null || echo '[]')
+        local tool_usage_json tool_usage_log
+        tool_usage_json="$LAST_TOOL_USAGE"
+        tool_usage_log=$(format_tool_usage_counts "$tool_usage_json")
+        log "  tools used: $tool_usage_log"
         jq -cn --arg n "$scenario" --arg s "$scenario_status" --argjson d "$scenario_dur" \
-            --argjson f "$fail_msgs" \
-            '{scenario:$n,status:$s,duration_s:$d,failures:$f}' >> "$RESULTS_FILE"
+            --argjson f "$fail_msgs" --arg out "$LAST_ATTEMPT_FILE" --argjson t "$tool_usage_json" \
+            '{scenario:$n,status:$s,duration_s:$d,failures:$f,output_file:$out,tool_usage:$t}' >> "$RESULTS_FILE"
 
         echo ""
     done

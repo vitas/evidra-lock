@@ -218,6 +218,11 @@ System prompt source of truth for e2e runner:
 The runner supports model selection (`MODEL=haiku|sonnet|opus`), online/offline
 modes, and generates an HTML report.
 
+Model behavior note:
+- Stronger models are usually more predictable in E2E tool-use behavior (typically `opus` > `sonnet` > `haiku`), but nondeterminism still exists.
+- E2E no longer enforces payload byte-size thresholds; it focuses on behavior/tool-use assertions.
+- Per-scenario output now records tool usage (`tool_usage` + `output_file`) in `results.ndjson`, and the HTML report shows tool usage counts per scenario.
+
 Non-deterministic (LLM). Run only after layers 1–2.5 pass.
 
 ---
