@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "id": "k8s_native_deployment_privileged_deny",
+    "rules": ["k8s.privileged_container"],
+    "priority": "p0"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "apply",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "kubectl.apply",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "metadata": {"name": "web", "namespace": "default"},
+          "spec": {
+            "template": {
+              "spec": {
+                "containers": [
+                  {
+                    "name": "app",
+                    "image": "nginx:1.25",
+                    "securityContext": {"privileged": true}
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": false,
+    "risk_level": "high",
+    "rule_ids_contain": ["k8s.privileged_container"],
+    "rule_ids_absent": ["ops.insufficient_context"],
+    "hints_min_count": 1
+  }
+}

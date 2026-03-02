@@ -91,6 +91,11 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
       - name: Check formatting
         run: |
           files=$(gofmt -l .)
@@ -102,6 +107,9 @@ jobs:
 
       - name: Run tests
         run: go test ./...
+
+      - name: Run OPA policy tests
+        run: opa test policy/bundles/ops-v0.1/ -v
 
       - name: Run race tests
         run: go test -race ./...

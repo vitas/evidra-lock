@@ -3,7 +3,7 @@ package evidra.policy
 
 import data.evidra.policy.defaults as defaults
 
-deny["k8s.host_namespace_escape"] = "Pod uses host namespace (hostPID, hostIPC, or hostNetwork)" if {
+deny["k8s.host_namespace_escape"] = "Pod uses host namespace (host_pid, host_ipc, or host_network)" if {
 	defaults.profile_includes_ops
 	action := defaults.actions[_]
 	action.kind == "kubectl.apply"

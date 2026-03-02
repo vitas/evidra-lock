@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "id": "k8s_native_deployment_hostpid_deny",
+    "rules": ["k8s.host_namespace_escape"],
+    "priority": "p0"
+  },
+  "input": {
+    "actor": {"type": "agent", "id": "test-agent", "origin": "cli"},
+    "tool": "kubectl",
+    "operation": "apply",
+    "environment": "dev",
+    "params": {
+      "action": {
+        "kind": "kubectl.apply",
+        "target": "default",
+        "risk_tags": [],
+        "payload": {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "metadata": {"name": "debug", "namespace": "default"},
+          "spec": {
+            "template": {
+              "spec": {
+                "hostPID": true,
+                "containers": [
+                  {
+                    "name": "app",
+                    "image": "busybox:1.36"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "context": {}
+  },
+  "expect": {
+    "allow": false,
+    "risk_level": "high",
+    "rule_ids_contain": ["k8s.host_namespace_escape"],
+    "rule_ids_absent": ["ops.insufficient_context"],
+    "hints_min_count": 1
+  }
+}

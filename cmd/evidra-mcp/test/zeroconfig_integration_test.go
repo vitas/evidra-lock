@@ -78,6 +78,38 @@ func TestEmbeddedBundleZeroConfig(t *testing.T) {
 			wantRuleID: "ops.unapproved_change",
 			wantHints:  true,
 		},
+		{
+			name: "native_deployment_privileged_is_denied",
+			args: map[string]any{
+				"actor":     map[string]any{"type": "human", "id": "tester", "origin": "cli"},
+				"tool":      "kubectl",
+				"operation": "apply",
+				"params": map[string]any{
+					"payload": map[string]any{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata":   map[string]any{"name": "web", "namespace": "default"},
+						"spec": map[string]any{
+							"template": map[string]any{
+								"spec": map[string]any{
+									"containers": []map[string]any{
+										{
+											"name":            "app",
+											"image":           "nginx:1.25",
+											"securityContext": map[string]any{"privileged": true},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				"context": map[string]any{},
+			},
+			wantAllow:  false,
+			wantRuleID: "k8s.privileged_container",
+			wantHints:  true,
+		},
 	}
 
 	for _, tc := range cases {

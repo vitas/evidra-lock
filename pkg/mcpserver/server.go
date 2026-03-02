@@ -112,7 +112,7 @@ func NewServer(opts Options) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "validate",
 		Title:       "Validate Tool Invocation",
-		Description: "REQUIRED before executing any infrastructure command that creates, modifies, or deletes resources. Call this BEFORE running: kubectl apply/delete, terraform apply/destroy, helm upgrade/uninstall, argocd sync.\n\nProvide in params: tool name, operation, and context in payload — at minimum the target namespace (for k8s/helm). If namespace is set by current kubectl context, include it explicitly in target.namespace. Container specs for workload resources (pod/deployment/statefulset/daemonset), or resource counts and plan details (for terraform).\n\nIf the result shows allow=false: DO NOT proceed with the operation. Show the denial reasons and hints to the user and wait for guidance. Never retry a denied operation without changing parameters.\n\nSafe to skip for read-only operations: plan, get, describe, list, show, diff.",
+		Description: "REQUIRED before executing any infrastructure command that creates, modifies, or deletes resources. Call this BEFORE running: kubectl apply/delete, terraform apply/destroy, helm upgrade/uninstall, argocd sync.\n\nProvide tool, operation, and params with actionable context. For Kubernetes actions, payload may be a native manifest or a flat payload; Evidra canonicalizes both internally.\n\nIf allow=false: STOP. Do not execute the operation. Show denial reasons and hints, and do not retry unless input changes.\n\nSafe to skip for read-only operations: plan, get, describe, list, show, diff.",
 		Annotations: &mcp.ToolAnnotations{
 			Title:           "Validate Scenario",
 			ReadOnlyHint:    true,
@@ -136,8 +136,17 @@ func NewServer(opts Options) *mcp.Server {
 				},
 				"tool":      map[string]any{"type": "string", "description": "Tool name (e.g. terraform)."},
 				"operation": map[string]any{"type": "string", "description": "Operation (e.g. plan, apply)."},
-				"params":    map[string]any{"type": "object", "description": "Operation parameters; include risk_tags/asserted data."},
-				"context":   map[string]any{"type": "object", "description": "Optional context metadata."},
+				"params": map[string]any{
+					"type":        "object",
+					"description": "Operation parameters; include risk_tags/asserted data.",
+					"properties": map[string]any{
+						"payload": map[string]any{
+							"type":        "object",
+							"description": "Payload can be a native Kubernetes manifest or flat internal shape; Evidra normalizes it before policy evaluation.",
+						},
+					},
+				},
+				"context": map[string]any{"type": "object", "description": "Optional context metadata."},
 			},
 		},
 	}, validateTool.Handle)
