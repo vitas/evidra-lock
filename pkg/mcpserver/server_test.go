@@ -104,6 +104,48 @@ func TestServerRegistersValidateTool(t *testing.T) {
 	}
 }
 
+func TestServerInitializeInstructions(t *testing.T) {
+	server := newTestServer(t)
+	ctx := context.Background()
+
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
+	serverSession, err := server.Connect(ctx, serverTransport, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	defer serverSession.Close()
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "0.1.0"}, nil)
+	clientSession, err := client.Connect(ctx, clientTransport, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer clientSession.Close()
+
+	init := clientSession.InitializeResult()
+	if init == nil {
+		t.Fatal("expected initialize result")
+	}
+	if strings.TrimSpace(init.Instructions) == "" {
+		t.Fatal("expected non-empty initialize instructions")
+	}
+	for _, snippet := range []string{
+		"STOP",
+		"do not retry unchanged input",
+		"native manifest or flat",
+		"actor.type",
+		"human`|`agent`|`ci",
+		"actor.origin",
+		"mcp`|`cli`|`api",
+		"context.source",
+		"metadata only",
+	} {
+		if !strings.Contains(init.Instructions, snippet) {
+			t.Fatalf("initialize instructions missing snippet %q", snippet)
+		}
+	}
+}
+
 func TestValidateToolDescriptionAndSchemaGuidance(t *testing.T) {
 	server := newTestServer(t)
 	tool, ok := findToolByName(listToolsFromServer(t, server), "validate")
@@ -158,6 +200,29 @@ func TestValidateToolDescriptionAndSchemaGuidance(t *testing.T) {
 	}
 	if resource, _ := flat["resource"].(string); resource != "deployment" {
 		t.Fatalf("expected flat example resource deployment, got %v", flat["resource"])
+	}
+}
+
+func TestGetEventToolSchema(t *testing.T) {
+	server := newTestServer(t)
+	tool, ok := findToolByName(listToolsFromServer(t, server), "get_event")
+	if !ok {
+		t.Fatal("get_event tool not found")
+	}
+
+	schema := requireMap(t, tool.InputSchema, "get_event.inputSchema")
+	required, ok := schema["required"].([]interface{})
+	if !ok || len(required) == 0 {
+		t.Fatalf("expected non-empty required array, got %T", schema["required"])
+	}
+	if !containsSchemaString(required, "event_id") {
+		t.Fatalf("expected required field event_id in get_event schema, got %v", required)
+	}
+
+	properties := requireMap(t, schema["properties"], "get_event.inputSchema.properties")
+	eventID := requireMap(t, properties["event_id"], "get_event.inputSchema.properties.event_id")
+	if typ, ok := eventID["type"].(string); !ok || typ != "string" {
+		t.Fatalf("expected get_event event_id type string, got %T %v", eventID["type"], eventID["type"])
 	}
 }
 

@@ -9,6 +9,9 @@ import (
 //go:embed schemas/validate.schema.json
 var validateSchemaBytes []byte
 
+//go:embed schemas/get_event.schema.json
+var getEventSchemaBytes []byte
+
 func mustLoadInputSchema(raw []byte, name string) map[string]any {
 	var schema map[string]any
 	if err := json.Unmarshal(raw, &schema); err != nil {

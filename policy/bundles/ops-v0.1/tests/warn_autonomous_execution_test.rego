@@ -8,8 +8,7 @@ test_warn_autonomous_execution_collects_hits_and_hints if {
 		"tool": "kubectl",
 		"operation": "apply",
 		"environment": "dev",
-		"source": "mcp",
-		"actor": {"type": "agent"},
+		"actor": {"type": "agent", "origin": "mcp"},
 		"actions": [
 			{
 				"kind": "kubectl.apply",

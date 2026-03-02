@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "required": [
+    "event_id"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Evidence event identifier."
+    }
+  }
+}

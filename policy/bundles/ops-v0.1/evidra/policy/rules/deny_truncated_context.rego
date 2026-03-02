@@ -1,6 +1,7 @@
 package evidra.policy
 
 import data.evidra.policy.defaults as defaults
+import data.evidra.policy.insufficient_context as core
 
 # ──────────────────────────────────────────────────────────
 # Truncation guard: deny when plan output was truncated.
@@ -12,7 +13,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["ops.truncated_context"] = "Plan output is truncated — manual review required" if {
 	action := defaults.actions[_]
-	is_destructive(action.kind)
+	core.is_destructive(action.kind)
 	payload := object.get(action, "payload", {})
 	is_truncated(payload)
 }

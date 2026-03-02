@@ -10,3 +10,4 @@
 6. [Architecture (Rendered HTML)](https://vitas.github.io/evidra/evidra-architecture-public.html) — Browser-rendered public architecture page via GitHub Pages
 7. [Security Model](SECURITY_MODEL.md) — Enforcement assumptions, evidence integrity, known limitations
 8. [Contributing](CONTRIBUTING.md) — Development workflow, adding rules, running tests
+9. [Claude Code Skill](skills/CLAUDE_CODE_SKILL.md) — Operational guidance for Claude Code agents using `validate`/`get_event`

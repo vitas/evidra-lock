@@ -97,6 +97,41 @@ func TestEmbeddedValidateSchemaLoadable(t *testing.T) {
 	}
 }
 
+func TestEmbeddedGetEventSchemaLoadable(t *testing.T) {
+	t.Parallel()
+
+	schema := mustLoadInputSchema(getEventSchemaBytes, "schemas/get_event.schema.json")
+	if schema == nil {
+		t.Fatal("expected non-nil schema")
+	}
+	if typ, ok := schema["type"].(string); !ok || typ != "object" {
+		t.Fatalf("expected schema type object, got %T %v", schema["type"], schema["type"])
+	}
+
+	required, ok := schema["required"].([]interface{})
+	if !ok || len(required) == 0 {
+		t.Fatalf("expected non-empty required array, got %T", schema["required"])
+	}
+	if !containsSchemaString(required, "event_id") {
+		t.Fatal("expected required field event_id in schema.required")
+	}
+
+	properties, ok := schema["properties"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected properties object, got %T", schema["properties"])
+	}
+	eventID, ok := properties["event_id"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected properties.event_id object, got %T", properties["event_id"])
+	}
+	if typ, ok := eventID["type"].(string); !ok || typ != "string" {
+		t.Fatalf("expected properties.event_id.type string, got %T %v", eventID["type"], eventID["type"])
+	}
+	if desc, ok := eventID["description"].(string); !ok || desc == "" {
+		t.Fatal("expected non-empty event_id description")
+	}
+}
+
 func containsSchemaString(values []interface{}, want string) bool {
 	for _, v := range values {
 		if s, ok := v.(string); ok && s == want {

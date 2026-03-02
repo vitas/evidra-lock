@@ -54,6 +54,36 @@ func TestPolicyBoundary_NoK8sPathOrCasingOutsideCanonicalizer(t *testing.T) {
 	}
 }
 
+func TestPolicyBoundary_NoActorOrSourceOutsideBoundary(t *testing.T) {
+	t.Parallel()
+
+	repoRoot, err := repoRootFromCaller()
+	if err != nil {
+		t.Fatal(err)
+	}
+	patterns := []string{
+		"input.actor",
+		`object.get(input, "actor"`,
+		`object.get(input,"actor"`,
+		"input.source",
+		`object.get(input, "source"`,
+		`object.get(input,"source"`,
+	}
+	allowed := map[string]struct{}{
+		"canonicalize.rego": {},
+		"defaults.rego":     {},
+		"decision.rego":     {},
+	}
+	offenders, err := collectPolicyOffendersWithAllowlist(repoRoot, patterns, allowed)
+	if err != nil {
+		t.Fatalf("walking policy files: %v", err)
+	}
+
+	if len(offenders) > 0 {
+		t.Fatalf("policy boundary violation: actor/source input access found outside defaults/canonicalize/decision: %v", offenders)
+	}
+}
+
 func repoRootFromCaller() (string, error) {
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
@@ -63,6 +93,12 @@ func repoRootFromCaller() (string, error) {
 }
 
 func collectPolicyOffenders(repoRoot string, patterns []string) ([]string, error) {
+	return collectPolicyOffendersWithAllowlist(repoRoot, patterns, map[string]struct{}{
+		"canonicalize.rego": {},
+	})
+}
+
+func collectPolicyOffendersWithAllowlist(repoRoot string, patterns []string, allowedBasenames map[string]struct{}) ([]string, error) {
 	policyDir := filepath.Join(repoRoot, "policy", "bundles", "ops-v0.1", "evidra", "policy")
 	var offenders []string
 
@@ -76,7 +112,7 @@ func collectPolicyOffenders(repoRoot string, patterns []string) ([]string, error
 		if filepath.Ext(path) != ".rego" {
 			return nil
 		}
-		if filepath.Base(path) == "canonicalize.rego" {
+		if _, ok := allowedBasenames[filepath.Base(path)]; ok {
 			return nil
 		}
 

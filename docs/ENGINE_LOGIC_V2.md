@@ -27,9 +27,14 @@ Input is assembled in [`pkg/policy/policy.go`](../pkg/policy/policy.go):
 
 For scenario execution, per-action invocation is created in [`pkg/validate/validate.go`](../pkg/validate/validate.go), then evaluated through the same engine path.
 
-MCP validate tool input schema source of truth:
-- JSON file: [`pkg/mcpserver/schemas/validate.schema.json`](../pkg/mcpserver/schemas/validate.schema.json)
-- Embedded loader: [`pkg/mcpserver/schema_embed.go`](../pkg/mcpserver/schema_embed.go)
+MCP tool input schema sources of truth:
+- Schema files: [`pkg/mcpserver/schemas/validate.schema.json`](../pkg/mcpserver/schemas/validate.schema.json), [`pkg/mcpserver/schemas/get_event.schema.json`](../pkg/mcpserver/schemas/get_event.schema.json)
+- Embedding loader: [`pkg/mcpserver/schema_embed.go`](../pkg/mcpserver/schema_embed.go)
+
+MCP global Initialize instructions:
+- Emitted from [`pkg/mcpserver/server.go`](../pkg/mcpserver/server.go) via `mcp.ServerOptions.Instructions`.
+- Provide universal guidance (`validate` before destructive operations, STOP on deny, do-not-retry-unchanged, native/flat k8s payload support).
+- Tool description on `validate` remains a redundant fallback for clients that rely on tool metadata.
 
 ## Canonicalization Boundary
 
@@ -58,13 +63,29 @@ Rules must read normalized actions only:
 
 Flat helpers live in [`policy/bundles/ops-v0.1/evidra/policy/defaults.rego`](../policy/bundles/ops-v0.1/evidra/policy/defaults.rego) (for example, namespace/tag/container helpers).
 
+Actor fields must be accessed through defaults helpers:
+- `defaults.actor_type`
+- `defaults.actor_origin`
+
+Rules must not read `input.actor.*` or `input.source` directly.
+
 `ops.insufficient_context` behavior is implemented in
-[`policy/bundles/ops-v0.1/evidra/policy/rules/deny_insufficient_context.rego`](../policy/bundles/ops-v0.1/evidra/policy/rules/deny_insufficient_context.rego):
+[`policy/bundles/ops-v0.1/evidra/policy/rules/deny_insufficient_context.rego`](../policy/bundles/ops-v0.1/evidra/policy/rules/deny_insufficient_context.rego),
+with core detection in
+[`policy/bundles/ops-v0.1/evidra/policy/insufficient_context_core.rego`](../policy/bundles/ops-v0.1/evidra/policy/insufficient_context_core.rego):
 - deny semantics stay fail-closed for destructive operations without sufficient context
 - reason/hint UX distinguishes:
   - missing required data
   - unsupported payload shape (wrong types/structure)
 - decision hints include per-operation skeletons and shape guidance
+- core reason codes (machine-readable) include:
+  - `missing_namespace`
+  - `missing_workload_containers`
+  - `missing_terraform_detail`
+  - `missing_destroy_count`
+  - `missing_argocd_context`
+  - `missing_project_payload`
+  - `missing_context_clause` (fallback)
 
 ## Decision Aggregation
 
@@ -125,6 +146,7 @@ CI behavior:
 1. `input.actions` is only read in `canonicalize.rego`.
 2. K8s shape/casing knowledge stays in `canonicalize.rego`.
 3. Rules and decision logic are format-agnostic and operate on flat normalized payload.
+4. Actor classification comes from `actor.type` only; `actor.origin` and `context.source` are not security classifiers.
 
 These invariants are enforced by policy boundary guard tests in
 [`pkg/policy/policy_input_actions_guard_test.go`](../pkg/policy/policy_input_actions_guard_test.go).
@@ -140,3 +162,8 @@ The following checks must stay green for engine-v2 stability:
 
 CI runs the first two checks in
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+
+## Client Guidance
+
+Claude Code operational guidance is documented in
+[`docs/skills/CLAUDE_CODE_SKILL.md`](skills/CLAUDE_CODE_SKILL.md).

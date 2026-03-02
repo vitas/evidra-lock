@@ -86,6 +86,15 @@ type getEventInput struct {
 	EventID string `json:"event_id"`
 }
 
+const initializeInstructions = "Call `validate` before destructive or privileged operations.\n" +
+	"On deny: STOP, show reasons, and do not retry unchanged input.\n" +
+	"If hints indicate missing data, ask for required fields and re-run validate.\n" +
+	"Kubernetes payload may be native manifest or flat; server canonicalizes internally.\n" +
+	"Input contract:\n" +
+	"- actor.type: required security classifier (`human`|`agent`|`ci`)\n" +
+	"- actor.origin: required transport (`mcp`|`cli`|`api`)\n" +
+	"- context.source: optional metadata only (not a security classifier)"
+
 func NewServer(opts Options) *mcp.Server {
 	if opts.Name == "" {
 		opts.Name = "evidra-mcp"
@@ -107,7 +116,9 @@ func NewServer(opts Options) *mcp.Server {
 
 	server := mcp.NewServer(
 		&mcp.Implementation{Name: opts.Name, Version: opts.Version},
-		nil,
+		&mcp.ServerOptions{
+			Instructions: initializeInstructions,
+		},
 	)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "validate",
@@ -133,13 +144,7 @@ func NewServer(opts Options) *mcp.Server {
 			DestructiveHint: boolPtr(false),
 			OpenWorldHint:   boolPtr(false),
 		},
-		InputSchema: map[string]any{
-			"type":     "object",
-			"required": []any{"event_id"},
-			"properties": map[string]any{
-				"event_id": map[string]any{"type": "string", "description": "Evidence event identifier."},
-			},
-		},
+		InputSchema: mustLoadInputSchema(getEventSchemaBytes, "schemas/get_event.schema.json"),
 	}, getEventTool.Handle)
 
 	server.AddResourceTemplate(&mcp.ResourceTemplate{

@@ -38,9 +38,7 @@ golden_hits := dedupe([label |
 
 agent_kill_switch_enabled if data.evidra.policy.agent_kill_switch.enabled == true
 
-actor_kind := object.get(actor, "type", "") if {
-	actor := object.get(input, "actor", {})
-}
+actor_kind := defaults.actor_type
 
 actor_uses_agent_gate if {
 	actor_kind == "agent"

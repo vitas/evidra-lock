@@ -232,3 +232,57 @@ test_native_cronjob_does_not_trigger_insufficient_context if {
 	d.allow
 	not "ops.insufficient_context" in d.hits
 }
+
+test_canonicalize_kubectl_apply_payload_null_is_conservative if {
+	inp := apply_input_with_payload(null)
+	a := data.evidra.policy.defaults.actions[0] with input as inp
+	a.payload == null
+
+	d := data.evidra.policy.decision with input as inp
+	not d.allow
+	"ops.insufficient_context" in d.hits
+}
+
+test_canonicalize_kubectl_apply_payload_string_is_conservative if {
+	inp := apply_input_with_payload("string")
+	a := data.evidra.policy.defaults.actions[0] with input as inp
+	a.payload == "string"
+
+	d := data.evidra.policy.decision with input as inp
+	not d.allow
+	"ops.insufficient_context" in d.hits
+}
+
+test_canonicalize_kubectl_apply_containers_wrong_type_is_conservative if {
+	payload := {"containers": "not-an-array"}
+	inp := apply_input_with_payload(payload)
+	a := data.evidra.policy.defaults.actions[0] with input as inp
+	a.payload.containers == "not-an-array"
+
+	d := data.evidra.policy.decision with input as inp
+	not d.allow
+	"ops.insufficient_context" in d.hits
+}
+
+test_canonicalize_kubectl_apply_spec_wrong_type_is_conservative if {
+	payload := {"spec": 42}
+	inp := apply_input_with_payload(payload)
+	a := data.evidra.policy.defaults.actions[0] with input as inp
+	a.payload.spec == 42
+
+	d := data.evidra.policy.decision with input as inp
+	not d.allow
+	"ops.insufficient_context" in d.hits
+}
+
+apply_input_with_payload(payload) := {
+	"tool": "kubectl",
+	"operation": "apply",
+	"environment": "dev",
+	"actions": [{
+		"kind": "kubectl.apply",
+		"target": "default",
+		"risk_tags": [],
+		"payload": payload,
+	}],
+}
