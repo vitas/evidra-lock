@@ -54,6 +54,14 @@ Rules must read normalized actions only:
 
 Flat helpers live in [`policy/bundles/ops-v0.1/evidra/policy/defaults.rego`](../policy/bundles/ops-v0.1/evidra/policy/defaults.rego) (for example, namespace/tag/container helpers).
 
+`ops.insufficient_context` behavior is implemented in
+[`policy/bundles/ops-v0.1/evidra/policy/rules/deny_insufficient_context.rego`](../policy/bundles/ops-v0.1/evidra/policy/rules/deny_insufficient_context.rego):
+- deny semantics stay fail-closed for destructive operations without sufficient context
+- reason/hint UX distinguishes:
+  - missing required data
+  - unsupported payload shape (wrong types/structure)
+- decision hints include per-operation skeletons and shape guidance
+
 ## Decision Aggregation
 
 Decision aggregation is in [`policy/bundles/ops-v0.1/evidra/policy/decision.rego`](../policy/bundles/ops-v0.1/evidra/policy/decision.rego):
@@ -76,6 +84,20 @@ Returned shape:
 - `actor_kind` (additive)
 - `golden_hits` (additive)
 - `blocked_by_agent_kill_switch` (additive)
+
+### Deny Hints
+
+Hint aggregation is in
+[`policy/bundles/ops-v0.1/evidra/policy/decision.rego`](../policy/bundles/ops-v0.1/evidra/policy/decision.rego),
+and remains backward-compatible as `hints: []string`.
+
+Minimum hint categories:
+- Agent kill switch block: when `blocked_by_agent_kill_switch` is true, hints include
+  a kill-switch message with `golden_hits` and an explicit stop action.
+- Insufficient context (missing data): when `ops.insufficient_context` denies without
+  unsupported-shape signals, hints include missing-data guidance and next-request fields.
+- Unsupported Kubernetes shape: when insufficient-context deny is tied to unsupported
+  Kubernetes manifest shape, hints include `spec.template.spec` vs flat-schema guidance.
 
 Actor classification for Layer 2:
 - `human` when `input.actor.type == "human"`

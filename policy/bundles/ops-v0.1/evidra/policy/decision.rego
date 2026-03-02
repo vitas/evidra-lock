@@ -91,7 +91,88 @@ rule_hints := [hint |
 	hint := hs[_]
 ]
 context_hints := [h | some h; data.evidra.policy.insufficient_context_hint[h]]
-hints := dedupe(array.concat(rule_hints, context_hints))
+
+has_insufficient_context_deny if {
+	"ops.insufficient_context" in hit_labels
+}
+
+has_unsupported_shape_reason if {
+	some r in base_reasons
+	contains(lower(r), "unsupported payload shape")
+}
+
+has_k8s_action if {
+	some i
+	action := defaults.actions[i]
+	startswith(action.kind, "kubectl.")
+}
+
+has_k8s_action if {
+	some i
+	action := defaults.actions[i]
+	startswith(action.kind, "oc.")
+}
+
+has_k8s_manifest_action if {
+	some i
+	action := defaults.actions[i]
+	action.kind == "kubectl.apply"
+}
+
+has_k8s_manifest_action if {
+	some i
+	action := defaults.actions[i]
+	action.kind == "oc.apply"
+}
+
+default kill_switch_hints := []
+
+kill_switch_hints := [
+	sprintf("Blocked by Agent Kill Switch due to golden policy hit(s): %s", [concat(", ", golden_hits)]),
+	"Stop. Ask for human confirmation or reduce the risk.",
+] if {
+	blocked_by_agent_kill_switch
+}
+
+default missing_data_hints := []
+
+missing_data_hints := ["Missing required data for evaluation."] if {
+	has_insufficient_context_deny
+	not has_unsupported_shape_reason
+}
+
+default k8s_missing_data_hints := []
+
+k8s_missing_data_hints := [
+	"Include: namespace, containers (name/image/security context), and/or full Kubernetes manifest.",
+	"Kubernetes: native manifest or flat payload is accepted (engine canonicalizes).",
+] if {
+	has_insufficient_context_deny
+	not has_unsupported_shape_reason
+	has_k8s_action
+}
+
+default unsupported_shape_hints := []
+
+unsupported_shape_hints := [
+	"Unsupported Kubernetes manifest shape.",
+	"Send a Pod or Deployment-like manifest (template pod spec layout) or the internal flat schema.",
+] if {
+	has_insufficient_context_deny
+	has_unsupported_shape_reason
+	has_k8s_manifest_action
+}
+
+hints := dedupe(array.concat(
+	rule_hints,
+	array.concat(
+		context_hints,
+		array.concat(
+			kill_switch_hints,
+			array.concat(missing_data_hints, array.concat(k8s_missing_data_hints, unsupported_shape_hints)),
+		),
+	),
+))
 
 risk_level := "high" if {
 	count(denies) > 0

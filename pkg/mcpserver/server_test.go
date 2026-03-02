@@ -111,10 +111,10 @@ func TestValidateToolDescriptionAndSchemaGuidance(t *testing.T) {
 		t.Fatal("validate tool not found")
 	}
 	for _, snippet := range []string{
-		"REQUIRED before executing any infrastructure command",
-		"payload may be a native manifest or a flat payload",
+		"Evaluates intended infrastructure action(s) against the Evidra policy bundle",
+		"payload may be a native manifest or a flat internal schema",
 		"If allow=false: STOP",
-		"do not retry unless input changes",
+		"do not retry unchanged inputs",
 	} {
 		if !strings.Contains(tool.Description, snippet) {
 			t.Fatalf("validate tool description missing snippet %q", snippet)
@@ -131,13 +131,32 @@ func TestValidateToolDescriptionAndSchemaGuidance(t *testing.T) {
 		t.Fatal("validate payload description missing")
 	}
 	for _, snippet := range []string{
-		"native Kubernetes manifest",
+		"native manifest",
 		"flat internal shape",
-		"normalizes",
+		"canonicalizes",
 	} {
 		if !strings.Contains(desc, snippet) {
 			t.Fatalf("payload description missing snippet %q; got %q", snippet, desc)
 		}
+	}
+
+	examples, ok := payload["examples"].([]interface{})
+	if !ok || len(examples) < 2 {
+		t.Fatalf("expected payload examples with native and flat snippets, got %T len=%d", payload["examples"], len(examples))
+	}
+	native, ok := examples[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected native example object, got %T", examples[0])
+	}
+	if kind, _ := native["kind"].(string); kind != "Deployment" {
+		t.Fatalf("expected native example kind Deployment, got %v", native["kind"])
+	}
+	flat, ok := examples[1].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected flat example object, got %T", examples[1])
+	}
+	if resource, _ := flat["resource"].(string); resource != "deployment" {
+		t.Fatalf("expected flat example resource deployment, got %v", flat["resource"])
 	}
 }
 

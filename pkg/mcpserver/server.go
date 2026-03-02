@@ -112,7 +112,7 @@ func NewServer(opts Options) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "validate",
 		Title:       "Validate Tool Invocation",
-		Description: "REQUIRED before executing any infrastructure command that creates, modifies, or deletes resources. Call this BEFORE running: kubectl apply/delete, terraform apply/destroy, helm upgrade/uninstall, argocd sync.\n\nProvide tool, operation, and params with actionable context. For Kubernetes actions, payload may be a native manifest or a flat payload; Evidra canonicalizes both internally.\n\nIf allow=false: STOP. Do not execute the operation. Show denial reasons and hints, and do not retry unless input changes.\n\nSafe to skip for read-only operations: plan, get, describe, list, show, diff.",
+		Description: "Evaluates intended infrastructure action(s) against the Evidra policy bundle.\nCall before destructive or privileged operations (for example: kubectl apply/delete, terraform apply/destroy, helm upgrade/uninstall, argocd sync).\nFor Kubernetes actions, payload may be a native manifest or a flat internal schema; Evidra canonicalizes both internally.\nIf allow=false: STOP. Show reasons/hints to the user and do not retry unchanged inputs.\nRead-only operations (plan/get/describe/list/show/diff) can usually skip validate.",
 		Annotations: &mcp.ToolAnnotations{
 			Title:           "Validate Scenario",
 			ReadOnlyHint:    true,
@@ -142,7 +142,31 @@ func NewServer(opts Options) *mcp.Server {
 					"properties": map[string]any{
 						"payload": map[string]any{
 							"type":        "object",
-							"description": "Payload can be a native Kubernetes manifest or flat internal shape; Evidra normalizes it before policy evaluation.",
+							"description": "Kubernetes payload may be a native manifest (Deployment/Pod/CronJob) or a flat internal shape; Evidra canonicalizes it before policy evaluation using tool-aware normalization.",
+							"examples": []any{
+								map[string]any{
+									"kind": "Deployment",
+									"metadata": map[string]any{
+										"namespace": "default",
+									},
+									"spec": map[string]any{
+										"template": map[string]any{
+											"spec": map[string]any{
+												"containers": []any{
+													map[string]any{"name": "api", "image": "nginx:1.27.0"},
+												},
+											},
+										},
+									},
+								},
+								map[string]any{
+									"namespace": "default",
+									"resource":  "deployment",
+									"containers": []any{
+										map[string]any{"name": "api", "image": "nginx:1.27.0"},
+									},
+								},
+							},
 						},
 					},
 				},
