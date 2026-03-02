@@ -19,9 +19,9 @@ describe("Landing (product page)", () => {
     expect(screen.getByText(/github-actions|github actions/i)).toBeInTheDocument();
   });
 
-  it("shows primary CTA link", () => {
+  it("shows primary CTA button", () => {
     render(<Landing onGetStarted={vi.fn()} />);
-    const cta = screen.getByRole("link", { name: /try it now/i });
-    expect(cta).toHaveAttribute("href", "#hosted-mcp");
+    const cta = screen.getByRole("button", { name: /try it now/i });
+    expect(cta).toBeInTheDocument();
   });
 });

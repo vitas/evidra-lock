@@ -60,6 +60,25 @@ describe("Console", () => {
     });
   });
 
+  it("shows EVIDRA_DENY_CACHE in env legend for local setups", async () => {
+    render(<Console onKeyCreated={vi.fn()} />);
+    // Switch to Local + Remote API path
+    await userEvent.click(screen.getByText(/local \+ remote api/i));
+    expect(screen.getByText("EVIDRA_DENY_CACHE")).toBeInTheDocument();
+  });
+
+  it("shows EVIDRA_DENY_CACHE in env legend for offline setup", async () => {
+    render(<Console onKeyCreated={vi.fn()} />);
+    await userEvent.click(screen.getByText(/fully offline/i));
+    expect(screen.getByText("EVIDRA_DENY_CACHE")).toBeInTheDocument();
+  });
+
+  it("hides EVIDRA_DENY_CACHE in env legend for hosted setup", () => {
+    render(<Console onKeyCreated={vi.fn()} />);
+    // Hosted is default — DENY_CACHE should not be visible
+    expect(screen.queryByText("EVIDRA_DENY_CACHE")).not.toBeInTheDocument();
+  });
+
   it("does not store key anywhere after showing", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
