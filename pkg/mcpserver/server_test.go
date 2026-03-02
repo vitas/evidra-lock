@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -103,6 +104,43 @@ func TestServerRegistersValidateTool(t *testing.T) {
 	}
 }
 
+func TestValidateToolDescriptionAndSchemaGuidance(t *testing.T) {
+	server := newTestServer(t)
+	tool, ok := findToolByName(listToolsFromServer(t, server), "validate")
+	if !ok {
+		t.Fatal("validate tool not found")
+	}
+	for _, snippet := range []string{
+		"REQUIRED before executing any infrastructure command",
+		"payload may be a native manifest or a flat payload",
+		"If allow=false: STOP",
+		"do not retry unless input changes",
+	} {
+		if !strings.Contains(tool.Description, snippet) {
+			t.Fatalf("validate tool description missing snippet %q", snippet)
+		}
+	}
+
+	schema := requireMap(t, tool.InputSchema, "validate.inputSchema")
+	properties := requireMap(t, schema["properties"], "validate.inputSchema.properties")
+	params := requireMap(t, properties["params"], "validate.inputSchema.properties.params")
+	paramProps := requireMap(t, params["properties"], "validate.inputSchema.properties.params.properties")
+	payload := requireMap(t, paramProps["payload"], "validate.inputSchema.properties.params.properties.payload")
+	desc, ok := payload["description"].(string)
+	if !ok || desc == "" {
+		t.Fatal("validate payload description missing")
+	}
+	for _, snippet := range []string{
+		"native Kubernetes manifest",
+		"flat internal shape",
+		"normalizes",
+	} {
+		if !strings.Contains(desc, snippet) {
+			t.Fatalf("payload description missing snippet %q; got %q", snippet, desc)
+		}
+	}
+}
+
 func newTestServer(t *testing.T) *mcp.Server {
 	t.Helper()
 	opts := Options{
@@ -114,6 +152,16 @@ func newTestServer(t *testing.T) *mcp.Server {
 }
 
 func listToolNamesFromServer(t *testing.T, srv *mcp.Server) []string {
+	t.Helper()
+	tools := listToolsFromServer(t, srv)
+	var names []string
+	for _, tool := range tools {
+		names = append(names, tool.Name)
+	}
+	return names
+}
+
+func listToolsFromServer(t *testing.T, srv *mcp.Server) []*mcp.Tool {
 	t.Helper()
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
@@ -132,11 +180,7 @@ func listToolNamesFromServer(t *testing.T, srv *mcp.Server) []string {
 	if err != nil {
 		t.Fatalf("ListTools RPC: %v", err)
 	}
-	var names []string
-	for _, tool := range res.Tools {
-		names = append(names, tool.Name)
-	}
-	return names
+	return res.Tools
 }
 
 func containsTool(list []string, name string) bool {
@@ -146,6 +190,24 @@ func containsTool(list []string, name string) bool {
 		}
 	}
 	return false
+}
+
+func findToolByName(tools []*mcp.Tool, name string) (*mcp.Tool, bool) {
+	for _, tool := range tools {
+		if tool.Name == name {
+			return tool, true
+		}
+	}
+	return nil, false
+}
+
+func requireMap(t *testing.T, v interface{}, name string) map[string]interface{} {
+	t.Helper()
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		t.Fatalf("%s: expected map[string]interface{}, got %T", name, v)
+	}
+	return m
 }
 
 func TestValidateServiceBadPolicyReturnsCode(t *testing.T) {

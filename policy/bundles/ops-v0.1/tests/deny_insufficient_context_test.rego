@@ -41,6 +41,7 @@ test_insufficient_context_kubectl_delete if {
 	"ops.insufficient_context" in d.hits
 	some r in d.reasons
 	contains(r, "kubectl.delete")
+	contains(r, "missing required data")
 	contains(r, "namespace")
 }
 
@@ -82,6 +83,50 @@ test_insufficient_context_skeleton_in_hints if {
 	not d.allow
 	some h in d.hints
 	contains(h, "destroy_count")
+}
+
+# ── unsupported payload shape classification ────────────
+
+test_insufficient_context_kubectl_apply_unsupported_shape if {
+	inp := {
+		"tool": "kubectl",
+		"operation": "apply",
+		"actions": [{
+			"kind": "kubectl.apply",
+			"target": {},
+			"risk_tags": [],
+			"payload": "not-an-object",
+		}],
+	}
+	d := data.evidra.policy.decision with input as inp
+	not d.allow
+	"ops.insufficient_context" in d.hits
+	some r in d.reasons
+	contains(r, "kubectl.apply")
+	contains(r, "unsupported payload shape")
+	some h in d.hints
+	contains(h, "native manifest or flat form")
+}
+
+test_insufficient_context_terraform_destroy_unsupported_shape if {
+	inp := {
+		"tool": "terraform",
+		"operation": "destroy",
+		"actions": [{
+			"kind": "terraform.destroy",
+			"target": {},
+			"risk_tags": [],
+			"payload": {"destroy_count": "3"},
+		}],
+	}
+	d := data.evidra.policy.decision with input as inp
+	not d.allow
+	"ops.insufficient_context" in d.hits
+	some r in d.reasons
+	contains(r, "terraform.destroy")
+	contains(r, "unsupported payload shape")
+	some h in d.hints
+	contains(h, "numeric destroy_count")
 }
 
 # ── argocd.project fallback (no exact match, no wildcard) ──
