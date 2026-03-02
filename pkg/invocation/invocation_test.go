@@ -150,7 +150,7 @@ func TestValidateStructure_UnknownParamsKeyFails(t *testing.T) {
 	}
 }
 
-func TestValidateStructure_UnknownContextKeyFails(t *testing.T) {
+func TestValidateStructure_UnknownContextKeyPasses(t *testing.T) {
 	ti := ToolInvocation{
 		Actor: Actor{Type: "human", ID: "1", Origin: "cli"},
 		Tool:  "test", Operation: "run",
@@ -159,12 +159,8 @@ func TestValidateStructure_UnknownContextKeyFails(t *testing.T) {
 			"team": "platform",
 		},
 	}
-	err := ti.ValidateStructure()
-	if err == nil {
-		t.Fatal("expected validation error for unknown context key, got nil")
-	}
-	if err.Error() != `unknown context key: "team"` {
-		t.Fatalf("unexpected error message: %v", err)
+	if err := ti.ValidateStructure(); err != nil {
+		t.Fatalf("expected unknown context keys to be accepted, got: %v", err)
 	}
 }
 

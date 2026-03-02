@@ -20,9 +20,6 @@ const (
 var allowedParamKeys = map[string]bool{
 	KeyTarget: true, KeyPayload: true, KeyRiskTags: true, KeyScenarioID: true, KeyAction: true,
 }
-var allowedContextKeys = map[string]bool{
-	KeySource: true, KeyIntent: true, KeyScenarioID: true,
-}
 
 type Actor struct {
 	Type   string `json:"type"`
@@ -75,12 +72,6 @@ func (ti *ToolInvocation) ValidateStructure() error {
 	if err := rejectUnknownKeys(ti.Params, allowedParamKeys, "params"); err != nil {
 		return err
 	}
-	if ti.Context != nil {
-		if err := rejectUnknownKeys(ti.Context, allowedContextKeys, "context"); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

@@ -91,7 +91,8 @@
     },
     "context": {
       "type": "object",
-      "description": "Optional context metadata.",
+      "description": "Optional free-form context metadata.",
+      "additionalProperties": true,
       "properties": {
         "source": {
           "type": "string",

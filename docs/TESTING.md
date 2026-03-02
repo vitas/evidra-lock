@@ -222,6 +222,8 @@ Model behavior note:
 - Stronger models are usually more predictable in E2E tool-use behavior (typically `opus` > `sonnet` > `haiku`), but nondeterminism still exists.
 - E2E no longer enforces payload byte-size thresholds; it focuses on behavior/tool-use assertions.
 - Per-scenario output now records tool usage (`tool_usage` + `output_file`) in `results.ndjson`, and the HTML report shows tool usage counts per scenario.
+- The HTML report includes a clickable `Open Agent NDJSON Trace` link per scenario so you can inspect exactly what the agent sent.
+- Example failure analysis from a full haiku run: [docs/E2E_HAIKU_FULL_FAILURE_ANALYSIS.md](docs/E2E_HAIKU_FULL_FAILURE_ANALYSIS.md).
 
 Non-deterministic (LLM). Run only after layers 1–2.5 pass.
 
