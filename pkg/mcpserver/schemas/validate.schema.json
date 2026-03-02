@@ -1,0 +1,87 @@
+{
+  "type": "object",
+  "required": [
+    "actor",
+    "tool",
+    "operation",
+    "params",
+    "context"
+  ],
+  "properties": {
+    "actor": {
+      "type": "object",
+      "description": "Invocation initiator identity.",
+      "required": [
+        "type",
+        "id",
+        "origin"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Actor category (human|agent|system)."
+        },
+        "id": {
+          "type": "string",
+          "description": "Actor identifier."
+        },
+        "origin": {
+          "type": "string",
+          "description": "Invocation source (mcp|cli|api)."
+        }
+      }
+    },
+    "tool": {
+      "type": "string",
+      "description": "Tool name (e.g. terraform)."
+    },
+    "operation": {
+      "type": "string",
+      "description": "Operation (e.g. plan, apply)."
+    },
+    "params": {
+      "type": "object",
+      "description": "Operation parameters; include risk_tags/asserted data.",
+      "properties": {
+        "payload": {
+          "type": "object",
+          "description": "Kubernetes payload may be a native manifest (Deployment/Pod/CronJob) or a flat internal shape; Evidra canonicalizes it before policy evaluation using tool-aware normalization.",
+          "examples": [
+            {
+              "kind": "Deployment",
+              "metadata": {
+                "namespace": "default"
+              },
+              "spec": {
+                "template": {
+                  "spec": {
+                    "containers": [
+                      {
+                        "name": "api",
+                        "image": "nginx:1.27.0"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "namespace": "default",
+              "resource": "deployment",
+              "containers": [
+                {
+                  "name": "api",
+                  "image": "nginx:1.27.0"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "Optional context metadata."
+    }
+  }
+}

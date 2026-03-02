@@ -120,59 +120,7 @@ func NewServer(opts Options) *mcp.Server {
 			DestructiveHint: boolPtr(false),
 			OpenWorldHint:   boolPtr(false),
 		},
-		InputSchema: map[string]any{
-			"type":     "object",
-			"required": []any{"actor", "tool", "operation", "params", "context"},
-			"properties": map[string]any{
-				"actor": map[string]any{
-					"type":        "object",
-					"description": "Invocation initiator identity.",
-					"required":    []any{"type", "id", "origin"},
-					"properties": map[string]any{
-						"type":   map[string]any{"type": "string", "description": "Actor category (human|agent|system)."},
-						"id":     map[string]any{"type": "string", "description": "Actor identifier."},
-						"origin": map[string]any{"type": "string", "description": "Invocation source (mcp|cli|api)."},
-					},
-				},
-				"tool":      map[string]any{"type": "string", "description": "Tool name (e.g. terraform)."},
-				"operation": map[string]any{"type": "string", "description": "Operation (e.g. plan, apply)."},
-				"params": map[string]any{
-					"type":        "object",
-					"description": "Operation parameters; include risk_tags/asserted data.",
-					"properties": map[string]any{
-						"payload": map[string]any{
-							"type":        "object",
-							"description": "Kubernetes payload may be a native manifest (Deployment/Pod/CronJob) or a flat internal shape; Evidra canonicalizes it before policy evaluation using tool-aware normalization.",
-							"examples": []any{
-								map[string]any{
-									"kind": "Deployment",
-									"metadata": map[string]any{
-										"namespace": "default",
-									},
-									"spec": map[string]any{
-										"template": map[string]any{
-											"spec": map[string]any{
-												"containers": []any{
-													map[string]any{"name": "api", "image": "nginx:1.27.0"},
-												},
-											},
-										},
-									},
-								},
-								map[string]any{
-									"namespace": "default",
-									"resource":  "deployment",
-									"containers": []any{
-										map[string]any{"name": "api", "image": "nginx:1.27.0"},
-									},
-								},
-							},
-						},
-					},
-				},
-				"context": map[string]any{"type": "object", "description": "Optional context metadata."},
-			},
-		},
+		InputSchema: mustLoadInputSchema(validateSchemaBytes, "schemas/validate.schema.json"),
 	}, validateTool.Handle)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_event",

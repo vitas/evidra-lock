@@ -27,6 +27,10 @@ Input is assembled in [`pkg/policy/policy.go`](../pkg/policy/policy.go):
 
 For scenario execution, per-action invocation is created in [`pkg/validate/validate.go`](../pkg/validate/validate.go), then evaluated through the same engine path.
 
+MCP validate tool input schema source of truth:
+- JSON file: [`pkg/mcpserver/schemas/validate.schema.json`](../pkg/mcpserver/schemas/validate.schema.json)
+- Embedded loader: [`pkg/mcpserver/schema_embed.go`](../pkg/mcpserver/schema_embed.go)
+
 ## Canonicalization Boundary
 
 Canonicalization is defined in [`policy/bundles/ops-v0.1/evidra/policy/canonicalize.rego`](../policy/bundles/ops-v0.1/evidra/policy/canonicalize.rego):
