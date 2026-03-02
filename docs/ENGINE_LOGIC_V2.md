@@ -101,16 +101,22 @@ Minimum hint categories:
 - Insufficient context (missing data): when `ops.insufficient_context` denies without
   unsupported-shape signals, hints include missing-data guidance and next-request fields.
 - Unsupported Kubernetes shape: when insufficient-context deny is tied to unsupported
-  Kubernetes manifest shape, hints include `spec.template.spec` vs flat-schema guidance.
+  Kubernetes manifest shape, hints include template pod-spec-layout vs flat-schema guidance.
+
+### Actor Field Semantics
+
+- `input.actor.type` (`human|agent|ci`): **YES**, security classification and gating input.
+- `input.actor.origin` (`mcp|cli|api`): **NO**, transport metadata only.
+- `input.context.source` (free string): **NO**, metadata only; never used for security classification.
 
 Actor classification for Layer 2:
 - `human` when `input.actor.type == "human"`
-- `ci` when `input.context.source == "ci-pipeline"` and actor is not human
-- `ai` when `input.actor.type == "agent"` and source is not CI
-- unknown actor defaults to `ai` (safety-first)
+- `agent` when `input.actor.type == "agent"`
+- `ci` when `input.actor.type == "ci"`
+- unknown/missing actor type defaults to `agent` (safety-first)
 
 CI behavior:
-- CI is treated like AI for kill-switch gating.
+- CI is treated like `agent` for kill-switch gating.
 
 ## Invariants
 

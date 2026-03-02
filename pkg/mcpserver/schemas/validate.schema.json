@@ -19,7 +19,12 @@
       "properties": {
         "type": {
           "type": "string",
-          "description": "Actor category (human|agent|system)."
+          "enum": [
+            "human",
+            "agent",
+            "ci"
+          ],
+          "description": "Security classification for decision behavior."
         },
         "id": {
           "type": "string",
@@ -27,6 +32,11 @@
         },
         "origin": {
           "type": "string",
+          "enum": [
+            "mcp",
+            "cli",
+            "api"
+          ],
           "description": "Invocation source (mcp|cli|api)."
         }
       }
@@ -81,7 +91,13 @@
     },
     "context": {
       "type": "object",
-      "description": "Optional context metadata."
+      "description": "Optional context metadata.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Optional free-form metadata about request origin context. Not used for security classification."
+        }
+      }
     }
   }
 }

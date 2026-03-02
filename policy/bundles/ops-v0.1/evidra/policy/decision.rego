@@ -4,8 +4,8 @@ package evidra.policy.decision_impl
 import data.evidra.policy.defaults as defaults
 
 default allow := true
-# Safety-first default for missing/unknown actors.
-default actor_kind := "ai"
+# Safety-first default for missing/unknown actor.type.
+default actor_kind := "agent"
 default blocked_by_agent_kill_switch := false
 default agent_kill_switch_enabled := false
 
@@ -40,30 +40,17 @@ golden_hits := dedupe([label |
 
 agent_kill_switch_enabled if data.evidra.policy.agent_kill_switch.enabled == true
 
-actor_kind := "human" if {
+actor_kind := actor_type if {
 	actor := object.get(input, "actor", {})
-	object.get(actor, "type", "") == "human"
-}
-
-actor_kind := "ci" if {
-	actor := object.get(input, "actor", {})
-	object.get(actor, "type", "") != "human"
-	context := object.get(input, "context", {})
-	object.get(context, "source", "") == "ci-pipeline"
-}
-
-actor_kind := "ai" if {
-	actor := object.get(input, "actor", {})
-	object.get(actor, "type", "") == "agent"
-	context := object.get(input, "context", {})
-	object.get(context, "source", "") != "ci-pipeline"
+	actor_type := object.get(actor, "type", "")
+	actor_type in {"human", "agent", "ci"}
 }
 
 actor_uses_agent_gate if {
-	actor_kind == "ai"
+	actor_kind == "agent"
 }
 
-# CI is treated as AI for golden gating.
+# CI is treated as agent for golden gating.
 actor_uses_agent_gate if {
 	actor_kind == "ci"
 }

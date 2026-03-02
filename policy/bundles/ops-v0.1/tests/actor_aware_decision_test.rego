@@ -13,28 +13,28 @@ test_actor_aware_human_with_golden_hit_is_not_kill_switched if {
 	d.reason == "Container has privileged security context"
 }
 
-test_actor_aware_ai_with_kill_switch_enabled_is_blocked if {
+test_actor_aware_agent_with_kill_switch_enabled_is_blocked if {
 	d := data.evidra.policy.decision with input as privileged_apply_input("agent", "mcp-agent")
 
 	not d.allow
-	d.actor_kind == "ai"
+	d.actor_kind == "agent"
 	d.blocked_by_agent_kill_switch == true
 	"k8s.privileged_container" in d.golden_hits
 	d.reason == "Container has privileged security context"
 }
 
-test_actor_aware_ai_with_kill_switch_disabled_uses_baseline_reason if {
+test_actor_aware_agent_with_kill_switch_disabled_uses_baseline_reason if {
 	d := data.evidra.policy.decision with input as privileged_apply_input("agent", "mcp-agent") with data.evidra.policy.agent_kill_switch.enabled as false
 
 	not d.allow
-	d.actor_kind == "ai"
+	d.actor_kind == "agent"
 	d.blocked_by_agent_kill_switch == false
 	"k8s.privileged_container" in d.golden_hits
 	d.reason == "Container has privileged security context"
 }
 
-test_actor_aware_ci_is_classified_and_gated_like_ai if {
-	d := data.evidra.policy.decision with input as privileged_apply_input("agent", "ci-pipeline")
+test_actor_aware_ci_is_classified_and_gated_like_agent if {
+	d := data.evidra.policy.decision with input as privileged_apply_input("ci", "mcp-agent")
 
 	not d.allow
 	d.actor_kind == "ci"
@@ -43,11 +43,20 @@ test_actor_aware_ci_is_classified_and_gated_like_ai if {
 	d.reason == "Container has privileged security context"
 }
 
-test_actor_aware_unknown_defaults_to_ai_for_safety if {
-	d := data.evidra.policy.decision with input as privileged_apply_input("service-account", "")
+test_actor_aware_context_source_is_not_classifier if {
+	d := data.evidra.policy.decision with input as privileged_apply_input("agent", "ci-pipeline")
 
 	not d.allow
-	d.actor_kind == "ai"
+	d.actor_kind == "agent"
+	d.blocked_by_agent_kill_switch == true
+	"k8s.privileged_container" in d.golden_hits
+}
+
+test_actor_aware_unknown_actor_type_defaults_to_agent_for_safety if {
+	d := data.evidra.policy.decision with input as privileged_apply_input("service-account", "ci-pipeline")
+
+	not d.allow
+	d.actor_kind == "agent"
 	d.blocked_by_agent_kill_switch == true
 	"k8s.privileged_container" in d.golden_hits
 }
