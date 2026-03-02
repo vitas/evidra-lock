@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -223,18 +226,69 @@ func bundleCachePath() string {
 	return filepath.Join(home, ".evidra", "bundles", "ops-v0.1")
 }
 
+const bundleSHAFile = "BUNDLE.SHA256"
+
+// embeddedBundleHash computes a deterministic SHA-256 over every file in the
+// embedded bundle (paths sorted, content hashed in order). This changes
+// whenever any .rego, data.json, or .manifest file changes, so the cache is
+// always invalidated on binary update.
+func embeddedBundleHash(fsys fs.ReadDirFS) (string, error) {
+	const bundleRoot = "policy/bundles/ops-v0.1"
+	h := sha256.New()
+
+	var paths []string
+	err := fs.WalkDir(fsys, bundleRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("embeddedBundleHash walk: %w", err)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		data, err := fs.ReadFile(fsys, path)
+		if err != nil {
+			return "", fmt.Errorf("embeddedBundleHash read %s: %w", path, err)
+		}
+		fmt.Fprintf(h, "%s\n", path)
+		h.Write(data)
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
 // extractEmbeddedBundleCached copies the embedded ops-v0.1 bundle FS to a
-// deterministic cache path (~/.evidra/bundles/ops-v0.1/). No-op if the
-// directory already exists with a .manifest file.
+// deterministic cache path (~/.evidra/bundles/ops-v0.1/). Re-extracts
+// whenever the embedded bundle content changes (detected via SHA-256).
 func extractEmbeddedBundleCached(fsys fs.ReadDirFS) (string, error) {
 	dir := bundleCachePath()
+	shaFile := filepath.Join(dir, bundleSHAFile)
 
-	// Check if already cached
-	if _, err := os.Stat(filepath.Join(dir, ".manifest")); err == nil {
+	want, err := embeddedBundleHash(fsys)
+	if err != nil {
+		return "", err
+	}
+
+	// Cache hit: SHA matches — no extraction needed.
+	if got, err := os.ReadFile(shaFile); err == nil && strings.TrimSpace(string(got)) == want {
 		return dir, nil
 	}
 
-	return extractEmbeddedBundle(fsys, dir)
+	// Cache miss or stale: remove and re-extract.
+	os.RemoveAll(dir)
+	if _, err := extractEmbeddedBundle(fsys, dir); err != nil {
+		return "", err
+	}
+
+	if err := os.WriteFile(shaFile, []byte(want+"\n"), 0o644); err != nil {
+		return "", fmt.Errorf("write bundle sha: %w", err)
+	}
+	return dir, nil
 }
 
 // extractEmbeddedBundle copies the embedded ops-v0.1 bundle FS into the

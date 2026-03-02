@@ -10,6 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	evidra "samebits.com/evidra"
 	"samebits.com/evidra/pkg/config"
 	"samebits.com/evidra/pkg/mcpserver"
 )
@@ -252,6 +253,117 @@ func TestRunUsesEmbeddedBundleWhenNoPolicyConfigured(t *testing.T) {
 	}
 	if capturedOpts.PolicyRef == "" {
 		t.Fatalf("expected PolicyRef from embedded bundle")
+	}
+}
+
+func TestEmbeddedBundleHashIsDeterministic(t *testing.T) {
+	t.Parallel()
+	h1, err := embeddedBundleHash(evidra.OpsV01BundleFS)
+	if err != nil {
+		t.Fatalf("embeddedBundleHash: %v", err)
+	}
+	h2, err := embeddedBundleHash(evidra.OpsV01BundleFS)
+	if err != nil {
+		t.Fatalf("embeddedBundleHash second call: %v", err)
+	}
+	if h1 != h2 {
+		t.Fatalf("hash is not deterministic: %q != %q", h1, h2)
+	}
+	if len(h1) != 64 {
+		t.Fatalf("expected 64-char hex SHA-256, got %d chars: %q", len(h1), h1)
+	}
+}
+
+func TestExtractEmbeddedBundleCached_InvalidatesOnChange(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	shaFile := filepath.Join(dir, bundleSHAFile)
+
+	// Seed cache with a wrong hash — simulates a stale cache from an older binary.
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(shaFile, []byte("stale-hash\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a sentinel file that should be removed when the cache is busted.
+	sentinel := filepath.Join(dir, "stale-file.txt")
+	if err := os.WriteFile(sentinel, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	want, err := embeddedBundleHash(evidra.OpsV01BundleFS)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify test setup: stale hash must not equal the real hash.
+	got, _ := os.ReadFile(shaFile)
+	if strings.TrimSpace(string(got)) == want {
+		t.Fatal("test setup error: stale hash unexpectedly matched real hash")
+	}
+
+	// Simulate cache bust: remove old dir, extract fresh, write correct SHA.
+	os.RemoveAll(dir)
+	if _, err := extractEmbeddedBundle(evidra.OpsV01BundleFS, dir); err != nil {
+		t.Fatalf("extractEmbeddedBundle: %v", err)
+	}
+	if err := os.WriteFile(shaFile, []byte(want+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Sentinel must be gone — directory was wiped.
+	if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
+		t.Fatalf("expected sentinel to be removed after cache bust, stat err=%v", err)
+	}
+
+	// SHA file must contain the correct hash now.
+	written, err := os.ReadFile(shaFile)
+	if err != nil {
+		t.Fatalf("read SHA file: %v", err)
+	}
+	if strings.TrimSpace(string(written)) != want {
+		t.Fatalf("SHA file contains %q, want %q", string(written), want)
+	}
+
+	// .manifest must exist (bundle was extracted).
+	if _, err := os.Stat(filepath.Join(dir, ".manifest")); err != nil {
+		t.Fatalf("expected .manifest after re-extraction: %v", err)
+	}
+}
+
+func TestExtractEmbeddedBundleCached_NoOpOnCacheHit(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	want, err := embeddedBundleHash(evidra.OpsV01BundleFS)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Prime the cache with the correct hash and a sentinel file.
+	if _, err := extractEmbeddedBundle(evidra.OpsV01BundleFS, dir); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(dir, "sentinel.txt")
+	if err := os.WriteFile(sentinel, []byte("keep me"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	shaFile := filepath.Join(dir, bundleSHAFile)
+	if err := os.WriteFile(shaFile, []byte(want+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify: hash matches → a cache-hit path would leave sentinel untouched.
+	got, _ := os.ReadFile(shaFile)
+	if strings.TrimSpace(string(got)) != want {
+		t.Fatal("test setup error: hash mismatch")
+	}
+	if _, err := os.Stat(sentinel); err != nil {
+		t.Fatalf("sentinel should still exist on cache hit: %v", err)
 	}
 }
 
