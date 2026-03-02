@@ -4,25 +4,87 @@ package evidra.policy.decision_impl
 import data.evidra.policy.defaults as defaults
 
 default allow := true
+# Safety-first default for missing/unknown actors.
+default actor_kind := "ai"
+default blocked_by_agent_kill_switch := false
+default agent_kill_switch_enabled := false
 
 denies := [{"label": l, "message": m} | data.evidra.policy.deny[l] = m]
 warnings := [{"label": l, "message": m} | data.evidra.policy.warn[l] = m]
 
-allow := count(denies) == 0
+base_allow := count(denies) == 0
+
 deny_messages := [entry.message | entry := denies[_]]
 insufficient_reasons := [m | some m; data.evidra.policy.insufficient_context_reason[m]]
-reasons := dedupe(array.concat(deny_messages, insufficient_reasons))
-reason := reasons[0] if {
-	count(reasons) > 0
+base_reasons := dedupe(array.concat(deny_messages, insufficient_reasons))
+base_reason := base_reasons[0] if {
+	count(base_reasons) > 0
 }
-reason := "ok" if {
-	count(reasons) == 0
+base_reason := "ok" if {
+	count(base_reasons) == 0
 }
 
 hit_labels := [entry.label | entry := denies[_]]
 warn_labels := [entry.label | entry := warnings[_]]
-
 hits := dedupe(array.concat(hit_labels, warn_labels))
+
+golden_ids := data.evidra.policy.golden.rule_ids
+
+golden_ids := [] if {
+	not data.evidra.policy.golden.rule_ids
+}
+golden_hits := dedupe([label |
+	label := hit_labels[_]
+	golden_ids[_] == label
+])
+
+agent_kill_switch_enabled if data.evidra.policy.agent_kill_switch.enabled == true
+
+actor_kind := "human" if {
+	actor := object.get(input, "actor", {})
+	object.get(actor, "type", "") == "human"
+}
+
+actor_kind := "ci" if {
+	actor := object.get(input, "actor", {})
+	object.get(actor, "type", "") != "human"
+	context := object.get(input, "context", {})
+	object.get(context, "source", "") == "ci-pipeline"
+}
+
+actor_kind := "ai" if {
+	actor := object.get(input, "actor", {})
+	object.get(actor, "type", "") == "agent"
+	context := object.get(input, "context", {})
+	object.get(context, "source", "") != "ci-pipeline"
+}
+
+actor_uses_agent_gate if {
+	actor_kind == "ai"
+}
+
+# CI is treated as AI for golden gating.
+actor_uses_agent_gate if {
+	actor_kind == "ci"
+}
+
+blocked_by_agent_kill_switch if {
+	actor_uses_agent_gate
+	agent_kill_switch_enabled
+	count(golden_hits) > 0
+}
+
+allow := false if {
+	blocked_by_agent_kill_switch
+}
+
+allow := base_allow if {
+	not blocked_by_agent_kill_switch
+}
+
+reason := base_reason
+reasons := base_reasons
+
 rule_hints := [hint |
 	label := hits[_]
 	hs := data.evidra.data.rule_hints[label]
@@ -50,6 +112,9 @@ decision := {
 	"reasons": reasons,
 	"hits": hits,
 	"hints": hints,
+	"actor_kind": actor_kind,
+	"golden_hits": golden_hits,
+	"blocked_by_agent_kill_switch": blocked_by_agent_kill_switch,
 }
 
 has_any_risk_tag(tag) if {

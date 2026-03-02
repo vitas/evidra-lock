@@ -1,0 +1,11 @@
+{
+  "golden": {
+    "rule_ids": [
+      "k8s.privileged_container",
+      "k8s.host_namespace_escape"
+    ]
+  },
+  "agent_kill_switch": {
+    "enabled": true
+  }
+}

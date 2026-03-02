@@ -61,6 +61,10 @@ Decision aggregation is in [`policy/bundles/ops-v0.1/evidra/policy/decision.rego
 - computes `allow`
 - computes `risk_level`
 - deduplicates `reasons`, `hits`, and `hints`
+- applies actor-aware golden gating (Layer 2) using bundle data:
+  - [`policy/bundles/ops-v0.1/evidra/policy/data.json`](../policy/bundles/ops-v0.1/evidra/policy/data.json)
+  - `golden.rule_ids`
+  - `agent_kill_switch.enabled`
 
 Returned shape:
 - `allow`
@@ -69,6 +73,18 @@ Returned shape:
 - `reasons`
 - `hits`
 - `hints`
+- `actor_kind` (additive)
+- `golden_hits` (additive)
+- `blocked_by_agent_kill_switch` (additive)
+
+Actor classification for Layer 2:
+- `human` when `input.actor.type == "human"`
+- `ci` when `input.context.source == "ci-pipeline"` and actor is not human
+- `ai` when `input.actor.type == "agent"` and source is not CI
+- unknown actor defaults to `ai` (safety-first)
+
+CI behavior:
+- CI is treated like AI for kill-switch gating.
 
 ## Invariants
 
