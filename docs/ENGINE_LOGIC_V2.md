@@ -60,6 +60,7 @@ Initialize linkage:
 Runtime content source (no recompile):
 - MCP guidance text is loaded from filesystem content directory (`prompts/mcpserver` by default).
 - Override via `--content-dir` or `EVIDRA_CONTENT_DIR`.
+- If no filesystem content is found and no override is set, server uses embedded guidance content (zero-config binary fallback).
 
 E2E stability intent:
 - Contract `v1` includes explicit guidance for large manifests:

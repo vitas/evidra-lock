@@ -1,10 +1,15 @@
 package mcpserver
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+
+	evidra "samebits.com/evidra"
 )
 
 const (
@@ -23,6 +28,8 @@ const (
 )
 
 var defaultContentDirRelative = filepath.Join("prompts", "mcpserver")
+var embeddedContentDir = path.Join("prompts", "mcpserver")
+var errGuidanceContentDirNotFound = errors.New("guidance content directory not found")
 
 type GuidanceContent struct {
 	InitializeInstructions        string
@@ -38,15 +45,22 @@ type GuidanceContent struct {
 }
 
 func mustLoadGuidanceContent(explicitDir string) GuidanceContent {
-	dir, err := resolveGuidanceContentDir(explicitDir)
-	if err != nil {
-		panic(err)
-	}
-	content, err := loadGuidanceContent(dir)
+	content, err := loadGuidanceContentAuto(explicitDir)
 	if err != nil {
 		panic(err)
 	}
 	return content
+}
+
+func loadGuidanceContentAuto(explicitDir string) (GuidanceContent, error) {
+	dir, err := resolveGuidanceContentDir(explicitDir)
+	if err == nil {
+		return loadGuidanceContent(dir)
+	}
+	if !errors.Is(err, errGuidanceContentDirNotFound) {
+		return GuidanceContent{}, err
+	}
+	return loadEmbeddedGuidanceContent()
 }
 
 func loadGuidanceContent(baseDir string) (GuidanceContent, error) {
@@ -57,7 +71,22 @@ func loadGuidanceContent(baseDir string) (GuidanceContent, error) {
 		}
 		return strings.TrimSpace(string(raw)), nil
 	}
+	return loadGuidanceContentFromRead(read)
+}
 
+func loadEmbeddedGuidanceContent() (GuidanceContent, error) {
+	read := func(rel string) (string, error) {
+		target := path.Join(embeddedContentDir, rel)
+		raw, err := fs.ReadFile(evidra.MCPServerContentFS, target)
+		if err != nil {
+			return "", fmt.Errorf("read embedded guidance file %q: %w", rel, err)
+		}
+		return strings.TrimSpace(string(raw)), nil
+	}
+	return loadGuidanceContentFromRead(read)
+}
+
+func loadGuidanceContentFromRead(read func(rel string) (string, error)) (GuidanceContent, error) {
 	initialize, err := read(contentFileInitializeInstructions)
 	if err != nil {
 		return GuidanceContent{}, err
@@ -115,10 +144,18 @@ func loadGuidanceContent(baseDir string) (GuidanceContent, error) {
 
 func resolveGuidanceContentDir(explicitDir string) (string, error) {
 	if dir := strings.TrimSpace(explicitDir); dir != "" {
-		return validateGuidanceContentDir(dir)
+		validated, err := validateGuidanceContentDir(dir)
+		if err != nil {
+			return "", fmt.Errorf("resolve guidance content dir from --content-dir: %w", err)
+		}
+		return validated, nil
 	}
 	if dir := strings.TrimSpace(os.Getenv("EVIDRA_CONTENT_DIR")); dir != "" {
-		return validateGuidanceContentDir(dir)
+		validated, err := validateGuidanceContentDir(dir)
+		if err != nil {
+			return "", fmt.Errorf("resolve guidance content dir from EVIDRA_CONTENT_DIR: %w", err)
+		}
+		return validated, nil
 	}
 
 	if cwd, err := os.Getwd(); err == nil {
@@ -133,10 +170,7 @@ func resolveGuidanceContentDir(explicitDir string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf(
-		"resolve guidance content dir: set --content-dir or EVIDRA_CONTENT_DIR (expected layout root containing %q)",
-		contentFileInitializeInstructions,
-	)
+	return "", errGuidanceContentDirNotFound
 }
 
 func findGuidanceContentDir(startDir string) (string, bool) {

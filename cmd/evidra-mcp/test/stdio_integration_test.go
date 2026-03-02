@@ -73,11 +73,15 @@ func TestStdioZeroConfig(t *testing.T) {
 	evidenceDir := t.TempDir()
 
 	cmd := exec.Command(testBinary, "--evidence-dir", evidenceDir)
+	// Force execution outside the repository tree so guidance content must come
+	// from embedded assets (zero-config fallback).
+	cmd.Dir = t.TempDir()
 	// Strip env vars that would override the embedded bundle fallback.
 	cmd.Env = stripEnvKeys(os.Environ(),
 		"EVIDRA_BUNDLE_PATH",
 		"EVIDRA_POLICY_PATH",
 		"EVIDRA_DATA_PATH",
+		"EVIDRA_CONTENT_DIR",
 	)
 
 	stdin, err := cmd.StdinPipe()
