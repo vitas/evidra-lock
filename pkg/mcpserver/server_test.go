@@ -441,6 +441,158 @@ func requireMap(t *testing.T, v interface{}, name string) map[string]interface{}
 	return m
 }
 
+// denyInvocation returns a ToolInvocation that triggers a deny (kubectl delete in prod).
+func denyInvocation(actorType string) invocation.ToolInvocation {
+	return invocation.ToolInvocation{
+		Actor:     invocation.Actor{Type: actorType, ID: "test-agent", Origin: "mcp"},
+		Tool:      "kubectl",
+		Operation: "delete",
+		Params: map[string]interface{}{
+			"payload": map[string]interface{}{
+				"namespace": "prod",
+			},
+		},
+		Context: map[string]interface{}{},
+	}
+}
+
+func TestValidate_DenyCacheDisabled_NeverBlocks(t *testing.T) {
+	t.Parallel()
+
+	svc := newValidateService(Options{
+		BundlePath:       bundleDir,
+		EvidencePath:     t.TempDir(),
+		Mode:             ModeEnforce,
+		DenyCacheEnabled: false,
+	}, testGuidanceContent())
+
+	inv := denyInvocation("agent")
+
+	// First call: expect deny with full OPA evaluation
+	out1 := svc.Validate(context.Background(), inv)
+	if out1.Policy.Allow {
+		t.Fatal("expected deny on first call")
+	}
+	if out1.Error != nil && out1.Error.Code == ErrCodeStopAfterDeny {
+		t.Fatal("should not get stop_after_deny when cache disabled")
+	}
+
+	// Second call: same intent, should still run full evaluation (no stop_after_deny)
+	out2 := svc.Validate(context.Background(), inv)
+	if out2.Policy.Allow {
+		t.Fatal("expected deny on second call")
+	}
+	if out2.Error != nil && out2.Error.Code == ErrCodeStopAfterDeny {
+		t.Fatal("should not get stop_after_deny when cache disabled")
+	}
+	// Should have rule IDs from full eval
+	if len(out2.RuleIDs) == 0 {
+		t.Fatal("expected rule_ids from full OPA evaluation")
+	}
+}
+
+func TestValidate_DenyCacheEnabled_BlocksRetry(t *testing.T) {
+	t.Parallel()
+
+	svc := newValidateService(Options{
+		BundlePath:       bundleDir,
+		EvidencePath:     t.TempDir(),
+		Mode:             ModeEnforce,
+		DenyCacheEnabled: true,
+	}, testGuidanceContent())
+
+	inv := denyInvocation("agent")
+
+	// First call: full evaluation, deny
+	out1 := svc.Validate(context.Background(), inv)
+	if out1.Policy.Allow {
+		t.Fatal("expected deny on first call")
+	}
+	if out1.Error != nil && out1.Error.Code == ErrCodeStopAfterDeny {
+		t.Fatal("first call should never be stop_after_deny")
+	}
+
+	// Second call: identical intent, should be blocked by cache
+	out2 := svc.Validate(context.Background(), inv)
+	if out2.Policy.Allow {
+		t.Fatal("expected deny on second call")
+	}
+	if out2.Error == nil || out2.Error.Code != ErrCodeStopAfterDeny {
+		t.Fatalf("expected stop_after_deny on retry, got error=%+v", out2.Error)
+	}
+	if len(out2.Hints) == 0 {
+		t.Fatal("expected hints on stop_after_deny")
+	}
+}
+
+func TestValidate_DenyCacheEnabled_HumanNotGated(t *testing.T) {
+	t.Parallel()
+
+	svc := newValidateService(Options{
+		BundlePath:       bundleDir,
+		EvidencePath:     t.TempDir(),
+		Mode:             ModeEnforce,
+		DenyCacheEnabled: true,
+	}, testGuidanceContent())
+
+	inv := denyInvocation("human")
+
+	// First call: deny
+	out1 := svc.Validate(context.Background(), inv)
+	if out1.Policy.Allow {
+		t.Fatal("expected deny on first call")
+	}
+
+	// Second call: same intent but human actor, should still run full eval
+	out2 := svc.Validate(context.Background(), inv)
+	if out2.Policy.Allow {
+		t.Fatal("expected deny on second call")
+	}
+	if out2.Error != nil && out2.Error.Code == ErrCodeStopAfterDeny {
+		t.Fatal("human actors must never be gated by deny cache")
+	}
+	if len(out2.RuleIDs) == 0 {
+		t.Fatal("expected rule_ids from full OPA evaluation for human")
+	}
+}
+
+func TestValidate_DenyCacheEnabled_ChangedIntent_Reevaluates(t *testing.T) {
+	t.Parallel()
+
+	svc := newValidateService(Options{
+		BundlePath:       bundleDir,
+		EvidencePath:     t.TempDir(),
+		Mode:             ModeEnforce,
+		DenyCacheEnabled: true,
+	}, testGuidanceContent())
+
+	// First call: deny with prod namespace
+	inv1 := denyInvocation("agent")
+	out1 := svc.Validate(context.Background(), inv1)
+	if out1.Policy.Allow {
+		t.Fatal("expected deny on first call")
+	}
+
+	// Second call: different namespace (intent key changes), should get fresh eval
+	inv2 := invocation.ToolInvocation{
+		Actor:     invocation.Actor{Type: "agent", ID: "test-agent", Origin: "mcp"},
+		Tool:      "kubectl",
+		Operation: "delete",
+		Params: map[string]interface{}{
+			"payload": map[string]interface{}{
+				"namespace": "default",
+				"resource":  "pod",
+			},
+		},
+		Context: map[string]interface{}{},
+	}
+	out2 := svc.Validate(context.Background(), inv2)
+	// Regardless of allow/deny, it should NOT be stop_after_deny
+	if out2.Error != nil && out2.Error.Code == ErrCodeStopAfterDeny {
+		t.Fatal("changed intent should get fresh evaluation, not stop_after_deny")
+	}
+}
+
 func TestValidateServiceBadPolicyReturnsCode(t *testing.T) {
 	svc := newValidateService(Options{
 		PolicyPath:   "nonexistent.rego",

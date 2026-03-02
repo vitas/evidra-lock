@@ -49,6 +49,7 @@ type Options struct {
 	APIClient                *client.Client
 	FallbackPolicy           string
 	IsOnline                 bool
+	DenyCacheEnabled         bool
 }
 
 type PolicySummary struct {
@@ -220,7 +221,7 @@ func (h *getEventHandler) Handle(
 }
 
 func newValidateService(opts Options, content GuidanceContent) *ValidateService {
-	return &ValidateService{
+	svc := &ValidateService{
 		policyPath:               opts.PolicyPath,
 		dataPath:                 opts.DataPath,
 		bundlePath:               opts.BundlePath,
@@ -235,8 +236,11 @@ func newValidateService(opts Options, content GuidanceContent) *ValidateService 
 		docsEngineLogicV2Body:    content.DocsEngineLogicV2Body,
 		docsProtocolErrorsBody:   content.DocsProtocolErrorsBody,
 		agentContractV1Body:      content.AgentContractV1Body,
-		denyCache:                NewDenyCache(10 * time.Minute),
 	}
+	if opts.DenyCacheEnabled {
+		svc.denyCache = NewDenyCache(10 * time.Minute)
+	}
+	return svc
 }
 
 type ValidateService struct {
@@ -265,28 +269,31 @@ type GetEventOutput struct {
 }
 
 func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvocation) ValidateOutput {
-	// Deny-loop check (agents/CI only)
-	payload := extractPayloadMap(inv)
-	intent := ExtractSemanticIntent(inv.Tool, inv.Operation, payload)
-	intentKey := IntentKey(intent)
+	// Deny-loop check (only if cache enabled and agent/CI actor)
+	var intentKey string
+	if s.denyCache != nil {
+		payload := extractPayloadMap(inv)
+		intent := ExtractSemanticIntent(inv.Tool, inv.Operation, payload)
+		intentKey = IntentKey(intent)
 
-	actorType := inv.Actor.Type
-	if actorType == "agent" || actorType == "ci" {
-		if gateErr := s.denyCache.CheckDenyLoop(intentKey); gateErr != nil {
-			return ValidateOutput{
-				OK:     false,
-				Source: s.sourceLabel(),
-				Policy: PolicySummary{
-					Allow:     false,
-					RiskLevel: "high",
-					Reason:    gateErr.Message,
-				},
-				Error: gateErr,
-				Hints: []string{
-					"This intent was previously denied with the same parameters.",
-					"Change your plan or escalate to a human.",
-					"Do not retry with unchanged input.",
-				},
+		actorType := inv.Actor.Type
+		if actorType == "agent" || actorType == "ci" {
+			if gateErr := s.denyCache.CheckDenyLoop(intentKey); gateErr != nil {
+				return ValidateOutput{
+					OK:     false,
+					Source: s.sourceLabel(),
+					Policy: PolicySummary{
+						Allow:     false,
+						RiskLevel: "high",
+						Reason:    gateErr.Message,
+					},
+					Error: gateErr,
+					Hints: []string{
+						"This intent was previously denied with the same parameters.",
+						"Change your plan or escalate to a human.",
+						"Do not retry with unchanged input.",
+					},
+				}
 			}
 		}
 	}
@@ -294,8 +301,8 @@ func (s *ValidateService) Validate(ctx context.Context, inv invocation.ToolInvoc
 	// Run evaluation (online or offline)
 	output := s.doEvaluate(ctx, inv)
 
-	// Record deny or clear on allow
-	if output.Error == nil || output.Error.Code != ErrCodeStopAfterDeny {
+	// Record deny or clear on allow (only if cache enabled)
+	if s.denyCache != nil && intentKey != "" {
 		if !output.Policy.Allow {
 			s.denyCache.RecordDeny(intentKey, output.Policy.Reason, output.RuleIDs, output.EventID)
 		} else {

@@ -51,6 +51,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	evidenceStoreFlag := fs.String("evidence-store", "", "Alias for --evidence-dir")
 	offlineFlag := fs.Bool("offline", false, "Force offline mode (skip API)")
 	fallbackOffline := fs.Bool("fallback-offline", false, "Allow local eval when API unreachable")
+	denyCacheFlag := fs.Bool("deny-cache", false, "Enable deny-loop prevention cache (agent/CI only)")
 	helpFlag := fs.Bool("help", false, "Show help")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -161,6 +162,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		APIClient:                resolved.Client,
 		FallbackPolicy:           resolved.FallbackPolicy,
 		IsOnline:                 resolved.IsOnline,
+		DenyCacheEnabled:         *denyCacheFlag || envBool("EVIDRA_DENY_CACHE", false),
 	})
 
 	logger := log.New(stderr, "", log.LstdFlags)
@@ -350,6 +352,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "FLAGS:")
 	fmt.Fprintln(w, "  --content-dir <dir>     Optional override for MCP guidance content (initialize/tools/resources text files)")
+	fmt.Fprintln(w, "  --deny-cache            Enable deny-loop prevention cache for agent/CI actors")
 	fmt.Fprintln(w, "  --environment <env>     Environment label for policy evaluation (e.g. prod, staging)")
 	fmt.Fprintf(w, "  --evidence-dir <dir>    Where to store evidence chain (default: %s)\n", defaultEvidence)
 	fmt.Fprintln(w, "  --evidence-store <dir>  Alias for --evidence-dir")
@@ -358,6 +361,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  EVIDRA_URL              API endpoint (enables online mode, e.g. https://api.evidra.rest)")
 	fmt.Fprintln(w, "  EVIDRA_API_KEY          Bearer token (required when EVIDRA_URL is set)")
 	fmt.Fprintln(w, "  EVIDRA_FALLBACK         closed (default) or offline")
+	fmt.Fprintln(w, "  EVIDRA_DENY_CACHE       Enable deny-loop prevention (true/false, default: false)")
 	fmt.Fprintln(w, "  EVIDRA_CONTENT_DIR      Override MCP guidance content directory (same as --content-dir)")
 	fmt.Fprintln(w, "  EVIDRA_ENVIRONMENT      Environment label (normalized: prod→production, stg→staging)")
 	fmt.Fprintln(w)
