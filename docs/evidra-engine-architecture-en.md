@@ -1,4 +1,8 @@
-# Evidra — Validation Engine Architecture
+# Evidra — Validation Engine Architecture (Historical, Pre-v2)
+
+> Status: This document is historical and contains pre-v2 details that are no longer authoritative.
+>
+> Canonical source for current behavior: [ENGINE_LOGIC_V2.md](ENGINE_LOGIC_V2.md).
 
 Complete description of the validation engine. Covers current state (v0.1)
 and planned v0.2.0 changes.
