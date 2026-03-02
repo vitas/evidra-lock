@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["aws_s3.no_encryption"] = "S3 bucket missing server-side encryption" if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "terraform.plan"
 	action.payload.resource_type == "aws_s3_bucket"
 	not s3_encryption_enabled(action.payload)

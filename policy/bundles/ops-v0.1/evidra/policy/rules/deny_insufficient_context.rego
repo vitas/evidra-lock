@@ -11,7 +11,7 @@ import data.evidra.policy.defaults as defaults
 # ──────────────────────────────────────────────────────────
 
 deny["ops.insufficient_context"] = msg if {
-	action := input.actions[_]
+	action := defaults.actions[_]
 	is_destructive(action.kind)
 	not has_sufficient_context(action)
 	req := context_requirements(action.kind)
@@ -23,7 +23,7 @@ deny["ops.insufficient_context"] = msg if {
 
 # Per-kind reason for decision.reasons (richer than the deny message label).
 insufficient_context_reason[msg] if {
-	action := input.actions[_]
+	action := defaults.actions[_]
 	is_destructive(action.kind)
 	not has_sufficient_context(action)
 	req := context_requirements(action.kind)
@@ -32,7 +32,7 @@ insufficient_context_reason[msg] if {
 
 # Per-kind skeleton for decision.hints (actionable payload example).
 insufficient_context_hint[s] if {
-	action := input.actions[_]
+	action := defaults.actions[_]
 	is_destructive(action.kind)
 	not has_sufficient_context(action)
 	req := context_requirements(action.kind)

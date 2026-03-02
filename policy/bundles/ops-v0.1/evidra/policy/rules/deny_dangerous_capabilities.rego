@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["k8s.dangerous_capabilities"] = "Container adds dangerous Linux capability" if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "kubectl.apply"
 	c := defaults.all_containers(action.payload)[_]
 	cap := c.security_context.capabilities.add[_]

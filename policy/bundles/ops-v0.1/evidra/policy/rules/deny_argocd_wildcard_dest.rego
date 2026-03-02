@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["argocd.wildcard_destination"] = "AppProject uses wildcard destination" if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "argocd.project"
 	dest := action.payload.destinations[_]
 	wildcard_destination(dest)

@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["k8s.privileged_container"] = "Container has privileged security context" if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "kubectl.apply"
 	c := defaults.all_containers(action.payload)[_]
 	c.security_context.privileged == true

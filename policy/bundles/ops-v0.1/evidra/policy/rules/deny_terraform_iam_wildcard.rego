@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["terraform.iam_wildcard_policy"] = "IAM policy uses wildcard Action or Resource" if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "terraform.plan"
 	stmt := action.payload.iam_policy_statements[_]
 	stmt.effect == "Allow"

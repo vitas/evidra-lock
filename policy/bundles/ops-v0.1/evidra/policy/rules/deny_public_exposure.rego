@@ -6,7 +6,7 @@ import data.evidra.policy.defaults as defaults
 deny["ops.public_exposure"] = msg if {
 	defaults.profile_includes_ops
 	some i
-	action := input.actions[i]
+	action := defaults.actions[i]
 	action.kind == "terraform.plan"
 	action.payload.publicly_exposed == true
 	not defaults.has_tag(action, "approved_public")

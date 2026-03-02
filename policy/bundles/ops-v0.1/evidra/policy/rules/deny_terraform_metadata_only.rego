@@ -10,7 +10,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["ops.terraform_metadata_only"] = msg if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "terraform.apply"
 	has_sufficient_context(action)
 	not has_deep_fields(action)

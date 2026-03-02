@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["ops.unapproved_change"] = msg if {
 	some i
-	action := input.actions[i]
+	action := defaults.actions[i]
 	protected := defaults.resolve_list_param("k8s.namespaces.protected")
 	defaults.action_namespace(action) == protected[_]
 	not defaults.has_tag(action, "change-approved")

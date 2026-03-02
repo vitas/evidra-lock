@@ -9,7 +9,7 @@ deny["ops.mass_delete"] = "Mass delete actions exceed threshold" if {
 
 mass_violation_exists if {
 	threshold := defaults.resolve_param("ops.mass_delete.max_deletes")
-	action := input.actions[_]
+	action := defaults.actions[_]
 	not defaults.has_tag(action, "breakglass")
 	mass_value(action) > threshold
 }

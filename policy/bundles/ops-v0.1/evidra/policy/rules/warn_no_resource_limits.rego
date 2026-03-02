@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 warn["k8s.no_resource_limits"] = "Container missing CPU or memory resource limits" if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "kubectl.apply"
 	c := defaults.all_containers(action.payload)[_]
 	missing_resource_limits(c)

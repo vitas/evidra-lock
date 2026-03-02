@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["aws_iam.wildcard_principal"] = "IAM trust policy allows Principal:* (any AWS account)" if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "terraform.plan"
 	stmt := action.payload.trust_policy_statements[_]
 	stmt.effect == "Allow"

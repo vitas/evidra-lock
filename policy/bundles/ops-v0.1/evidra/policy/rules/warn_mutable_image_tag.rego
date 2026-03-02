@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 warn["k8s.mutable_image_tag"] = "Container uses mutable image tag (:latest or untagged)" if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "kubectl.apply"
 	c := defaults.all_containers(action.payload)[_]
 	image_is_mutable(c.image)

@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["k8s.protected_namespace"] = msg if {
 	some i
-	action := input.actions[i]
+	action := defaults.actions[i]
 	restricted := defaults.resolve_list_param("k8s.namespaces.restricted")
 	defaults.action_namespace(action) == restricted[_]
 	not defaults.has_tag(action, "breakglass")

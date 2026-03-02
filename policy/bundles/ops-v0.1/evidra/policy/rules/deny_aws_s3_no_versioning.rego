@@ -6,7 +6,7 @@ import data.evidra.policy.defaults as defaults
 deny["aws_s3.no_versioning_prod"] = "S3 bucket versioning disabled in environment requiring it" if {
 	defaults.profile_includes_ops
 	defaults.resolve_param("aws_s3.versioning.require") == true
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "terraform.plan"
 	action.payload.resource_type == "aws_s3_bucket"
 	not s3_versioning_enabled(action.payload)

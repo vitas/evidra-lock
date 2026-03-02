@@ -5,7 +5,7 @@ import data.evidra.policy.defaults as defaults
 
 deny["k8s.hostpath_mount"] = "Pod uses hostPath volume mount" if {
 	defaults.profile_includes_ops
-	action := input.actions[_]
+	action := defaults.actions[_]
 	action.kind == "kubectl.apply"
 	vol := action.payload.volumes[_]
 	vol.host_path

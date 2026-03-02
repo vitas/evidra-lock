@@ -11,7 +11,7 @@ import data.evidra.policy.defaults as defaults
 # ──────────────────────────────────────────────────────────
 
 deny["ops.unknown_destructive"] = msg if {
-	action := input.actions[_]
+	action := defaults.actions[_]
 	not is_known_operation(action.kind)
 	not is_safe_read_operation(action.kind)
 	not defaults.has_tag(action, "breakglass")
