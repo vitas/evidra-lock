@@ -4,8 +4,6 @@ package evidra.policy.decision_impl
 import data.evidra.policy.defaults as defaults
 
 default allow := true
-# Safety-first default for missing/unknown actor.type.
-default actor_kind := "agent"
 default blocked_by_agent_kill_switch := false
 default agent_kill_switch_enabled := false
 
@@ -40,10 +38,8 @@ golden_hits := dedupe([label |
 
 agent_kill_switch_enabled if data.evidra.policy.agent_kill_switch.enabled == true
 
-actor_kind := actor_type if {
+actor_kind := object.get(actor, "type", "") if {
 	actor := object.get(input, "actor", {})
-	actor_type := object.get(actor, "type", "")
-	actor_type in {"human", "agent", "ci"}
 }
 
 actor_uses_agent_gate if {

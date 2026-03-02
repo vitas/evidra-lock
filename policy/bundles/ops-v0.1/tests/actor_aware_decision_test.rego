@@ -52,12 +52,12 @@ test_actor_aware_context_source_is_not_classifier if {
 	"k8s.privileged_container" in d.golden_hits
 }
 
-test_actor_aware_unknown_actor_type_defaults_to_agent_for_safety if {
+test_actor_aware_unknown_actor_type_is_not_inferred_as_ci_or_agent if {
 	d := data.evidra.policy.decision with input as privileged_apply_input("service-account", "ci-pipeline")
 
 	not d.allow
-	d.actor_kind == "agent"
-	d.blocked_by_agent_kill_switch == true
+	d.actor_kind == "service-account"
+	d.blocked_by_agent_kill_switch == false
 	"k8s.privileged_container" in d.golden_hits
 }
 

@@ -112,9 +112,10 @@ func TestValidateToolDescriptionAndSchemaGuidance(t *testing.T) {
 	}
 	for _, snippet := range []string{
 		"Evaluates intended infrastructure action(s) against the Evidra policy bundle",
-		"payload may be a native manifest or a flat internal schema",
+		"Kubernetes payload may be a native manifest or a flat schema",
 		"If allow=false: STOP",
-		"do not retry unchanged inputs",
+		"Do not retry unchanged input",
+		"If hints indicate missing data, request required fields and re-run validate",
 	} {
 		if !strings.Contains(tool.Description, snippet) {
 			t.Fatalf("validate tool description missing snippet %q", snippet)

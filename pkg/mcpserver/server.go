@@ -112,7 +112,7 @@ func NewServer(opts Options) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "validate",
 		Title:       "Validate Tool Invocation",
-		Description: "Evaluates intended infrastructure action(s) against the Evidra policy bundle.\nCall before destructive or privileged operations (for example: kubectl apply/delete, terraform apply/destroy, helm upgrade/uninstall, argocd sync).\nFor Kubernetes actions, payload may be a native manifest or a flat internal schema; Evidra canonicalizes both internally.\nIf allow=false: STOP. Show reasons/hints to the user and do not retry unchanged inputs.\nRead-only operations (plan/get/describe/list/show/diff) can usually skip validate.",
+		Description: "Evaluates intended infrastructure action(s) against the Evidra policy bundle.\nCall before destructive or privileged operations (for example: kubectl apply/delete, terraform apply/destroy, helm upgrade/uninstall, argocd sync).\nIf allow=false: STOP. Show reasons to the user. Do not retry unchanged input.\nIf hints indicate missing data, request required fields and re-run validate.\nKubernetes payload may be a native manifest or a flat schema (server canonicalizes).\nRead-only operations (plan/get/describe/list/show/diff) can usually skip validate.",
 		Annotations: &mcp.ToolAnnotations{
 			Title:           "Validate Scenario",
 			ReadOnlyHint:    true,

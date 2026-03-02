@@ -105,15 +105,17 @@ Minimum hint categories:
 
 ### Actor Field Semantics
 
-- `input.actor.type` (`human|agent|ci`): **YES**, security classification and gating input.
-- `input.actor.origin` (`mcp|cli|api`): **NO**, transport metadata only.
-- `input.context.source` (free string): **NO**, metadata only; never used for security classification.
+| Field | Meaning | Used for security |
+| --- | --- | --- |
+| `actor.type` | `human` / `agent` / `ci` | ✅ yes |
+| `actor.origin` | `mcp` / `cli` / `api` | ❌ no |
+| `context.source` | metadata | ❌ no |
 
 Actor classification for Layer 2:
 - `human` when `input.actor.type == "human"`
 - `agent` when `input.actor.type == "agent"`
 - `ci` when `input.actor.type == "ci"`
-- unknown/missing actor type defaults to `agent` (safety-first)
+- no context-based inference and no CI detection via `context.source`
 
 CI behavior:
 - CI is treated like `agent` for kill-switch gating.
