@@ -212,6 +212,9 @@ a natural language prompt and expected agent behaviors:
 - `expect_stop_signal` — agent showed denial to the user
 - `expect_evidence_deny` — evidence store contains deny record
 
+System prompt source of truth for e2e runner:
+`skills/evidra-infra-safety/prompts/system_prompt.txt`.
+
 The runner supports model selection (`MODEL=haiku|sonnet|opus`), online/offline
 modes, and generates an HTML report.
 

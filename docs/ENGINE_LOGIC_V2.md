@@ -168,5 +168,5 @@ CI runs the first two checks in
 
 ## Client Guidance
 
-Claude Code operational guidance is documented in
-[`docs/skills/CLAUDE_CODE_SKILL.md`](skills/CLAUDE_CODE_SKILL.md).
+Claude Code operational guidance is documented in the canonical skill file:
+[`skills/evidra-infra-safety/SKILL.md`](../skills/evidra-infra-safety/SKILL.md).

@@ -261,6 +261,8 @@ For Claude users, we provide a Skill that automates everything above. The skill 
 
 ### Install the skill
 
+Canonical repo path: `skills/evidra-infra-safety/`.
+
 1. Download `evidra-infra-safety/` from [GitHub](https://github.com/vitas/evidra/tree/main/skills/evidra-infra-safety)
 2. Zip the folder
 3. Upload to Claude.ai → Settings → Capabilities → Skills

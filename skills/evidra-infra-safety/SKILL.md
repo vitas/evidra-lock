@@ -11,6 +11,14 @@ metadata:
 
 Use this skill to apply Evidra as a strict safety gate before infrastructure mutations.
 
+## Source of Truth
+
+This folder is the canonical source for agent safety behavior:
+
+- Skill contract: `skills/evidra-infra-safety/SKILL.md`
+- E2E system prompt: `skills/evidra-infra-safety/prompts/system_prompt.txt`
+- Rule reference snapshot: `skills/evidra-infra-safety/references/policy-rules.md`
+
 ## Core Rule
 
 1. Call `validate` before every mutating infrastructure action.
