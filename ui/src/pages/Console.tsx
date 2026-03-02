@@ -50,7 +50,9 @@ function localApiClaudeCode(key: string) {
   -e EVIDRA_URL=${API_URL} \\
   -e EVIDRA_API_KEY=${key} \\
   -e EVIDRA_ENVIRONMENT=production \\
-  -e EVIDRA_FALLBACK=offline`;
+  -e EVIDRA_FALLBACK=offline
+# Optional: enable deny-loop prevention
+#   -e EVIDRA_DENY_CACHE=true`;
 }
 
 function localApiJson(key: string) {
@@ -63,7 +65,8 @@ function localApiJson(key: string) {
         "EVIDRA_API_KEY": "${key}",
         "EVIDRA_ENVIRONMENT": "production",
         "EVIDRA_FALLBACK": "offline",
-        "EVIDRA_BUNDLE_PATH": ""
+        "EVIDRA_BUNDLE_PATH": "",
+        "EVIDRA_DENY_CACHE": "true"
       }
     }
   }
@@ -79,11 +82,14 @@ EVIDRA_URL = "${API_URL}"
 EVIDRA_API_KEY = "${key}"
 EVIDRA_ENVIRONMENT = "production"
 EVIDRA_FALLBACK = "offline"
-EVIDRA_BUNDLE_PATH = ""`;
+EVIDRA_BUNDLE_PATH = ""
+EVIDRA_DENY_CACHE = "true"`;
 }
 
 const offlineClaudeCode = `claude mcp add evidra evidra-mcp \\
-  -e EVIDRA_ENVIRONMENT=production`;
+  -e EVIDRA_ENVIRONMENT=production
+# Optional: enable deny-loop prevention
+#   -e EVIDRA_DENY_CACHE=true`;
 
 const offlineJson = `{
   "mcpServers": {
@@ -91,7 +97,8 @@ const offlineJson = `{
       "command": "evidra-mcp",
       "env": {
         "EVIDRA_ENVIRONMENT": "production",
-        "EVIDRA_BUNDLE_PATH": ""
+        "EVIDRA_BUNDLE_PATH": "",
+        "EVIDRA_DENY_CACHE": ""
       }
     }
   }
@@ -102,7 +109,8 @@ command = "evidra-mcp"
 
 [mcp_servers.evidra.env]
 EVIDRA_ENVIRONMENT = "production"
-EVIDRA_BUNDLE_PATH = ""`;
+EVIDRA_BUNDLE_PATH = ""
+EVIDRA_DENY_CACHE = "true"`;
 
 // ── Tabs & paths ────────────────────────────────────────
 
@@ -468,6 +476,8 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
                 <>
                   <dt><code>EVIDRA_BUNDLE_PATH</code></dt>
                   <dd>Custom OPA bundle directory. Leave empty to use the embedded <code>ops-v0.1</code> bundle.</dd>
+                  <dt><code>EVIDRA_DENY_CACHE</code></dt>
+                  <dd>Enable deny-loop prevention for agent/CI actors (<code>true</code>/<code>false</code>, default: <code>false</code>). Blocks repeated identical denied requests without re-evaluating policy.</dd>
                 </>
               )}
             </dl>

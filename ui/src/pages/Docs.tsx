@@ -194,6 +194,9 @@ evidra validate -f scenario.yaml
 # Run MCP server (local mode, no API key needed)
 evidra-mcp
 
+# Run MCP server with deny-loop prevention
+evidra-mcp --deny-cache
+
 # Inspect a stored evidence event
 evidra-mcp get_event --event-id evt_01J...`;
 
@@ -417,6 +420,11 @@ export function Docs() {
               <td>Delete count exceeds threshold (default: 5, production: 3)</td>
               <td>Reduce scope or add <code>breakglass</code> risk tag</td>
             </tr>
+            <tr>
+              <td><code>stop_after_deny</code></td>
+              <td>Same intent already denied (agent/CI retry loop)</td>
+              <td>Change plan parameters or escalate to human</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -629,6 +637,15 @@ export function Docs() {
           If you use a custom <code>--bundle</code> path, verify the bundle contains{" "}
           <code>.manifest</code> and rule files. Without rules, all operations are allowed
           by default.
+        </p>
+
+        <h3>stop_after_deny (deny-loop prevention)</h3>
+        <p>
+          If the agent retries the same denied operation, the MCP server returns{" "}
+          <code>stop_after_deny</code> immediately without re-evaluating policy. To resolve:
+          change the operation parameters (namespace, image, security posture)
+          or escalate to a human. Enable with <code>--deny-cache</code> or{" "}
+          <code>EVIDRA_DENY_CACHE=true</code>.
         </p>
 
         <h3>Evidence directory permission error</h3>

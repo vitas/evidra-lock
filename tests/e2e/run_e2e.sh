@@ -136,17 +136,33 @@ build_local_mcp_binary() {
 
 generate_local_config() {
     local config_path="$OUT_DIR/mcp-local.json"
-    jq -n \
-        --arg bin "$LOCAL_MCP_BINARY" \
-        --arg evidence "$EVIDENCE_DIR" \
-        '{
-            mcpServers: {
-                evidra: {
-                    command: $bin,
-                    args: ["--evidence-store", $evidence]
+    local deny_cache="${EVIDRA_DENY_CACHE:-}"
+
+    if [ "$deny_cache" = "true" ] || [ "$deny_cache" = "1" ]; then
+        jq -n \
+            --arg bin "$LOCAL_MCP_BINARY" \
+            --arg evidence "$EVIDENCE_DIR" \
+            '{
+                mcpServers: {
+                    evidra: {
+                        command: $bin,
+                        args: ["--evidence-store", $evidence, "--deny-cache"]
+                    }
                 }
-            }
-        }' > "$config_path"
+            }' > "$config_path"
+    else
+        jq -n \
+            --arg bin "$LOCAL_MCP_BINARY" \
+            --arg evidence "$EVIDENCE_DIR" \
+            '{
+                mcpServers: {
+                    evidra: {
+                        command: $bin,
+                        args: ["--evidence-store", $evidence]
+                    }
+                }
+            }' > "$config_path"
+    fi
 }
 
 generate_hosted_config() {
@@ -915,7 +931,11 @@ main() {
     else
         log "Mode: offline (local evidra-mcp)"
     fi
-    log "Scenarios: $SCENARIOS | Model: $CLAUDE_MODEL | Evidence: $EVIDENCE_DIR"
+    local deny_label="off"
+    if [ "${EVIDRA_DENY_CACHE:-}" = "true" ] || [ "${EVIDRA_DENY_CACHE:-}" = "1" ]; then
+        deny_label="on"
+    fi
+    log "Scenarios: $SCENARIOS | Model: $CLAUDE_MODEL | Deny-cache: $deny_label | Evidence: $EVIDENCE_DIR"
     log "Output: $OUT_DIR"
     echo ""
 
