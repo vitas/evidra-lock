@@ -35,9 +35,33 @@ MCP global Initialize instructions:
 - Emitted from [`pkg/mcpserver/server.go`](../pkg/mcpserver/server.go) via `mcp.ServerOptions.Instructions`.
 - Provide universal guidance (`validate` before destructive operations, STOP on deny, do-not-retry-unchanged, native/flat k8s payload support).
 - Tool description on `validate` remains a redundant fallback for clients that rely on tool metadata.
+- MCP resources expose guidance surfaces:
+  - `evidra://docs/engine_logic_v2`
+  - `evidra://docs/protocol_errors`
+  - `evidra://policy/summary`
+  - `evidra://prompts/agent_contract_v1`
 - If arguments fail MCP schema validation, server returns JSON-RPC `-32602` and the tool handler is not invoked.
 - Tool-level decision/error objects are only returned when schema validation passes.
 - See [`docs/PROTOCOL_ERRORS.md`](PROTOCOL_ERRORS.md).
+
+### Hosted Agent Contract
+
+Unified hosted contract URI (canonical):
+- `evidra://prompts/agent_contract_v1`
+
+Versioning:
+- `v1` is immutable.
+- Future revisions must be published as new URIs (for example `.../v2`).
+
+Initialize linkage:
+- Server Initialize instructions include a short directive to fetch `evidra://prompts/agent_contract_v1`.
+- Clients should use the fetched markdown as system guidance.
+
+E2E stability intent:
+- Contract `v1` includes explicit guidance for large manifests:
+  - send full manifest in one validate call
+  - do not progressively enrich partial payloads across retries
+- This is intended to reduce the progressive-enrichment pattern observed in Haiku e2e runs.
 
 ## Canonicalization Boundary
 

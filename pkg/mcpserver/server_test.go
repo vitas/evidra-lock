@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -130,15 +131,10 @@ func TestServerInitializeInstructions(t *testing.T) {
 		t.Fatal("expected non-empty initialize instructions")
 	}
 	for _, snippet := range []string{
-		"STOP",
-		"do not retry unchanged input",
-		"native manifest or flat",
-		"actor.type",
-		"human`|`agent`|`ci",
-		"actor.origin",
-		"mcp`|`cli`|`api",
-		"context.source",
-		"metadata only",
+		"Always call `validate` before destructive or privileged operations",
+		"STOP and do not retry unchanged input",
+		"missing data",
+		"evidra://prompts/agent_contract_v1",
 	} {
 		if !strings.Contains(init.Instructions, snippet) {
 			t.Fatalf("initialize instructions missing snippet %q", snippet)
@@ -226,6 +222,80 @@ func TestGetEventToolSchema(t *testing.T) {
 	}
 }
 
+func TestServerRegistersDocumentationResources(t *testing.T) {
+	server := newTestServer(t)
+	resources := listResourceURIsFromServer(t, server)
+
+	for _, uri := range []string{
+		resourceURIDocsEngineLogicV2,
+		resourceURIDocsProtocolError,
+		resourceURIPolicySummary,
+		resourceURIAgentContractV1,
+	} {
+		if !containsResourceURI(resources, uri) {
+			t.Fatalf("expected resource URI %q in %v", uri, resources)
+		}
+	}
+}
+
+func TestAgentContractResourceContainsRequiredClauses(t *testing.T) {
+	server := newTestServer(t)
+	text := readResourceTextFromServer(t, server, resourceURIAgentContractV1)
+
+	for _, snippet := range []string{
+		"Evidra Agent Contract v1",
+		"Always Validate First",
+		"STOP immediately",
+		"-32602",
+		"Large Manifests",
+		"ONE `validate` call",
+	} {
+		if !strings.Contains(text, snippet) {
+			t.Fatalf("agent contract resource missing snippet %q; got: %q", snippet, text)
+		}
+	}
+}
+
+func TestProtocolErrorsResourceMentions32602(t *testing.T) {
+	server := newTestServer(t)
+	text := readResourceTextFromServer(t, server, resourceURIDocsProtocolError)
+
+	for _, snippet := range []string{
+		"-32602",
+		"Invalid params",
+		"handlers are not invoked",
+	} {
+		if !strings.Contains(text, snippet) {
+			t.Fatalf("protocol errors resource missing snippet %q; got: %q", snippet, text)
+		}
+	}
+}
+
+func TestPolicySummaryResourceIncludesGuidanceFlags(t *testing.T) {
+	server := newTestServer(t)
+	raw := readResourceTextFromServer(t, server, resourceURIPolicySummary)
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		t.Fatalf("policy summary JSON decode: %v; body=%q", err, raw)
+	}
+
+	if payload["policy_ref"] == "" {
+		t.Fatalf("expected non-empty policy_ref in %v", payload)
+	}
+
+	guidance, ok := payload["guidance"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected guidance object, got %T", payload["guidance"])
+	}
+	if enabled, _ := guidance["initialize_instructions"].(bool); !enabled {
+		t.Fatalf("expected initialize_instructions=true in %v", guidance)
+	}
+	if uri, _ := guidance["initialize_points_to"].(string); uri != resourceURIAgentContractV1 {
+		t.Fatalf("expected initialize_points_to=%q in %v", resourceURIAgentContractV1, guidance)
+	}
+}
+
 func newTestServer(t *testing.T) *mcp.Server {
 	t.Helper()
 	opts := Options{
@@ -268,9 +338,79 @@ func listToolsFromServer(t *testing.T, srv *mcp.Server) []*mcp.Tool {
 	return res.Tools
 }
 
+func listResourceURIsFromServer(t *testing.T, srv *mcp.Server) []string {
+	t.Helper()
+	resources := listResourcesFromServer(t, srv)
+	var uris []string
+	for _, r := range resources {
+		uris = append(uris, r.URI)
+	}
+	return uris
+}
+
+func listResourcesFromServer(t *testing.T, srv *mcp.Server) []*mcp.Resource {
+	t.Helper()
+	ctx := context.Background()
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
+	serverSession, err := srv.Connect(ctx, serverTransport, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	defer serverSession.Close()
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "0.1.0"}, nil)
+	clientSession, err := client.Connect(ctx, clientTransport, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer clientSession.Close()
+
+	res, err := clientSession.ListResources(ctx, &mcp.ListResourcesParams{})
+	if err != nil {
+		t.Fatalf("ListResources RPC: %v", err)
+	}
+	return res.Resources
+}
+
+func readResourceTextFromServer(t *testing.T, srv *mcp.Server, uri string) string {
+	t.Helper()
+	ctx := context.Background()
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
+	serverSession, err := srv.Connect(ctx, serverTransport, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	defer serverSession.Close()
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "0.1.0"}, nil)
+	clientSession, err := client.Connect(ctx, clientTransport, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer clientSession.Close()
+
+	res, err := clientSession.ReadResource(ctx, &mcp.ReadResourceParams{URI: uri})
+	if err != nil {
+		t.Fatalf("ReadResource RPC for %s: %v", uri, err)
+	}
+	if len(res.Contents) == 0 {
+		t.Fatalf("expected non-empty resource contents for %s", uri)
+	}
+	return res.Contents[0].Text
+}
+
 func containsTool(list []string, name string) bool {
 	for _, tool := range list {
 		if tool == name {
+			return true
+		}
+	}
+	return false
+}
+
+func containsResourceURI(list []string, uri string) bool {
+	for _, item := range list {
+		if item == uri {
 			return true
 		}
 	}
