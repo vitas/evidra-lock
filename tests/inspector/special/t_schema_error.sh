@@ -7,57 +7,28 @@ BAD_INPUT='{"actor":{"type":"","id":"","origin":""},"tool":"kubectl","operation"
 case "$MODE" in
     local|hosted)
         local raw_output
-        raw_output=$(inspector_call_tool "validate" "$BAD_INPUT" 2>&1 || true)
+        # -32602 is JSON-RPC Invalid params (see docs/PROTOCOL_ERRORS.md).
+        raw_output=$(inspector_call_tool "validate" "$BAD_INPUT" "" "1" 2>&1 || true)
 
-        local body
-        body=$(echo "$raw_output" | extract_body) || {
-            fail "schema_error/extract" "failed to extract body from error response"
-            return
-        }
-
-        # Assert ok=false
-        local ok
-        ok=$(echo "$body" | jq -r '.ok')
-        if [[ "$ok" == "false" ]]; then
-            pass "schema_error/ok_false"
+        # Assert JSON-RPC invalid params code.
+        if echo "$raw_output" | grep -q -- "-32602"; then
+            pass "schema_error/jsonrpc_code_-32602"
         else
-            fail "schema_error/ok_false" "expected ok=false, got $ok"
+            fail "schema_error/jsonrpc_code_-32602" "expected JSON-RPC code -32602, got: $raw_output"
         fi
 
-        # Assert error.code=invalid_input
-        local error_code
-        error_code=$(echo "$body" | jq -r '.error.code // empty')
-        if [[ "$error_code" == "invalid_input" ]]; then
-            pass "schema_error/error_code"
+        # Assert error message includes Invalid params wording.
+        if echo "$raw_output" | grep -qi "invalid params"; then
+            pass "schema_error/invalid_params_text"
         else
-            fail "schema_error/error_code" "expected error.code=invalid_input, got '$error_code'"
+            fail "schema_error/invalid_params_text" "expected 'invalid params' in output, got: $raw_output"
         fi
 
-        # Assert error.message mentions "actor"
-        local error_msg
-        error_msg=$(echo "$body" | jq -r '.error.message // empty')
-        if echo "$error_msg" | grep -qi "actor"; then
-            pass "schema_error/error_mentions_actor"
+        # Assert output points to actor/origin field issue for debugging clarity.
+        if echo "$raw_output" | grep -qi "actor"; then
+            pass "schema_error/field_hint_actor"
         else
-            fail "schema_error/error_mentions_actor" "expected error.message to mention 'actor', got '$error_msg'"
-        fi
-
-        # Assert policy.allow=false
-        local allow
-        allow=$(echo "$body" | jq -r '.policy.allow')
-        if [[ "$allow" == "false" ]]; then
-            pass "schema_error/policy_deny"
-        else
-            fail "schema_error/policy_deny" "expected policy.allow=false, got $allow"
-        fi
-
-        # Assert policy.risk_level=high
-        local risk
-        risk=$(echo "$body" | jq -r '.policy.risk_level // empty')
-        if [[ "$risk" == "high" ]]; then
-            pass "schema_error/risk_high"
-        else
-            fail "schema_error/risk_high" "expected policy.risk_level=high, got '$risk'"
+            fail "schema_error/field_hint_actor" "expected output to reference actor field, got: $raw_output"
         fi
         ;;
     rest)

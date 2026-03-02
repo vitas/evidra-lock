@@ -35,6 +35,9 @@ MCP global Initialize instructions:
 - Emitted from [`pkg/mcpserver/server.go`](../pkg/mcpserver/server.go) via `mcp.ServerOptions.Instructions`.
 - Provide universal guidance (`validate` before destructive operations, STOP on deny, do-not-retry-unchanged, native/flat k8s payload support).
 - Tool description on `validate` remains a redundant fallback for clients that rely on tool metadata.
+- If arguments fail MCP schema validation, server returns JSON-RPC `-32602` and the tool handler is not invoked.
+- Tool-level decision/error objects are only returned when schema validation passes.
+- See [`docs/PROTOCOL_ERRORS.md`](PROTOCOL_ERRORS.md).
 
 ## Canonicalization Boundary
 

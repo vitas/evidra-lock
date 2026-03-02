@@ -73,7 +73,7 @@ section() {
 }
 
 inspector_call_tool() {
-    local tool="$1" args_json="$2" env="${3:-}"
+    local tool="$1" args_json="$2" env="${3:-}" keep_stderr="${4:-0}"
     # Convert JSON object to --tool-arg key=value pairs.
     # Each top-level key becomes a separate --tool-arg.
     local -a cmd=(npx -y @modelcontextprotocol/inspector --cli
@@ -89,7 +89,11 @@ inspector_call_tool() {
         val=$(echo "$args_json" | jq -c --arg k "$key" '.[$k]')
         cmd+=(--tool-arg "${key}=${val}")
     done < <(echo "$args_json" | jq -r 'keys[]')
-    "${cmd[@]}" 2>/dev/null
+    if [[ "$keep_stderr" == "1" ]]; then
+        "${cmd[@]}"
+    else
+        "${cmd[@]}" 2>/dev/null
+    fi
 }
 
 inspector_list_tools() {
