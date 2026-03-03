@@ -43,7 +43,8 @@
     },
     "tool": {
       "type": "string",
-      "description": "Tool name (e.g. terraform)."
+      "description": "Execution tool name (kubectl, terraform, helm, argocd, oc). Use the tool that performs the mutation, not the manifest generator. For kustomize, jsonnet, or cdk8s output applied via kubectl, use 'kubectl'.",
+      "examples": ["kubectl", "terraform", "helm", "argocd", "oc"]
     },
     "operation": {
       "type": "string",

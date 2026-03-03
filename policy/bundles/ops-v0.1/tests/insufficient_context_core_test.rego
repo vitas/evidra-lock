@@ -22,6 +22,26 @@ test_insufficient_context_core_missing_reasons_kubectl_apply_workload_containers
 	"missing_workload_containers" in reasons
 }
 
+test_insufficient_context_core_oc_apply_missing_namespace if {
+	action := {
+		"kind": "oc.apply",
+		"target": {},
+		"payload": {},
+	}
+	reasons := data.evidra.policy.missing_reasons(action) with input as {"environment": "dev"}
+	"missing_namespace" in reasons
+}
+
+test_insufficient_context_core_oc_delete_missing_namespace if {
+	action := {
+		"kind": "oc.delete",
+		"target": {},
+		"payload": {},
+	}
+	reasons := data.evidra.policy.missing_reasons(action) with input as {"environment": "dev"}
+	"missing_namespace" in reasons
+}
+
 test_insufficient_context_core_missing_reasons_terraform_apply_detail if {
 	action := {
 		"kind": "terraform.apply",

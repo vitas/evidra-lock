@@ -149,6 +149,46 @@ test_insufficient_context_argocd_project_fallback if {
 	contains(r, "has_sufficient_context")
 }
 
+# ── oc.apply / oc.delete ────────────────────────────────
+
+test_insufficient_context_oc_apply if {
+	inp := {
+		"tool": "oc",
+		"operation": "apply",
+		"actions": [{"kind": "oc.apply", "target": {}, "risk_tags": [], "payload": {}}],
+	}
+	d := data.evidra.policy.decision with input as inp
+	not d.allow
+	"ops.insufficient_context" in d.hits
+}
+
+test_insufficient_context_oc_delete if {
+	inp := {
+		"tool": "oc",
+		"operation": "delete",
+		"actions": [{"kind": "oc.delete", "target": {}, "risk_tags": [], "payload": {}}],
+	}
+	d := data.evidra.policy.decision with input as inp
+	not d.allow
+	"ops.insufficient_context" in d.hits
+}
+
+test_sufficient_context_oc_delete_passes if {
+	inp := {
+		"tool": "oc",
+		"operation": "delete",
+		"actions": [{
+			"kind": "oc.delete",
+			"target": {"namespace": "default"},
+			"risk_tags": [],
+			"payload": {"namespace": "default", "resource_count": 1},
+		}],
+	}
+	d := data.evidra.policy.decision with input as inp
+	d.allow
+	not "ops.insufficient_context" in d.hits
+}
+
 # ── sufficient context passes ────────────────────────────
 
 test_sufficient_context_kubectl_delete_passes if {

@@ -27,6 +27,17 @@ Input is assembled in [`pkg/policy/policy.go`](../pkg/policy/policy.go):
 
 For scenario execution, per-action invocation is created in [`pkg/validate/validate.go`](../pkg/validate/validate.go), then evaluated through the same engine path.
 
+### Tool Field Semantics
+
+The `tool` field identifies the execution tool (the CLI that performs
+the mutation), not the manifest generator. Manifest generators
+(kustomize, jsonnet, cdk8s, cue) produce K8s YAML that goes through
+`kubectl` — use `tool=kubectl` for their output.
+
+OpenShift `oc` is treated as equivalent to `kubectl` for policy
+purposes. Both share the same canonicalization and sufficient-context
+rules.
+
 MCP tool input schema sources of truth:
 - Schema files: [`pkg/mcpserver/schemas/validate.schema.json`](../pkg/mcpserver/schemas/validate.schema.json), [`pkg/mcpserver/schemas/get_event.schema.json`](../pkg/mcpserver/schemas/get_event.schema.json)
 - Embedding loader: [`pkg/mcpserver/schema_embed.go`](../pkg/mcpserver/schema_embed.go)

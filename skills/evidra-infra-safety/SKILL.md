@@ -91,6 +91,33 @@ Use these actor conventions unless your runtime needs different values:
 }
 ```
 
+## Tool Field Convention
+
+The `tool` field identifies the **execution tool** — the CLI that
+performs the mutation. It does NOT identify the manifest generator.
+
+| Workflow | tool field | Why |
+|---|---|---|
+| `kubectl apply -f deployment.yaml` | `kubectl` | kubectl executes |
+| `kustomize build \| kubectl apply -f -` | `kubectl` | kubectl executes |
+| `jsonnet manifest.jsonnet \| kubectl apply -f -` | `kubectl` | kubectl executes |
+| `cdk8s synth && kubectl apply -f dist/` | `kubectl` | kubectl executes |
+| `oc apply -f deployment.yaml` | `oc` | oc executes (OpenShift) |
+| `helm upgrade release chart` | `helm` | helm executes |
+| `terraform apply` | `terraform` | terraform executes |
+| `argocd app sync myapp` | `argocd` | argocd executes |
+
+Supported tool values: `kubectl`, `oc`, `terraform`, `helm`, `argocd`.
+
+If you need to record the generator for auditing, use `context.source`:
+```json
+{
+  "tool": "kubectl",
+  "operation": "apply",
+  "context": { "source": "kustomize" }
+}
+```
+
 ## Response Handling
 
 1. If `decision.allow` is `true`, proceed with execution and keep `event_id` for audit output.

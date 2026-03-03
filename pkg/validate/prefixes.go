@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -58,5 +59,6 @@ func AllowedPrefixesFromParams(paramsPath string) ([]string, error) {
 	for p := range seen {
 		prefixes = append(prefixes, p)
 	}
+	sort.Strings(prefixes)
 	return prefixes, nil
 }

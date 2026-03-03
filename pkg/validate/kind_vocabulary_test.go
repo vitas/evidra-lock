@@ -12,12 +12,12 @@ import (
 
 // TestKindVocabulary scans all rego rules for action.kind matches and
 // verifies they only use prefixes derived from ops.destructive_operations
-// in data.json. This prevents "kind drift" where domain rules use
-// k8s.apply instead of kubectl.apply, creating silent policy bypasses.
+// in params/data.json. This prevents "kind drift" where domain rules
+// use unauthorized prefixes, creating silent policy bypasses.
 //
-// Prefixes are derived dynamically from the same data.json that OPA uses,
-// so adding a new tool to destructive_operations automatically allows
-// its prefix here.
+// To add a new tool prefix: add its destructive operations to
+// ops.destructive_operations in data.json — this test picks it up
+// automatically.
 func TestKindVocabulary(t *testing.T) {
 	t.Parallel()
 

@@ -6,34 +6,24 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"samebits.com/evidra/pkg/validate"
 )
 
 // TestParamsVocabulary verifies that all entries in ops.destructive_operations
-// use allowed kind prefixes. This is a self-consistency check: AllowedPrefixesFromParams
-// derives prefixes from the same data, so this test ensures every entry has a
-// well-formed "tool.operation" shape with a dot separator.
+// are well-formed "tool.operation" pairs. Each entry must have exactly one dot
+// with non-empty tool and operation parts. This prevents malformed entries like
+// "k8s" (no dot), ".apply" (empty tool), or "kubectl." (empty operation).
 func TestParamsVocabulary(t *testing.T) {
 	t.Parallel()
 
 	paramsFile := filepath.Join("..", "..", "policy", "bundles", "ops-v0.1",
 		"evidra", "data", "params", "data.json")
 
-	allowedPrefixes, err := validate.AllowedPrefixesFromParams(paramsFile)
-	if err != nil {
-		t.Fatalf("load prefixes: %v", err)
-	}
-	if len(allowedPrefixes) == 0 {
-		t.Fatal("no prefixes found — ops.destructive_operations empty?")
-	}
-
 	data, err := os.ReadFile(paramsFile)
 	if err != nil {
 		t.Fatalf("cannot read params: %v", err)
 	}
 
-	var params map[string]interface{}
+	var params map[string]any
 	if err := json.Unmarshal(data, &params); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
@@ -43,20 +33,14 @@ func TestParamsVocabulary(t *testing.T) {
 		t.Fatal("ops.destructive_operations not found in params")
 	}
 
-	byEnv := opsParam.(map[string]interface{})["by_env"].(map[string]interface{})
+	byEnv := opsParam.(map[string]any)["by_env"].(map[string]any)
 	for env, val := range byEnv {
-		ops := val.([]interface{})
+		ops := val.([]any)
 		for _, op := range ops {
 			kind := op.(string)
-			allowed := false
-			for _, prefix := range allowedPrefixes {
-				if strings.HasPrefix(kind, prefix) {
-					allowed = true
-					break
-				}
-			}
-			if !allowed {
-				t.Errorf("ops.destructive_operations[%s]: unauthorized kind %q", env, kind)
+			parts := strings.SplitN(kind, ".", 2)
+			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+				t.Errorf("ops.destructive_operations[%s]: malformed kind %q — expected tool.operation", env, kind)
 			}
 		}
 	}
