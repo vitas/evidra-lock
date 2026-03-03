@@ -3,13 +3,12 @@
 # MCP Inspector CLI test layer (Layer 2.5)
 #
 # Exercises evidra-mcp over stdio using the MCP Inspector CLI.
-# Deterministic — no LLM, no Docker, no API keys.
 # Policy test data comes from tests/corpus/.
 #
 # Modes (EVIDRA_TEST_MODE):
-#   local  — Inspector CLI → evidra-mcp stdio (default)
-#   hosted — Inspector CLI → supergateway streamable-http
-#   rest   — curl → evidra-api REST /v1/validate
+#   local  — Inspector CLI → evidra-mcp stdio (default, no API key)
+#   hosted — curl JSON-RPC → supergateway streamable-http (requires EVIDRA_API_KEY)
+#   rest   — curl → evidra-api REST /v1/validate (requires EVIDRA_API_KEY)
 #
 set -euo pipefail
 
@@ -102,6 +101,42 @@ inspector_list_tools() {
         --method tools/list 2>/dev/null
 }
 
+# ── Hosted mode: curl JSON-RPC over streamable-http ───────────────────
+# Uses curl directly to call MCP JSON-RPC endpoints. This avoids the
+# MCP Inspector SDK's notifications/initialized POST which returns 500
+# through Traefik's buffer middleware (empty-body 202 response).
+
+HOSTED_JSONRPC_ID=0
+
+# Send a JSON-RPC request to the hosted MCP endpoint and extract the result.
+_hosted_jsonrpc() {
+    local method="$1" params="$2"
+    HOSTED_JSONRPC_ID=$((HOSTED_JSONRPC_ID + 1))
+    local body
+    body=$(curl -s -X POST "${EVIDRA_MCP_URL}" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json, text/event-stream" \
+        -H "Authorization: Bearer ${EVIDRA_API_KEY}" \
+        -d "$(jq -n --arg m "$method" --argjson p "$params" --argjson id "$HOSTED_JSONRPC_ID" \
+            '{"jsonrpc":"2.0","id":$id,"method":$m,"params":$p}')" 2>/dev/null)
+    # SSE response: "event: message\ndata: {...}\n" — extract the data line
+    echo "$body" | grep '^data: ' | sed 's/^data: //' | jq -r '.result // .error // .' 2>/dev/null
+}
+
+# Call tools/call via JSON-RPC for hosted mode.
+_hosted_call_tool() {
+    local tool="$1" args_json="$2"
+    local params
+    params=$(jq -n --arg name "$tool" --argjson args "$args_json" \
+        '{"name":$name,"arguments":$args}')
+    _hosted_jsonrpc "tools/call" "$params"
+}
+
+# Call tools/list via JSON-RPC for hosted mode.
+_hosted_list_tools() {
+    _hosted_jsonrpc "tools/list" '{}'
+}
+
 extract_body() {
     jq '.structuredContent // (.content[0].text | fromjson) // .' 2>/dev/null
 }
@@ -165,8 +200,9 @@ with_retry() {
 }
 
 # ── Transport abstraction ────────────────────────────────────────────
-# local+hosted: Inspector CLI + CONFIG (stdio or streamable-http)
-# rest: curl + normalization
+# local:  Inspector CLI + CONFIG (stdio)
+# hosted: curl JSON-RPC → streamable-http
+# rest:   curl → evidra-api REST /v1/validate
 
 # Internal: REST validate without retry (called by with_retry).
 _rest_validate() {
@@ -191,6 +227,15 @@ _rest_validate() {
     }' <<< "$body"
 }
 
+# Internal: hosted validate without retry (called by with_retry).
+_hosted_validate() {
+    local input="$1"
+    local raw
+    raw=$(_hosted_call_tool "validate" "$input")
+    # structuredContent has the same shape as inspector extract_body output
+    echo "$raw" | jq '.structuredContent // (.content[0].text | fromjson) // .' 2>/dev/null
+}
+
 call_validate() {
     local input="$1" env="${2:-}"
     case "$MODE" in
@@ -201,10 +246,8 @@ call_validate() {
             echo "$raw" | extract_body
             ;;
         hosted)
-            # Inspector CLI → streamable-http — may hit Traefik rate limit
-            local raw
-            raw=$(with_retry inspector_call_tool "validate" "$input" "$env")
-            echo "$raw" | extract_body
+            # curl JSON-RPC → streamable-http — may hit Traefik rate limit
+            with_retry _hosted_validate "$input"
             ;;
         rest)
             # curl → REST API — may hit Traefik rate limit
@@ -217,6 +260,12 @@ call_get_event() {
     [[ "$MODE" == "rest" ]] && return 1
     local get_args
     get_args=$(jq -n --arg eid "$1" '{"event_id": $eid}')
+    if [[ "$MODE" == "hosted" ]]; then
+        local raw
+        raw=$(_hosted_call_tool "get_event" "$get_args")
+        echo "$raw" | jq '.structuredContent // (.content[0].text | fromjson) // .' 2>/dev/null
+        return
+    fi
     local raw
     raw=$(inspector_call_tool "get_event" "$get_args")
     echo "$raw" | extract_body
@@ -224,6 +273,10 @@ call_get_event() {
 
 call_list_tools() {
     [[ "$MODE" == "rest" ]] && return 1
+    if [[ "$MODE" == "hosted" ]]; then
+        _hosted_list_tools
+        return
+    fi
     inspector_list_tools
 }
 
@@ -265,24 +318,26 @@ check_prerequisites() {
             rm -rf "${HOME}/.evidra/bundles/ops-v0.1"
             ;;
         hosted)
-            if ! command -v npx &>/dev/null; then
-                echo "ERROR: npx not found (need Node >= 18)"
+            if ! command -v curl &>/dev/null; then
+                echo "ERROR: curl not found"
                 exit 1
             fi
             [[ -n "${EVIDRA_MCP_URL:-}" ]] || { echo "ERROR: EVIDRA_MCP_URL required in hosted mode"; exit 1; }
-            # Generate streamable-http config for Inspector
-            CONFIG=$(mktemp /tmp/evidra-mcp-hosted-XXXXXX.json)
-            trap "rm -f $CONFIG" EXIT
-            cat > "$CONFIG" <<MCPEOF
-{
-  "mcpServers": {
-    "evidra": {
-      "type": "streamable-http",
-      "url": "${EVIDRA_MCP_URL}"
-    }
-  }
-}
-MCPEOF
+            [[ -n "${EVIDRA_API_KEY:-}" ]] || { echo "ERROR: EVIDRA_API_KEY required in hosted mode"; exit 1; }
+            # Verify endpoint is reachable (initialize handshake)
+            local init_resp
+            init_resp=$(curl -s -w "\n%{http_code}" -X POST "${EVIDRA_MCP_URL}" \
+                -H "Content-Type: application/json" \
+                -H "Accept: application/json, text/event-stream" \
+                -H "Authorization: Bearer ${EVIDRA_API_KEY}" \
+                -d '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"evidra-test","version":"0.1"}}}' 2>/dev/null)
+            local init_code
+            init_code=$(echo "$init_resp" | tail -1)
+            if [[ "$init_code" != "200" ]]; then
+                echo "ERROR: hosted MCP endpoint not reachable (HTTP $init_code)"
+                exit 1
+            fi
+            CONFIG=""
             ;;
         rest)
             if ! command -v curl &>/dev/null; then
@@ -395,8 +450,10 @@ main() {
     # Show config/endpoint after prerequisites (CONFIG may be generated)
     case "$MODE" in
         local)   printf "Config: %s\n" "$CONFIG" ;;
-        hosted)  printf "Endpoint: %s\n" "$EVIDRA_MCP_URL" ;;
-        rest)    printf "Endpoint: %s\n" "$EVIDRA_API_URL" ;;
+        hosted)  printf "Endpoint: %s\n" "$EVIDRA_MCP_URL"
+                 printf "Auth:     Bearer %s...\n" "${EVIDRA_API_KEY:0:12}" ;;
+        rest)    printf "Endpoint: %s\n" "$EVIDRA_API_URL"
+                 printf "Auth:     Bearer %s...\n" "${EVIDRA_API_KEY:0:12}" ;;
     esac
 
     reset_evidence

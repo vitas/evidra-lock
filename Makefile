@@ -54,7 +54,7 @@ test-mcp-inspector:
 	bash tests/inspector/run_inspector_tests.sh
 
 test-mcp-inspector-hosted:
-	EVIDRA_TEST_MODE=hosted EVIDRA_MCP_URL=$${EVIDRA_MCP_URL:-https://evidra.samebits.com/mcp} bash tests/inspector/run_inspector_tests.sh
+	EVIDRA_TEST_MODE=hosted EVIDRA_MCP_URL=$${EVIDRA_MCP_URL:-https://evidra.samebits.com/mcp} EVIDRA_API_KEY=$${EVIDRA_API_KEY} bash tests/inspector/run_inspector_tests.sh
 
 test-mcp-inspector-rest:
-	EVIDRA_TEST_MODE=rest EVIDRA_API_URL=$${EVIDRA_API_URL:-https://api.evidra.rest} bash tests/inspector/run_inspector_tests.sh
+	EVIDRA_TEST_MODE=rest EVIDRA_API_URL=$${EVIDRA_API_URL:-https://api.evidra.rest} EVIDRA_API_KEY=$${EVIDRA_API_KEY} bash tests/inspector/run_inspector_tests.sh

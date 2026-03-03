@@ -5,7 +5,7 @@
 BAD_INPUT='{"actor":{"type":"","id":"","origin":""},"tool":"kubectl","operation":"get","params":{},"context":{}}'
 
 case "$MODE" in
-    local|hosted)
+    local)
         local raw_output
         # -32602 is JSON-RPC Invalid params (see docs/PROTOCOL_ERRORS.md).
         raw_output=$(inspector_call_tool "validate" "$BAD_INPUT" "" "1" 2>&1 || true)
@@ -25,6 +25,29 @@ case "$MODE" in
         fi
 
         # Assert output points to actor/origin field issue for debugging clarity.
+        if echo "$raw_output" | grep -qi "actor"; then
+            pass "schema_error/field_hint_actor"
+        else
+            fail "schema_error/field_hint_actor" "expected output to reference actor field, got: $raw_output"
+        fi
+        ;;
+    hosted)
+        # curl JSON-RPC: send invalid input and check for -32602 error.
+        local raw_output
+        raw_output=$(_hosted_jsonrpc "tools/call" "$(jq -n --argjson args "$BAD_INPUT" '{"name":"validate","arguments":$args}')" 2>&1 || true)
+
+        if echo "$raw_output" | grep -q -- "-32602"; then
+            pass "schema_error/jsonrpc_code_-32602"
+        else
+            fail "schema_error/jsonrpc_code_-32602" "expected JSON-RPC code -32602, got: $raw_output"
+        fi
+
+        if echo "$raw_output" | grep -qi "invalid params"; then
+            pass "schema_error/invalid_params_text"
+        else
+            fail "schema_error/invalid_params_text" "expected 'invalid params' in output, got: $raw_output"
+        fi
+
         if echo "$raw_output" | grep -qi "actor"; then
             pass "schema_error/field_hint_actor"
         else
