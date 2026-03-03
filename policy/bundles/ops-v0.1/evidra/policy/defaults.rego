@@ -53,7 +53,7 @@ resolve_param(key) := val if {
 resolve_list_param(key) := resolve_param(key)
 
 # profile_includes_ops is true when ops.profile resolves to "ops".
-# Golden rules (domain-specific) are gated by this; baseline rules are not.
+# Non-overridable policy rules (domain-specific) are gated by this; baseline rules are not.
 profile_includes_ops if {
 	profile := resolve_param("ops.profile")
 	profile == "ops"

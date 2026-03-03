@@ -137,10 +137,10 @@ Decision aggregation is in [`policy/bundles/ops-v0.1/evidra/policy/decision.rego
 - computes `allow`
 - computes `risk_level`
 - deduplicates `reasons`, `hits`, and `hints`
-- applies actor-aware golden gating (Layer 2) using bundle data:
+- applies actor-aware non-overridable policy gating (Layer 2) using bundle data:
   - [`policy/bundles/ops-v0.1/evidra/policy/data.json`](../policy/bundles/ops-v0.1/evidra/policy/data.json)
-  - `golden.rule_ids`
-  - `agent_kill_switch.enabled`
+  - `non_overridable_policies.rule_ids`
+  - `non_overridable_policies.enabled`
 
 Returned shape:
 - `allow`
@@ -150,8 +150,8 @@ Returned shape:
 - `hits`
 - `hints`
 - `actor_kind` (additive)
-- `golden_hits` (additive)
-- `blocked_by_agent_kill_switch` (additive)
+- `non_overridable_hits` (additive)
+- `non_overridable_policies_enforced` (additive)
 
 ### Deny Hints
 
@@ -160,8 +160,8 @@ Hint aggregation is in
 and remains backward-compatible as `hints: []string`.
 
 Minimum hint categories:
-- Agent kill switch block: when `blocked_by_agent_kill_switch` is true, hints include
-  a kill-switch message with `golden_hits` and an explicit stop action.
+- Non-overridable policy block: when `non_overridable_policies_enforced` is true, hints include
+  a block message with `non_overridable_hits` and an explicit stop action.
 - Insufficient context (missing data): when `ops.insufficient_context` denies without
   unsupported-shape signals, hints include missing-data guidance and next-request fields.
 - Unsupported Kubernetes shape: when insufficient-context deny is tied to unsupported
@@ -182,7 +182,41 @@ Actor classification for Layer 2:
 - no context-based inference and no CI detection via `context.source`
 
 CI behavior:
-- CI is treated like `agent` for kill-switch gating.
+- CI is treated like `agent` for non-overridable policy gating.
+
+## Non-Overridable Policies
+
+Non-overridable policies define a strict safety boundary within the engine.
+
+If `non_overridable_policies.enabled = true`, the listed rule_ids:
+
+- Always evaluate
+- Always deny when triggered
+- Cannot be bypassed or overridden
+- Ignore allow priority settings
+
+These policies represent catastrophic-risk protections such as:
+- Privileged containers
+- Host namespace escapes
+
+They are enforcement mechanisms, not agent shutdown controls.
+
+Configuration (`data.json`):
+```json
+{
+  "non_overridable_policies": {
+    "enabled": true,
+    "rule_ids": [
+      "k8s.privileged_container",
+      "k8s.host_namespace_escape"
+    ]
+  }
+}
+```
+
+When an agent or CI actor triggers a non-overridable rule and `non_overridable_policies.enabled` is true,
+the decision includes `non_overridable_policies_enforced: true` and the operation is denied
+regardless of other allow logic.
 
 ## Invariants
 

@@ -2,15 +2,15 @@ package evidra.policy
 
 import rego.v1
 
-test_deny_hints_agent_kill_switch_block_contains_stop_and_golden_ids if {
+test_deny_hints_non_overridable_block_contains_stop_and_rule_ids if {
 	d := data.evidra.policy.decision with input as deny_hints_privileged_apply_input("agent", "mcp-agent")
 
 	not d.allow
-	d.blocked_by_agent_kill_switch == true
-	"k8s.privileged_container" in d.golden_hits
+	d.non_overridable_policies_enforced == true
+	"k8s.privileged_container" in d.non_overridable_hits
 
 	some h1 in d.hints
-	contains(h1, "Agent Kill Switch")
+	contains(h1, "non-overridable policy")
 	some h2 in d.hints
 	contains(h2, "k8s.privileged_container")
 	some h3 in d.hints

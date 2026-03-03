@@ -732,7 +732,7 @@ agent (AI extracts into payload), OPA rules fire identically.
 - [ ] Rego canonicalize.rego split into domains/ structure
 - [ ] Deny-loop prevention uses adapter IntentKey (normalized payload)
 - [ ] Adapter telemetry (domain, canonicalize_mode, intent_eligible) in response
-- [ ] Golden policies verified against adapter flat output
+- [ ] Non-overridable policies verified against adapter flat output
 - [ ] Guard tests prevent domain leakage into rules
 - [ ] Adapters never read actor.* fields
 - [ ] `opa test policy/bundles/ops-v0.1/ -v` passes
@@ -766,25 +766,25 @@ did deny-loop not prevent retry."
 
 ---
 
-## 14. Golden Policies and Adapters
+## 14. Non-Overridable Policies and Adapters
 
-Golden policies (the hardcoded kill-switch rules that cannot be
+Non-overridable policies (the hardcoded rules that cannot be
 overridden) rely on specific flat fields produced by adapters.
-When adding or modifying golden policies, verify the required fields
-are produced by the relevant adapter's Canonicalize output.
+When adding or modifying non-overridable policies, verify the required
+fields are produced by the relevant adapter's Canonicalize output.
 
-Current golden rules and their adapter dependencies:
+Current non-overridable rules and their adapter dependencies:
 - `k8s.privileged_container` → requires `containers[].security_context.privileged` (K8s workload adapter via Rego)
 - `k8s.host_namespace_escape` → requires `host_pid`, `host_ipc`, `host_network` (K8s workload adapter via Rego)
 
-**Rule:** No golden policy may be added unless the required fields
-are present in the adapter's flat output AND tested in the adapter's
-test suite. This prevents golden policies that silently never fire
-because the adapter doesn't extract the needed field.
+**Rule:** No non-overridable policy may be added unless the required
+fields are present in the adapter's flat output AND tested in the
+adapter's test suite. This prevents non-overridable policies that
+silently never fire because the adapter doesn't extract the needed field.
 
-**CI enforcement (v0.3.x):** Add a guard test that scans golden rule
-files, extracts referenced flat field names, and verifies adapter test
-suites cover those fields. Not required for v0.3.0 launch, but
+**CI enforcement (v0.3.x):** Add a guard test that scans non-overridable
+rule files, extracts referenced flat field names, and verifies adapter
+test suites cover those fields. Not required for v0.3.0 launch, but
 high-ROI addition once the adapter test pattern is established.
 
 ---
@@ -803,5 +803,5 @@ high-ROI addition once the adapter test pattern is established.
 - Do not over-engineer Helm values hashing before real usage data
 - Do not let adapters read actor.* fields (actor semantics = decision layer)
 - Do not hash raw payload as fallback intent key (unstable, bypassable)
-- Do not add golden policies without verifying adapter flat output
-  includes the required fields
+- Do not add non-overridable policies without verifying adapter flat
+  output includes the required fields

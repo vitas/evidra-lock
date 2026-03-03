@@ -4,8 +4,8 @@ package evidra.policy.decision_impl
 import data.evidra.policy.defaults as defaults
 
 default allow := true
-default blocked_by_agent_kill_switch := false
-default agent_kill_switch_enabled := false
+default blocked_by_non_overridable_policies := false
+default non_overridable_policies_enabled := false
 
 denies := [{"label": l, "message": m} | data.evidra.policy.deny[l] = m]
 warnings := [{"label": l, "message": m} | data.evidra.policy.warn[l] = m]
@@ -26,17 +26,17 @@ hit_labels := [entry.label | entry := denies[_]]
 warn_labels := [entry.label | entry := warnings[_]]
 hits := dedupe(array.concat(hit_labels, warn_labels))
 
-golden_ids := data.evidra.policy.golden.rule_ids
+non_overridable_rule_ids := data.evidra.policy.non_overridable_policies.rule_ids
 
-golden_ids := [] if {
-	not data.evidra.policy.golden.rule_ids
+non_overridable_rule_ids := [] if {
+	not data.evidra.policy.non_overridable_policies.rule_ids
 }
-golden_hits := dedupe([label |
+non_overridable_hits := dedupe([label |
 	label := hit_labels[_]
-	golden_ids[_] == label
+	non_overridable_rule_ids[_] == label
 ])
 
-agent_kill_switch_enabled if data.evidra.policy.agent_kill_switch.enabled == true
+non_overridable_policies_enabled if data.evidra.policy.non_overridable_policies.enabled == true
 
 actor_kind := defaults.actor_type
 
@@ -44,23 +44,23 @@ actor_uses_agent_gate if {
 	actor_kind == "agent"
 }
 
-# CI is treated as agent for golden gating.
+# CI is treated as agent for non-overridable policy gating.
 actor_uses_agent_gate if {
 	actor_kind == "ci"
 }
 
-blocked_by_agent_kill_switch if {
+blocked_by_non_overridable_policies if {
 	actor_uses_agent_gate
-	agent_kill_switch_enabled
-	count(golden_hits) > 0
+	non_overridable_policies_enabled
+	count(non_overridable_hits) > 0
 }
 
 allow := false if {
-	blocked_by_agent_kill_switch
+	blocked_by_non_overridable_policies
 }
 
 allow := base_allow if {
-	not blocked_by_agent_kill_switch
+	not blocked_by_non_overridable_policies
 }
 
 reason := base_reason
@@ -106,13 +106,13 @@ has_k8s_manifest_action if {
 	action.kind == "oc.apply"
 }
 
-default kill_switch_hints := []
+default non_overridable_policy_hints := []
 
-kill_switch_hints := [
-	sprintf("Blocked by Agent Kill Switch due to golden policy hit(s): %s", [concat(", ", golden_hits)]),
+non_overridable_policy_hints := [
+	sprintf("Blocked by non-overridable policy hit(s): %s", [concat(", ", non_overridable_hits)]),
 	"Stop. Ask for human confirmation or reduce the risk.",
 ] if {
-	blocked_by_agent_kill_switch
+	blocked_by_non_overridable_policies
 }
 
 default missing_data_hints := []
@@ -149,7 +149,7 @@ hints := dedupe(array.concat(
 	array.concat(
 		context_hints,
 		array.concat(
-			kill_switch_hints,
+			non_overridable_policy_hints,
 			array.concat(missing_data_hints, array.concat(k8s_missing_data_hints, unsupported_shape_hints)),
 		),
 	),
@@ -175,8 +175,8 @@ decision := {
 	"hits": hits,
 	"hints": hints,
 	"actor_kind": actor_kind,
-	"golden_hits": golden_hits,
-	"blocked_by_agent_kill_switch": blocked_by_agent_kill_switch,
+	"non_overridable_hits": non_overridable_hits,
+	"non_overridable_policies_enforced": blocked_by_non_overridable_policies,
 }
 
 has_any_risk_tag(tag) if {

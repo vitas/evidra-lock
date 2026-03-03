@@ -536,8 +536,8 @@ func TestKillswitch_TruncatedContext(t *testing.T) {
 	}
 }
 
-// TestKillswitch_BaselineProfile verifies that golden rules do not fire
-// when ops.profile resolves to "baseline". Kill-switch rules remain active.
+// TestKillswitch_BaselineProfile verifies that non-overridable policy rules
+// do not fire when ops.profile resolves to "baseline". Kill-switch rules remain active.
 func TestKillswitch_BaselineProfile(t *testing.T) {
 	t.Parallel()
 	// kubectl.apply with privileged container + sufficient context
@@ -568,7 +568,7 @@ func TestKillswitch_BaselineProfile(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// With baseline profile, privileged container should PASS
-	// (golden rule gated, kill-switch allows because context is sufficient)
+	// (non-overridable rule gated, kill-switch allows because context is sufficient)
 	if !result.Pass {
 		t.Errorf("Pass=false, want true in baseline; RuleIDs=%v", result.RuleIDs)
 	}
