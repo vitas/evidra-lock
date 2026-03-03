@@ -477,7 +477,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
                   <dt><code>EVIDRA_BUNDLE_PATH</code></dt>
                   <dd>Custom OPA bundle directory. Leave empty to use the embedded <code>ops-v0.1</code> bundle.</dd>
                   <dt><code>EVIDRA_DENY_CACHE</code></dt>
-                  <dd>Enable deny-loop prevention for agent/CI actors (<code>true</code>/<code>false</code>, default: <code>false</code>). Blocks repeated identical denied requests without re-evaluating policy.</dd>
+                  <dd>Enable deny-loop prevention for agent/CI actors (<code>true</code>/<code>false</code>, default: <code>true</code>). Blocks repeated identical denied requests without re-evaluating policy.</dd>
                 </>
               )}
             </dl>
