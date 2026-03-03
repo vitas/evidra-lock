@@ -49,5 +49,8 @@ AGENTS.md
 .codex/
 .ai/
 
+# MCP publisher tokens
+.mcpregistry_*
+
 # Internal docs
 __internal/

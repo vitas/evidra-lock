@@ -1,0 +1,50 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.vitas/evidra",
+  "title": "Evidra",
+  "description": "Fail-closed policy guardrails for AI agents running kubectl, terraform, helm, and argocd.",
+  "repository": {
+    "url": "https://github.com/vitas/evidra",
+    "source": "github"
+  },
+  "version": "0.2.0",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/vitas/evidra-mcp:0.2.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Enable deny-loop prevention cache for agent/CI actors",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "EVIDRA_DENY_CACHE"
+        },
+        {
+          "description": "Environment label for policy evaluation (e.g. production, staging)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "EVIDRA_ENVIRONMENT"
+        }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://evidra.samebits.com/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Bearer token for API authentication (e.g. Bearer ev1_...)",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

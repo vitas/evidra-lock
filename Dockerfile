@@ -13,5 +13,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
 # nonroot tag runs as uid 65534; satisfies non-root requirement without
 # needing adduser or any OS package.
 FROM gcr.io/distroless/static:nonroot
+LABEL io.modelcontextprotocol.server.name="io.github.vitas/evidra"
 COPY --from=builder /evidra-mcp /usr/local/bin/evidra-mcp
 ENTRYPOINT ["/usr/local/bin/evidra-mcp"]
