@@ -11,13 +11,16 @@ This guide covers connecting Evidra MCP server to your AI agent and getting the 
 ### 1. Install
 
 ```bash
-# Option A: Homebrew
+# Option A: Docker Desktop (zero-config — recommended)
+# Install from Docker MCP catalog: search "evidra" in Docker Desktop → MCP Servers
+
+# Option B: Homebrew
 brew install samebits/tap/evidra-mcp
 
-# Option B: Go
+# Option C: Go
 go install github.com/vitas/evidra/cmd/evidra-mcp@latest
 
-# Option C: From source
+# Option D: From source
 git clone https://github.com/vitas/evidra.git
 cd evidra && go build -o evidra-mcp ./cmd/evidra-mcp
 ```

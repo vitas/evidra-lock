@@ -11,3 +11,4 @@
 7. [Security Model](SECURITY_MODEL.md) — Enforcement assumptions, evidence integrity, known limitations
 8. [Contributing](CONTRIBUTING.md) — Development workflow, adding rules, running tests
 9. [Claude Code Skill](../skills/evidra-infra-safety/SKILL.md) — Canonical installable skill for agents using `validate`/`get_event`
+10. [Docker MCP Registry](docker-mcp-registry.md) — Publishing Evidra to the Docker MCP catalog (zero-config image, registry files, update process)
