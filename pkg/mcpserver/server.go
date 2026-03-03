@@ -364,11 +364,16 @@ func (s *ValidateService) doEvaluate(ctx context.Context, inv invocation.ToolInv
 	}
 
 	// OFFLINE or FALLBACK: local evaluation
+	// Per-request environment takes precedence over server default.
+	env := s.environment
+	if inv.Environment != "" {
+		env = inv.Environment
+	}
 	res, err := validate.EvaluateInvocation(ctx, inv, validate.Options{
 		PolicyPath:  s.policyPath,
 		DataPath:    s.dataPath,
 		BundlePath:  s.bundlePath,
-		Environment: s.environment,
+		Environment: env,
 		EvidenceDir: s.evidencePath,
 	})
 	if err != nil {

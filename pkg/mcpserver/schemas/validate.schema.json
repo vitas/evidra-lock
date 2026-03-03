@@ -50,6 +50,10 @@
       "type": "string",
       "description": "Operation (e.g. plan, apply)."
     },
+    "environment": {
+      "type": "string",
+      "description": "Target environment label for environment-specific policy params (e.g. production, staging). When omitted, server default or 'default' is used."
+    },
     "params": {
       "type": "object",
       "description": "Operation parameters; include risk_tags/asserted data.",
