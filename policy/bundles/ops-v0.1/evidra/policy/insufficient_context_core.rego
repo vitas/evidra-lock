@@ -22,10 +22,15 @@ is_destructive(kind) if {
 	ops[_] == kind
 }
 
-# ── kubectl ──────────────────────────────────────────────
+# ── kubectl / oc ─────────────────────────────────────────
 
 has_sufficient_context(action) if {
 	action.kind == "kubectl.delete"
+	defaults.action_namespace(action) != ""
+}
+
+has_sufficient_context(action) if {
+	action.kind == "oc.delete"
 	defaults.action_namespace(action) != ""
 }
 
@@ -37,7 +42,22 @@ has_sufficient_context(action) if {
 }
 
 has_sufficient_context(action) if {
+	action.kind == "oc.apply"
+	defaults.action_namespace(action) != ""
+	payload := object.get(action, "payload", {})
+	not is_workload_resource(payload)
+}
+
+has_sufficient_context(action) if {
 	action.kind == "kubectl.apply"
+	defaults.action_namespace(action) != ""
+	payload := object.get(action, "payload", {})
+	is_workload_resource(payload)
+	has_real_containers(payload)
+}
+
+has_sufficient_context(action) if {
+	action.kind == "oc.apply"
 	defaults.action_namespace(action) != ""
 	payload := object.get(action, "payload", {})
 	is_workload_resource(payload)
@@ -193,6 +213,16 @@ missing_namespace(action) if {
 }
 
 missing_namespace(action) if {
+	action.kind == "oc.delete"
+	not defaults.action_namespace(action)
+}
+
+missing_namespace(action) if {
+	action.kind == "oc.apply"
+	not defaults.action_namespace(action)
+}
+
+missing_namespace(action) if {
 	action.kind == "helm.upgrade"
 	not defaults.action_namespace(action)
 }
@@ -204,6 +234,14 @@ missing_namespace(action) if {
 
 missing_workload_containers(action) if {
 	action.kind == "kubectl.apply"
+	defaults.action_namespace(action) != ""
+	payload := object.get(action, "payload", {})
+	is_workload_resource(payload)
+	not has_real_containers(payload)
+}
+
+missing_workload_containers(action) if {
+	action.kind == "oc.apply"
 	defaults.action_namespace(action) != ""
 	payload := object.get(action, "payload", {})
 	is_workload_resource(payload)
@@ -301,7 +339,22 @@ payload_shape_unsupported(action) if {
 }
 
 payload_shape_unsupported(action) if {
+	action.kind == "oc.delete"
+	payload := object.get(action, "payload", {})
+	is_object(payload)
+	defaults.has_key(payload, "namespace")
+	not is_string(object.get(payload, "namespace", null))
+}
+
+payload_shape_unsupported(action) if {
 	action.kind == "kubectl.apply"
+	payload := object.get(action, "payload", {})
+	is_object(payload)
+	kubectl_apply_shape_unsupported(payload)
+}
+
+payload_shape_unsupported(action) if {
+	action.kind == "oc.apply"
 	payload := object.get(action, "payload", {})
 	is_object(payload)
 	kubectl_apply_shape_unsupported(payload)
@@ -408,7 +461,17 @@ unsupported_shape_hint(kind) := hint if {
 }
 
 unsupported_shape_hint(kind) := hint if {
+	kind == "oc.apply"
+	hint := "Use a payload object in native manifest or flat form. Include namespace; for workload resources include pod spec containers[].image."
+}
+
+unsupported_shape_hint(kind) := hint if {
 	kind == "kubectl.delete"
+	hint := "Use a payload object with a string namespace (or target.namespace)."
+}
+
+unsupported_shape_hint(kind) := hint if {
+	kind == "oc.delete"
 	hint := "Use a payload object with a string namespace (or target.namespace)."
 }
 
@@ -435,6 +498,8 @@ unsupported_shape_hint(kind) := hint if {
 unsupported_shape_hint(kind) := hint if {
 	kind != "kubectl.apply"
 	kind != "kubectl.delete"
+	kind != "oc.apply"
+	kind != "oc.delete"
 	kind != "terraform.apply"
 	kind != "terraform.destroy"
 	not startswith(kind, "helm.")

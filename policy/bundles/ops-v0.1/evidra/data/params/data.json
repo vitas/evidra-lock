@@ -28,6 +28,8 @@
       "default": [
         "kubectl.delete",
         "kubectl.apply",
+        "oc.delete",
+        "oc.apply",
         "terraform.apply",
         "terraform.destroy",
         "helm.upgrade",
@@ -51,6 +53,14 @@
           "skeleton": "{\"namespace\": \"...\", \"resource_count\": 0}"
         },
         "kubectl.apply": {
+          "hint": "Provide: namespace + containers[].image (for workload resources)",
+          "skeleton": "{\"namespace\": \"...\", \"resource\": \"configmap\"}"
+        },
+        "oc.delete": {
+          "hint": "Provide: namespace",
+          "skeleton": "{\"namespace\": \"...\", \"resource_count\": 0}"
+        },
+        "oc.apply": {
           "hint": "Provide: namespace + containers[].image (for workload resources)",
           "skeleton": "{\"namespace\": \"...\", \"resource\": \"configmap\"}"
         },

@@ -6,19 +6,27 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"samebits.com/evidra/pkg/validate"
 )
 
 // TestParamsVocabulary verifies that all entries in ops.destructive_operations
-// use allowed kind prefixes. Catches "k8s.apply" or "tf.destroy" in params.
+// use allowed kind prefixes. This is a self-consistency check: AllowedPrefixesFromParams
+// derives prefixes from the same data, so this test ensures every entry has a
+// well-formed "tool.operation" shape with a dot separator.
 func TestParamsVocabulary(t *testing.T) {
 	t.Parallel()
 
-	allowedPrefixes := []string{
-		"kubectl.", "terraform.", "helm.", "argocd.",
-	}
-
 	paramsFile := filepath.Join("..", "..", "policy", "bundles", "ops-v0.1",
 		"evidra", "data", "params", "data.json")
+
+	allowedPrefixes, err := validate.AllowedPrefixesFromParams(paramsFile)
+	if err != nil {
+		t.Fatalf("load prefixes: %v", err)
+	}
+	if len(allowedPrefixes) == 0 {
+		t.Fatal("no prefixes found — ops.destructive_operations empty?")
+	}
 
 	data, err := os.ReadFile(paramsFile)
 	if err != nil {

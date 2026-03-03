@@ -6,22 +6,30 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"samebits.com/evidra/pkg/validate"
 )
 
 // TestKindVocabulary scans all rego rules for action.kind matches and
-// verifies they only use allowed prefixes. This prevents "kind drift"
-// where domain rules use k8s.apply instead of kubectl.apply, creating
-// silent policy bypasses.
+// verifies they only use prefixes derived from ops.destructive_operations
+// in data.json. This prevents "kind drift" where domain rules use
+// k8s.apply instead of kubectl.apply, creating silent policy bypasses.
 //
-// Scope: this test checks only kind LITERALS in action.kind == "..."
-// patterns. It does not cover kinds referenced in helper data or
-// derived dynamically. If new tool prefixes are added (e.g. crossplane),
-// update allowedPrefixes — this friction is intentional.
+// Prefixes are derived dynamically from the same data.json that OPA uses,
+// so adding a new tool to destructive_operations automatically allows
+// its prefix here.
 func TestKindVocabulary(t *testing.T) {
 	t.Parallel()
 
-	allowedPrefixes := []string{
-		"kubectl.", "terraform.", "helm.", "argocd.",
+	paramsFile := filepath.Join("..", "..", "policy", "bundles", "ops-v0.1",
+		"evidra", "data", "params", "data.json")
+
+	allowedPrefixes, err := validate.AllowedPrefixesFromParams(paramsFile)
+	if err != nil {
+		t.Fatalf("load prefixes: %v", err)
+	}
+	if len(allowedPrefixes) == 0 {
+		t.Fatal("no prefixes found — ops.destructive_operations empty?")
 	}
 
 	// Patterns that match kind literals in rego
