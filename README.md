@@ -147,6 +147,15 @@ Deterministic and fail-closed. No LLM in the evaluation loop.
 No runtime API calls. No network dependencies.
 The policy bundle is versioned and ships embedded in the binary.
 
+**Important nuance:** Policy evaluation is fully deterministic (OPA).
+However, the input payload is constructed by the calling agent.
+If the agent omits critical fields, evaluation runs on incomplete
+data. The kill-switch layer mitigates this — missing required
+fields always result in deny. v0.3.0 domain adapters will add
+structural validation of raw input before policy evaluation,
+further reducing dependence on agent accuracy.
+See [ROADMAP.md](ROADMAP.md) for details.
+
 The agent sees rule IDs and actionable hints on every deny,
 not just "no."
 
@@ -164,7 +173,7 @@ the same validation engine is called directly.
 
 ## Protection levels
 
-Evidra ships with two levels. Default is maximum safety.
+Evidra ships with two protection levels. A third (DevSec) is planned.
 
 **ops** (default) - full protection. Kill-switch guardrails plus
 curated ops rules that catch privileged containers, public S3 buckets,
@@ -173,6 +182,11 @@ misconfigurations. Extensible - add your own rules.
 
 **baseline** - kill-switch only. Blocks destructive operations with
 missing context and unknown tools. No opinion on what's "bad config."
+
+**devsec** (planned, v0.4.0) - security hardening rules for container
+security, image provenance, RBAC least-privilege, and cloud security.
+Complements ops (catastrophic-only) with security-focused checks.
+See [ROADMAP.md](ROADMAP.md).
 
 Select by bundle path:
 
@@ -282,6 +296,18 @@ layers, and how to run each test suite.
 ## Stability and Model Behavior
 
 See [docs/MODEL_BEHAVIOR_AND_DETERMINISM.md](docs/MODEL_BEHAVIOR_AND_DETERMINISM.md) for details about model variance and deterministic engine guarantees.
+
+---
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the full roadmap including:
+
+- **v0.3.0** — Domain adapters (Go + Rego hybrid) for per-tool
+  canonicalization and structural input validation
+- **v0.4.0** — DevSec policy pack (container security, RBAC,
+  image provenance, cloud hardening)
+- **v0.5.0+** — Crossplane/CFN, execution wrapping, multi-cluster
 
 ---
 
