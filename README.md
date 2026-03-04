@@ -1,4 +1,4 @@
-# Evidra
+# Evidra-MCP
 
 [![CI](https://github.com/vitas/evidra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/ci.yml)
 [![Release](https://github.com/vitas/evidra/actions/workflows/release.yml/badge.svg)](https://github.com/vitas/evidra/actions/workflows/release.yml)
