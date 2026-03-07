@@ -309,7 +309,7 @@ check_prerequisites() {
             CONFIG="$SCRIPT_DIR/mcp-config.json"
             # Always build from source to ensure embedded bundle is current
             echo "Building evidra-mcp from source..."
-            (cd "$REPO_ROOT" && GOTOOLCHAIN=auto go build -o bin/evidra-mcp ./cmd/evidra-mcp) || {
+            (cd "$REPO_ROOT" && GOTOOLCHAIN=auto go build -o bin/evidra-lock-mcp ./cmd/evidra-mcp) || {
                 echo "ERROR: failed to build evidra-mcp"
                 exit 1
             }

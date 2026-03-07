@@ -165,7 +165,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/vitas/evidra-mcp
+          images: ghcr.io/vitas/evidra-lock-mcp
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -186,13 +186,13 @@ jobs:
         with:
           context: .
           load: true
-          tags: evidra-mcp:smoke
+          tags: evidra-lock-mcp:smoke
 
       - name: Smoke test
         run: |
           { cat cmd/evidra-mcp/test/testdata/init.jsonl \
                cmd/evidra-mcp/test/testdata/validate_pass.jsonl; sleep 2; } \
-            | timeout 10 docker run --rm -i evidra-mcp:smoke \
+            | timeout 10 docker run --rm -i evidra-lock-mcp:smoke \
               >stdout.log 2>stderr.log || true
 
           echo "--- stderr ---"
@@ -228,7 +228,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/vitas/evidra-api
+          images: ghcr.io/vitas/evidra-lock-api
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -250,13 +250,13 @@ jobs:
           context: .
           file: Dockerfile.api
           load: true
-          tags: evidra-api:smoke
+          tags: evidra-lock-api:smoke
 
       - name: Smoke test
         run: |
           API_KEY="test-key-at-least-32-characters-long"
 
-          docker run -d --name evidra-api-smoke \
+          docker run -d --name evidra-lock-api-smoke \
             -p 8080:8080 \
             -e EVIDRA_ENV=development \
             -e EVIDRA_API_KEY="$API_KEY" \
@@ -273,13 +273,13 @@ jobs:
 
           # Health check
           curl -sf http://localhost:8080/healthz \
-            || { echo "FAIL: /healthz not reachable"; docker logs evidra-api-smoke; exit 1; }
+            || { echo "FAIL: /healthz not reachable"; docker logs evidra-lock-api-smoke; exit 1; }
           echo "PASS: /healthz ok"
 
           # UI root — must return 200 text/html (embedded UI)
           UI_CT=$(curl -sf -o /dev/null -w "%{content_type}" http://localhost:8080/)
           echo "$UI_CT" | grep -q "text/html" \
-            || { echo "FAIL: GET / content-type not text/html (got: $UI_CT)"; docker logs evidra-api-smoke; exit 1; }
+            || { echo "FAIL: GET / content-type not text/html (got: $UI_CT)"; docker logs evidra-lock-api-smoke; exit 1; }
           echo "PASS: GET / returns text/html"
 
           # Public key endpoint
@@ -299,8 +299,8 @@ jobs:
             || { echo "FAIL: response missing signature"; echo "$RESP"; exit 1; }
           echo "PASS: /v1/validate returns signed response"
 
-          docker stop evidra-api-smoke
-          docker rm evidra-api-smoke
+          docker stop evidra-lock-api-smoke
+          docker rm evidra-lock-api-smoke
 
       - name: Push image
         uses: docker/build-push-action@v6
@@ -325,7 +325,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/vitas/evidra-mcp-hosted
+          images: ghcr.io/vitas/evidra-lock-mcp-hosted
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -347,13 +347,13 @@ jobs:
           context: .
           file: Dockerfile.hosted
           load: true
-          tags: evidra-mcp-hosted:smoke
+          tags: evidra-lock-mcp-hosted:smoke
 
       - name: Smoke test
         run: |
           docker run -d --name hosted-smoke \
             -p 8000:8000 \
-            evidra-mcp-hosted:smoke
+            evidra-lock-mcp-hosted:smoke
 
           ok=0
           for i in $(seq 1 15); do

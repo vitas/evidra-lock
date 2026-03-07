@@ -11,13 +11,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build image
-        run: docker build -t evidra-mcp:smoke .
+        run: docker build -t evidra-lock-mcp:smoke .
 
       - name: Smoke test
         run: |
           { cat cmd/evidra-mcp/test/testdata/init.jsonl \
                cmd/evidra-mcp/test/testdata/validate_pass.jsonl; sleep 2; } \
-            | timeout 10 docker run --rm -i evidra-mcp:smoke \
+            | timeout 10 docker run --rm -i evidra-lock-mcp:smoke \
               >stdout.log 2>stderr.log || true
 
           echo "--- stderr ---"

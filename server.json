@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.vitas/evidra",
+  "name": "io.github.vitas/evidra-lock",
   "title": "Evidra",
   "description": "Fail-closed policy guardrails for AI agents running kubectl, terraform, helm, and argocd.",
   "repository": {
-    "url": "https://github.com/vitas/evidra",
+    "url": "https://github.com/vitas/evidra-lock",
     "source": "github"
   },
   "version": "0.2.0",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/vitas/evidra-mcp:0.2.0",
+      "identifier": "ghcr.io/vitas/evidra-lock-mcp:0.2.0",
       "transport": {
         "type": "stdio"
       },

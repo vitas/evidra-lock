@@ -569,7 +569,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
         <a href="#docs">How it works</a>
         <a href="#docs">API Reference</a>
         <a
-          href="https://github.com/vitas/evidra"
+          href="https://github.com/vitas/evidra-lock"
           target="_blank"
           rel="noopener noreferrer"
         >

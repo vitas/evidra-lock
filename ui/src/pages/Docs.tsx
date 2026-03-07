@@ -213,7 +213,7 @@ export function Docs() {
           calls <code>validate</code> before every destructive operation. No API
           key needed for local mode.{" "}
           <a
-            href="https://github.com/vitas/evidra/blob/main/docs/mcp-setup.md"
+            href="https://github.com/vitas/evidra-lock/blob/main/docs/mcp-setup.md"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -659,11 +659,11 @@ evidra-mcp --offline --evidence-dir ~/.evidra`} />
           Full documentation set (architecture notes, release plans, and security docs):
           {" "}
           <a
-            href="https://github.com/vitas/evidra/tree/main/docs"
+            href="https://github.com/vitas/evidra-lock/tree/main/docs"
             target="_blank"
             rel="noopener noreferrer"
           >
-            github.com/vitas/evidra/docs
+            github.com/vitas/evidra-lock/docs
           </a>
         </p>
       </section>

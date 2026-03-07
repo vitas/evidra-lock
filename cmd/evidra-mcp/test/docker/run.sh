@@ -4,7 +4,7 @@
 # Requires: docker, jq
 set -e
 
-IMAGE="${1:-evidra-mcp:zero-config}"
+IMAGE="${1:-evidra-lock-mcp:zero-config}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 PASS=0
 FAIL=0

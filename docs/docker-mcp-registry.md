@@ -53,7 +53,7 @@ about:
   description: Fail-closed policy guardrails for AI agents running kubectl, terraform, helm, argocd, and oc.
   icon: https://www.samebits.com/evidra-icon.png
 source:
-  project: https://github.com/vitas/evidra
+  project: https://github.com/vitas/evidra-lock
 run:
   env:
     EVIDRA_DENY_CACHE: "true"
@@ -85,12 +85,12 @@ cd ~/git/mcp-registry && task build -- --tools evidra
 
 ## 2. MCP Registry (modelcontextprotocol.io)
 
-Published to the official [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.vitas/evidra`. Supports both local OCI installation and hosted remote access.
+Published to the official [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.vitas/evidra-lock`. Supports both local OCI installation and hosted remote access.
 
 ### Registry entry
 
 ```
-https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.vitas/evidra
+https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.vitas/evidra-lock
 ```
 
 ### server.json
@@ -99,14 +99,14 @@ The `server.json` file in the project root defines the registry metadata:
 
 ```json
 {
-  "name": "io.github.vitas/evidra",
+  "name": "io.github.vitas/evidra-lock",
   "title": "Evidra",
   "description": "Fail-closed policy guardrails for AI agents running kubectl, terraform, helm, and argocd.",
   "version": "0.2.0",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/vitas/evidra-mcp:0.2.0",
+      "identifier": "ghcr.io/vitas/evidra-lock-mcp:0.2.0",
       "transport": { "type": "stdio" }
     }
   ],
@@ -124,7 +124,7 @@ The `server.json` file in the project root defines the registry metadata:
 The Dockerfile includes a LABEL that the MCP Registry uses to verify ownership:
 
 ```dockerfile
-LABEL io.modelcontextprotocol.server.name="io.github.vitas/evidra"
+LABEL io.modelcontextprotocol.server.name="io.github.vitas/evidra-lock"
 ```
 
 ### GHCR image
@@ -132,7 +132,7 @@ LABEL io.modelcontextprotocol.server.name="io.github.vitas/evidra"
 The OCI package is published to GitHub Container Registry:
 
 ```
-ghcr.io/vitas/evidra-mcp:0.2.0
+ghcr.io/vitas/evidra-lock-mcp:0.2.0
 ```
 
 The package must be **public** for the MCP Registry to verify it.
@@ -146,9 +146,9 @@ Prerequisites: `mcp-publisher` CLI and a GitHub account.
 brew install mcp-publisher
 
 # 2. Build and push the Docker image to GHCR
-docker build -t ghcr.io/vitas/evidra-mcp:VERSION -f Dockerfile .
+docker build -t ghcr.io/vitas/evidra-lock-mcp:VERSION -f Dockerfile .
 echo "GITHUB_TOKEN" | docker login ghcr.io -u vitas --password-stdin
-docker push ghcr.io/vitas/evidra-mcp:VERSION
+docker push ghcr.io/vitas/evidra-lock-mcp:VERSION
 
 # 3. Ensure the GHCR package is public
 # Go to: https://github.com/users/vitas/packages/container/evidra-mcp/settings
@@ -162,12 +162,12 @@ mcp-publisher login github
 mcp-publisher publish
 
 # 6. Verify
-curl -s "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.vitas/evidra" | jq .
+curl -s "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.vitas/evidra-lock" | jq .
 ```
 
 ### Updating the MCP Registry entry
 
-1. Build and push a new image tag to GHCR (`ghcr.io/vitas/evidra-mcp:NEW_VERSION`)
+1. Build and push a new image tag to GHCR (`ghcr.io/vitas/evidra-lock-mcp:NEW_VERSION`)
 2. Ensure the new tag is public
 3. Update `version` and `packages[0].identifier` in `server.json`
 4. Run `mcp-publisher publish`

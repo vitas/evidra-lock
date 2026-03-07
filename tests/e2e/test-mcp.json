@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
+      "command": "evidra-lock-mcp",
       "args": ["--evidence-store", "/tmp/evidra-test-evidence"]
     }
   }

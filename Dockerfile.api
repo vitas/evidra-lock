@@ -18,12 +18,12 @@ COPY . .
 COPY --from=ui-builder /ui/dist ./ui/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
     -tags embed_ui \
-    -o /evidra-api ./cmd/evidra-api
+    -o /evidra-lock-api ./cmd/evidra-api
 
 # Stage 3: Distroless — no shell, no package manager, no debug tools.
 # nonroot tag runs as uid 65534; satisfies non-root requirement without
 # needing adduser or any OS package.
 FROM gcr.io/distroless/static:nonroot
-COPY --from=builder /evidra-api /usr/local/bin/evidra-api
+COPY --from=builder /evidra-lock-api /usr/local/bin/evidra-lock-api
 EXPOSE 8080
-ENTRYPOINT ["/usr/local/bin/evidra-api"]
+ENTRYPOINT ["/usr/local/bin/evidra-lock-api"]
