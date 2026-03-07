@@ -18,9 +18,9 @@ lint:
 	golangci-lint run
 
 build:
-	go build -o bin/evidra ./cmd/evidra
-	go build -o bin/evidra-mcp ./cmd/evidra-mcp
-	go build -o bin/evidra-api ./cmd/evidra-api
+	go build -o bin/evidra-lock ./cmd/evidra
+	go build -o bin/evidra-lock-mcp ./cmd/evidra-mcp
+	go build -o bin/evidra-lock-api ./cmd/evidra-api
 
 tidy:
 	go mod tidy

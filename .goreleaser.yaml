@@ -9,7 +9,7 @@ before:
 builds:
   - id: evidra
     main: ./cmd/evidra
-    binary: evidra
+    binary: evidra-lock
     env:
       - CGO_ENABLED=0
     goos:
@@ -27,7 +27,7 @@ builds:
 
   - id: evidra-mcp
     main: ./cmd/evidra-mcp
-    binary: evidra-mcp
+    binary: evidra-lock-mcp
     env:
       - CGO_ENABLED=0
     goos:
@@ -45,7 +45,7 @@ builds:
 
   - id: evidra-api
     main: ./cmd/evidra-api
-    binary: evidra-api
+    binary: evidra-lock-api
     env:
       - CGO_ENABLED=0
     goos:
@@ -69,7 +69,7 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
-    name_template: "evidra-mcp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "evidra-lock-mcp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
   - id: evidra
     builds:
@@ -78,7 +78,7 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
-    name_template: "evidra_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "evidra-lock_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
   - id: evidra-api
     builds:
@@ -87,7 +87,7 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
-    name_template: "evidra-api_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "evidra-lock-api_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 release:
   mode: replace
@@ -100,7 +100,7 @@ changelog:
   sort: asc
 
 brews:
-  - name: evidra-mcp
+  - name: evidra-lock-mcp
     ids:
       - evidra-mcp
     skip_upload: false
@@ -108,10 +108,10 @@ brews:
       owner: samebits
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: "https://github.com/vitas/evidra"
+    homepage: "https://github.com/vitas/evidra-lock"
     description: "Evidra is a kill-switch for AI agents managing infrastructure."
     license: "Apache-2.0"
     install: |
-      bin.install "evidra-mcp"
+      bin.install "evidra-lock-mcp"
     test: |
-      system bin/"evidra-mcp", "--version"
+      system bin/"evidra-lock-mcp", "--version"

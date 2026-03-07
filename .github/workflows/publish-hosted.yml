@@ -70,4 +70,4 @@ jobs:
           file: Dockerfile.hosted
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/vitas/evidra-mcp-hosted:latest
+          tags: ghcr.io/vitas/evidra-lock-mcp-hosted:latest

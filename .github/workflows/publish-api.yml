@@ -94,4 +94,4 @@ jobs:
           file: Dockerfile.api
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/vitas/evidra-api:latest
+          tags: ghcr.io/vitas/evidra-lock-api:latest

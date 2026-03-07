@@ -18,10 +18,10 @@ This guide covers connecting Evidra MCP server to your AI agent and getting the 
 brew install samebits/tap/evidra-mcp
 
 # Option C: Go
-go install github.com/vitas/evidra/cmd/evidra-mcp@latest
+go install github.com/vitas/evidra-lock/cmd/evidra-mcp@latest
 
 # Option D: From source
-git clone https://github.com/vitas/evidra.git
+git clone https://github.com/vitas/evidra-lock.git
 cd evidra && go build -o evidra-mcp ./cmd/evidra-mcp
 ```
 
@@ -266,7 +266,7 @@ For Claude users, we provide a Skill that automates everything above. The skill 
 
 Canonical repo path: `skills/evidra-infra-safety/`.
 
-1. Download `evidra-infra-safety/` from [GitHub](https://github.com/vitas/evidra/tree/main/skills/evidra-infra-safety)
+1. Download `evidra-infra-safety/` from [GitHub](https://github.com/vitas/evidra-lock/tree/main/skills/evidra-infra-safety)
 2. Zip the folder
 3. Upload to Claude.ai → Settings → Capabilities → Skills
 4. Or place in Claude Code skills directory

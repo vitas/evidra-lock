@@ -160,7 +160,7 @@ export function Landing({ onGetStarted }: LandingProps) {
               Try it now &rarr;
             </button>
             <a
-              href="https://github.com/vitas/evidra"
+              href="https://github.com/vitas/evidra-lock"
               className="btn btn-ghost"
               target="_blank"
               rel="noopener noreferrer"
@@ -189,7 +189,7 @@ export function Landing({ onGetStarted }: LandingProps) {
           </p>
           <p className="hosted-links">
             <a
-              href="https://github.com/vitas/evidra"
+              href="https://github.com/vitas/evidra-lock"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -556,7 +556,7 @@ export function Landing({ onGetStarted }: LandingProps) {
           </p>
           <div className="footer-links">
             <a
-              href="https://github.com/vitas/evidra"
+              href="https://github.com/vitas/evidra-lock"
               target="_blank"
               rel="noopener noreferrer"
             >

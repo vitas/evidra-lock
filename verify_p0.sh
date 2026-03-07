@@ -6,8 +6,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTDATA="$REPO_ROOT/cmd/evidra-mcp/test/testdata"
-BINARY="$REPO_ROOT/bin/evidra-mcp"
-DOCKER_IMAGE="${1:-ghcr.io/vitas/evidra-mcp:latest}"
+BINARY="$REPO_ROOT/bin/evidra-lock-mcp"
+DOCKER_IMAGE="${1:-ghcr.io/vitas/evidra-lock-mcp:latest}"
 
 FAILURES=0
 pass() { printf "  [PASS] %s\n" "$*"; }

@@ -43,7 +43,7 @@ export function Layout({ currentPage, onNavigate, children }: LayoutProps) {
             </a>
           ))}
           <a
-            href="https://github.com/vitas/evidra"
+            href="https://github.com/vitas/evidra-lock"
             className="nav-link"
             target="_blank"
             rel="noopener noreferrer"

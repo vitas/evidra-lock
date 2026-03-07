@@ -54,7 +54,7 @@ CLAUDE_MODEL="${CLAUDE_MODEL:-sonnet}"
 EVIDENCE_DIR="${EVIDENCE_DIR:-/tmp/evidra-test-evidence}"
 TIMEOUT="${TIMEOUT:-120}"
 OUT_DIR="/tmp/evidra-e2e-$$"
-LOCAL_MCP_BINARY="$OUT_DIR/evidra-mcp-local"
+LOCAL_MCP_BINARY="$OUT_DIR/evidra-lock-mcp-local"
 
 EVIDRA_URL="${EVIDRA_URL:-}"
 EVIDRA_API_KEY="${EVIDRA_API_KEY:-}"
