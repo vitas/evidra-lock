@@ -7,7 +7,7 @@ import { InlineError } from "../components/InlineError";
 import "../styles/console.css";
 
 type Track = "mcp" | "api";
-type SetupPath = "hosted" | "local-api" | "offline";
+type SetupPath = "local-api" | "offline";
 type EditorTab = "claude-code" | "claude-desktop" | "cursor" | "codex" | "gemini";
 
 interface ConsoleProps {
@@ -15,35 +15,9 @@ interface ConsoleProps {
 }
 
 const KEY_PLACEHOLDER = "ev1_YOUR_KEY_HERE";
-const HOSTED_URL = "https://evidra.samebits.com/mcp";
-const API_URL = "https://api.evidra.rest";
+const API_URL = "https://your-server:8080";
 
 // ── Config generators ──────────────────────────────────
-
-function hostedClaudeCode(key: string) {
-  return `claude mcp add evidra --url ${HOSTED_URL} --header "Authorization: Bearer ${key}"`;
-}
-
-function hostedJson(key: string) {
-  return `{
-  "mcpServers": {
-    "evidra": {
-      "url": "${HOSTED_URL}",
-      "headers": {
-        "Authorization": "Bearer ${key}"
-      }
-    }
-  }
-}`;
-}
-
-function hostedCodex(key: string) {
-  return `[mcp_servers.evidra]
-url = "${HOSTED_URL}"
-
-[mcp_servers.evidra.headers]
-Authorization = "Bearer ${key}"`;
-}
 
 function localApiClaudeCode(key: string) {
   return `claude mcp add evidra evidra-lock-mcp \\
@@ -123,8 +97,7 @@ const editorTabs: { id: EditorTab; label: string }[] = [
 ];
 
 const setupPaths: { id: SetupPath; label: string }[] = [
-  { id: "hosted", label: "Hosted (no install)" },
-  { id: "local-api", label: "Local + Remote API" },
+  { id: "local-api", label: "Local + Self-hosted API" },
   { id: "offline", label: "Fully Offline" },
 ];
 
@@ -161,8 +134,7 @@ function EditorConfig({ editor, setupPath, keyValue }: {
   // Claude Code — one-liner for all paths
   if (editor === "claude-code") {
     let code: string;
-    if (setupPath === "hosted") code = hostedClaudeCode(keyValue);
-    else if (setupPath === "local-api") code = localApiClaudeCode(keyValue);
+    if (setupPath === "local-api") code = localApiClaudeCode(keyValue);
     else code = offlineClaudeCode;
     return (
       <>
@@ -175,8 +147,7 @@ function EditorConfig({ editor, setupPath, keyValue }: {
   // Codex — TOML format
   if (editor === "codex") {
     let code: string;
-    if (setupPath === "hosted") code = hostedCodex(keyValue);
-    else if (setupPath === "local-api") code = localApiCodex(keyValue);
+    if (setupPath === "local-api") code = localApiCodex(keyValue);
     else code = offlineCodex;
     return (
       <>
@@ -188,8 +159,7 @@ function EditorConfig({ editor, setupPath, keyValue }: {
 
   // Claude Desktop, Cursor, Gemini — JSON format
   let code: string;
-  if (setupPath === "hosted") code = hostedJson(keyValue);
-  else if (setupPath === "local-api") code = localApiJson(keyValue);
+  if (setupPath === "local-api") code = localApiJson(keyValue);
   else code = offlineJson;
   return (
     <>
@@ -204,7 +174,7 @@ function EditorConfig({ editor, setupPath, keyValue }: {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
   const [track, setTrack] = useState<Track>("mcp");
-  const [setupPath, setSetupPath] = useState<SetupPath>("hosted");
+  const [setupPath, setSetupPath] = useState<SetupPath>("offline");
   const [editor, setEditor] = useState<EditorTab>("claude-code");
   const [label, setLabel] = useState("");
   const [loading, setLoading] = useState(false);
@@ -233,7 +203,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
 
   const keyValue = keyData?.key || manualKey || KEY_PLACEHOLDER;
   const needsKey = setupPath !== "offline";
-  const needsInstall = setupPath !== "hosted";
+  const needsInstall = true;
 
   useEffect(() => {
     if (keyInputOpen && keyInputRef.current) {
@@ -259,8 +229,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
   }'`
     : "";
 
-  // Step numbering: hosted has no install step, so numbering shifts
-  const editorStepNum = needsInstall ? (needsKey ? 3 : 2) : (needsKey ? 2 : 1);
+  const editorStepNum = needsKey ? 3 : 2;
   const verifyStepNum = editorStepNum + 1;
 
   return (
@@ -310,15 +279,10 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
           </div>
 
           {/* Path description */}
-          {setupPath === "hosted" && (
-            <p className="setup-desc">
-              No install needed. Evaluations run on the hosted endpoint. <strong>Requires an API key.</strong>
-            </p>
-          )}
           {setupPath === "local-api" && (
             <p className="setup-desc">
-              Install the binary locally. Evaluations sent to hosted API.
-              Evidence stored server-side. <strong>Requires an API key.</strong>
+              Install the binary locally. Evaluations sent to your self-hosted API server.
+              Evidence signed server-side. <strong>Requires an API key.</strong>
             </p>
           )}
           {setupPath === "offline" && (
@@ -434,11 +398,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
           )}
 
           {/* Editor tabs */}
-          <h3>
-            {needsInstall
-              ? `${needsKey ? "2" : "2"}. Add to your editor`
-              : `${needsKey ? "1" : "1"}. Add to your editor`}
-          </h3>
+          <h3>{needsKey ? "2" : "2"}. Add to your editor</h3>
           <div className="editor-tabs">
             {editorTabs.map((tab) => (
               <button
@@ -472,7 +432,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
                   <dd><code>offline</code> = evaluate locally when API is unreachable. <code>closed</code> (default) = deny all if API is down.</dd>
                 </>
               )}
-              {setupPath !== "hosted" && (
+              {(
                 <>
                   <dt><code>EVIDRA_BUNDLE_PATH</code></dt>
                   <dd>Custom OPA bundle directory. Leave empty to use the embedded <code>ops-v0.1</code> bundle.</dd>

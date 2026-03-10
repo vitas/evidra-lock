@@ -171,21 +171,21 @@ export function Landing({ onGetStarted }: LandingProps) {
         </div>
       </section>
 
-      {/* 2. Hosted MCP config — CTA target (A4) */}
-      <section id="hosted-mcp" className="hosted-section reveal">
+      {/* 2. Quick install CTA (A4) */}
+      <section id="install" className="hosted-section reveal">
         <div className="container">
-          <h2>Add to Claude Code — 10 seconds</h2>
+          <h2>Add to Claude Code</h2>
           <CodeBlock
-            code={`claude mcp add evidra --url https://evidra.samebits.com/mcp`}
+            code={`brew install samebits/tap/evidra-lock-mcp && claude mcp add evidra -- evidra-lock-mcp`}
           />
           <p className="hosted-note">
-            No install. Designed for AI agents operating your infrastructure.
+            Local install. Runs entirely on your machine — no external dependencies.
             <br />
             <a href="#console">
               Other editors (Cursor, Claude Desktop, Codex, Gemini)
             </a>
             &nbsp;&middot;&nbsp;
-            <a href="#console">Install locally for offline / CI use</a>
+            <a href="#console">Self-hosted API setup</a>
           </p>
           <p className="hosted-links">
             <a
@@ -260,8 +260,7 @@ export function Landing({ onGetStarted }: LandingProps) {
       </section>
 
       <div className="repeat-cta">
-        <a href="#hosted-mcp">Add Evidra-Lock to Claude Code &rarr;</a> &middot; 10
-        seconds, no install
+        <a href="#install">Add Evidra-Lock to Claude Code &rarr;</a>
       </div>
 
       {/* 4. Scenarios */}

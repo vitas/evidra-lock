@@ -110,16 +110,6 @@ Binary downloads are available on [GitHub Releases](https://github.com/vitas/evi
 
 ---
 
-## Hosted Endpoints
-
-| Endpoint | URL |
-|---|---|
-| MCP server | `https://evidra.samebits.com/mcp` |
-| REST API | `https://api.evidra.rest/v1` |
-| Landing / Console | `https://evidra.samebits.com` |
-
----
-
 ## Development Guide
 
 For local development notes (including UI mock mode without backend), see [docs/evidra-development-guide.md](docs/evidra-development-guide.md).

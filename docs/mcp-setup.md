@@ -109,18 +109,6 @@ OpenClaw agents need explicit instructions to use Evidra-Lock. Add the system pr
 }
 ```
 
-**Hosted endpoint (no local install):**
-```json
-{
-  "mcpServers": {
-    "evidra": {
-      "url": "https://evidra.samebits.com/mcp",
-      "headers": { "Authorization": "Bearer ev1_YOUR_KEY" }
-    }
-  }
-}
-```
-
 ### 3. Test
 
 Ask your agent: *"What tools do you have from Evidra-Lock?"*
@@ -362,11 +350,11 @@ This affects environment-dependent rules (e.g. "production requires change-appro
 # Local-only (default) — embedded bundle, no network
 evidra-lock-mcp
 
-# Online — evaluations sent to API server
-EVIDRA_URL=https://api.evidra.rest EVIDRA_API_KEY=ev1_... evidra-lock-mcp
+# Online — evaluations sent to self-hosted API server
+EVIDRA_URL=https://your-server:8080 EVIDRA_API_KEY=ev1_... evidra-lock-mcp
 
 # Online with offline fallback — use API, fall back to local if unreachable
-EVIDRA_URL=https://api.evidra.rest EVIDRA_API_KEY=ev1_... evidra-lock-mcp --fallback-offline
+EVIDRA_URL=https://your-server:8080 EVIDRA_API_KEY=ev1_... evidra-lock-mcp --fallback-offline
 
 # Force offline — skip API even if EVIDRA_URL is set
 evidra-lock-mcp --offline

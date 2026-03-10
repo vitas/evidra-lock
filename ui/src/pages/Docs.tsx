@@ -46,11 +46,11 @@ const mcpGeminiCustom = `{
   }
 }`;
 
-const curlGetKey = `curl -X POST https://api.evidra.rest/v1/keys \\
+const curlGetKey = `curl -X POST https://your-server:8080/v1/keys \\
   -H "Content-Type: application/json" \\
   -d '{"label":"my-agent"}'`;
 
-const curlValidateAllow = `curl -X POST https://api.evidra.rest/v1/validate \\
+const curlValidateAllow = `curl -X POST https://your-server:8080/v1/validate \\
   -H "Authorization: Bearer ev1_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -67,7 +67,7 @@ const curlValidateAllow = `curl -X POST https://api.evidra.rest/v1/validate \\
     "environment": "staging"
   }'`;
 
-const curlValidateDeny = `curl -X POST https://api.evidra.rest/v1/validate \\
+const curlValidateDeny = `curl -X POST https://your-server:8080/v1/validate \\
   -H "Authorization: Bearer ev1_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -87,7 +87,7 @@ const curlVerify = `# 1. Save the evidence record from the validate response
 echo '$EVIDENCE_JSON' > evidence.json
 
 # 2. Get the public key
-curl https://api.evidra.rest/v1/evidence/pubkey | jq -r .pem > pubkey.pem
+curl https://your-server:8080/v1/evidence/pubkey | jq -r .pem > pubkey.pem
 
 # 3. Extract signature and payload
 jq -r .signature evidence.json | base64 -d > sig.bin

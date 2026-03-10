@@ -62,8 +62,8 @@ describe("Console", () => {
 
   it("shows EVIDRA_DENY_CACHE in env legend for local setups", async () => {
     render(<Console onKeyCreated={vi.fn()} />);
-    // Switch to Local + Remote API path
-    await userEvent.click(screen.getByText(/local \+ remote api/i));
+    // Switch to Local + Self-hosted API path
+    await userEvent.click(screen.getByText(/local \+ self-hosted api/i));
     expect(screen.getByText("EVIDRA_DENY_CACHE")).toBeInTheDocument();
   });
 
@@ -73,10 +73,10 @@ describe("Console", () => {
     expect(screen.getByText("EVIDRA_DENY_CACHE")).toBeInTheDocument();
   });
 
-  it("hides EVIDRA_DENY_CACHE in env legend for hosted setup", () => {
+  it("shows EVIDRA_DENY_CACHE in env legend for default (offline) setup", () => {
     render(<Console onKeyCreated={vi.fn()} />);
-    // Hosted is default — DENY_CACHE should not be visible
-    expect(screen.queryByText("EVIDRA_DENY_CACHE")).not.toBeInTheDocument();
+    // Offline is default — DENY_CACHE should be visible
+    expect(screen.getByText("EVIDRA_DENY_CACHE")).toBeInTheDocument();
   });
 
   it("does not store key anywhere after showing", async () => {
