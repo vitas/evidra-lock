@@ -1,1 +1,1 @@
-MCP/JSON-RPC error semantics used by Evidra tests and clients.
+MCP/JSON-RPC error semantics used by Evidra-Lock tests and clients.

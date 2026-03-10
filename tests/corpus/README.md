@@ -1,4 +1,4 @@
-# Evidra Test Corpus
+# Evidra-Lock Test Corpus
 
 Canonical test data for all 23+ policy rules. Single source of truth for both Go unit tests and agent-based E2E tests.
 

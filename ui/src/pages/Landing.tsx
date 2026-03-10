@@ -77,7 +77,7 @@ export function Landing({ onGetStarted }: LandingProps) {
             <span className="danger">kubectl delete --all</span>
           </h1>
           <p className="hero-sub">
-            Evidra is a kill-switch for AI agents managing infrastructure.
+            Evidra-Lock is a kill-switch for AI agents managing infrastructure.
             Experimenting with AI in staging? Add a kill-switch first.
             Blocks dangerous ops. Allows safe ones. Every decision logged.
           </p>
@@ -208,7 +208,7 @@ export function Landing({ onGetStarted }: LandingProps) {
         <div className="container">
           <h2>Test these in Claude Code</h2>
           <p className="prompts-intro">
-            Add Evidra, then click any prompt to copy it. Paste into Claude
+            Add Evidra-Lock, then click any prompt to copy it. Paste into Claude
             Code.
           </p>
           <table className="prompts-table">
@@ -254,13 +254,13 @@ export function Landing({ onGetStarted }: LandingProps) {
           </table>
           <p className="prompts-note">
             The last one passes.{" "}
-            <strong>Evidra blocks danger, not work.</strong>
+            <strong>Evidra-Lock blocks danger, not work.</strong>
           </p>
         </div>
       </section>
 
       <div className="repeat-cta">
-        <a href="#hosted-mcp">Add Evidra to Claude Code &rarr;</a> &middot; 10
+        <a href="#hosted-mcp">Add Evidra-Lock to Claude Code &rarr;</a> &middot; 10
         seconds, no install
       </div>
 
@@ -314,7 +314,7 @@ export function Landing({ onGetStarted }: LandingProps) {
         <div className="container">
           <h2>Built for AI agents. Not a CLI wrapper.</h2>
           <p className="mcp-sub">
-            Evidra runs as a standard MCP (Model Context Protocol) server. AI
+            Evidra-Lock runs as a standard MCP (Model Context Protocol) server. AI
             agents discover it automatically and call <code>validate</code>{" "}
             before destructive operations. No wrapper scripts. No custom
             plugins. No patching the agent.
@@ -328,7 +328,7 @@ export function Landing({ onGetStarted }: LandingProps) {
               &darr; <span className="mcp-proto">MCP: validate</span>
             </div>
             <div className="mcp-node active">
-              Evidra
+              Evidra-Lock
               <span className="mcp-label">allow / deny + evidence</span>
             </div>
             <div className="mcp-arrow">
@@ -351,7 +351,7 @@ export function Landing({ onGetStarted }: LandingProps) {
             </div>
           </div>
           <p className="mcp-note">
-            Not a replacement for OPA or Gatekeeper — Evidra runs before
+            Not a replacement for OPA or Gatekeeper — Evidra-Lock runs before
             execution, across tools. They're complementary.
           </p>
         </div>
@@ -408,7 +408,7 @@ export function Landing({ onGetStarted }: LandingProps) {
         <div className="container">
           <h2>Also works in CI and GitOps pipelines</h2>
           <p className="ci-sub">
-            Same policy engine. Same evidence chain. Evidra validates Terraform
+            Same policy engine. Same evidence chain. Evidra-Lock validates Terraform
             plans, rendered manifests, or change bundles before merge — not just
             in AI workflows.
           </p>
@@ -442,7 +442,7 @@ export function Landing({ onGetStarted }: LandingProps) {
         <div className="container">
           <h2>When something goes wrong, you'll have proof</h2>
           <p className="evidence-sub">
-            3 databases deleted. Incident review starts. With Evidra, you have
+            3 databases deleted. Incident review starts. With Evidra-Lock, you have
             the exact decision record: who triggered it, what policy was active,
             whether it was approved or bypassed. No guessing. No "we think it
             was..."
@@ -520,7 +520,7 @@ export function Landing({ onGetStarted }: LandingProps) {
                 <div className="step-title">Agent calls validate</div>
                 <div className="step-desc">
                   Before any destructive operation — kubectl apply, terraform
-                  destroy, helm upgrade — the agent asks Evidra: "is this safe?"
+                  destroy, helm upgrade — the agent asks Evidra-Lock: "is this safe?"
                 </div>
                 <div className="step-code">
                   <span className="t-key">tool:</span> kubectl{" "}
@@ -533,7 +533,7 @@ export function Landing({ onGetStarted }: LandingProps) {
             <div className="step">
               <div className="step-num">3</div>
               <div>
-                <div className="step-title">Evidra decides</div>
+                <div className="step-title">Evidra-Lock decides</div>
                 <div className="step-desc">
                   Allow, deny, or "I need more context." Every decision is
                   recorded to a tamper-evident evidence chain. The agent sees

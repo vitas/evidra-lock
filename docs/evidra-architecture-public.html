@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Evidra — System Architecture</title>
+<title>Evidra-Lock — System Architecture</title>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <style>
   :root {
@@ -75,7 +75,7 @@
 </head>
 <body>
 
-<h1>Evidra — System Architecture</h1>
+<h1>Evidra-Lock — System Architecture</h1>
 <p class="subtitle">Public architecture reference &bull; Version 0.2.0 &bull; February 2026</p>
 
 <div class="toc">
@@ -115,9 +115,9 @@
 <!-- ═══════════════════════════════════════════════ -->
 <h2 id="overview"><span class="num">1</span> System Overview</h2>
 
-<p>Evidra is a policy-as-code guardrail engine for AI agents and CI pipelines. It evaluates whether a tool invocation — Terraform apply, Kubernetes deploy, database migration — should be allowed, denied, or flagged, then produces a cryptographically signed evidence record.</p>
+<p>Evidra-Lock is a policy-as-code guardrail engine for AI agents and CI pipelines. It evaluates whether a tool invocation — Terraform apply, Kubernetes deploy, database migration — should be allowed, denied, or flagged, then produces a cryptographically signed evidence record.</p>
 
-<p>Evidra follows an <strong>API-first hybrid architecture</strong>: when a server is available, all clients (CLI, MCP, CI) delegate evaluation to the API for consistent policy and centralized evidence. When offline or in air-gapped environments, clients fall back to a local OPA engine with an embedded policy bundle.</p>
+<p>Evidra-Lock follows an <strong>API-first hybrid architecture</strong>: when a server is available, all clients (CLI, MCP, CI) delegate evaluation to the API for consistent policy and centralized evidence. When offline or in air-gapped environments, clients fall back to a local OPA engine with an embedded policy bundle.</p>
 
 <h3 id="components">1.1 Component Map</h3>
 
@@ -132,7 +132,7 @@ graph LR
     PLAT["Platform<br/><i>Backstage, Slack</i>"]
   end
 
-  subgraph "Evidra API  (source of truth)"
+  subgraph "Evidra-Lock API  (source of truth)"
     API["HTTP API<br/><i>/v1/validate</i>"]
     ENGINE["Policy Engine<br/><i>OPA + Rego</i>"]
     EV["Evidence Store<br/><i>JSONL + Ed25519</i>"]
@@ -233,7 +233,7 @@ graph TB
 <!-- ═══════════════════════════════════════════════ -->
 <h2 id="hybrid"><span class="num">2</span> Hybrid Mode — API-First with Offline Fallback</h2>
 
-<p>Evidra is API-first: when a server is reachable, all evaluation happens server-side. This guarantees consistent policy decisions and centralized evidence across all clients. The local OPA engine serves as an offline fallback for air-gapped environments and network failures.</p>
+<p>Evidra-Lock is API-first: when a server is reachable, all evaluation happens server-side. This guarantees consistent policy decisions and centralized evidence across all clients. The local OPA engine serves as an offline fallback for air-gapped environments and network failures.</p>
 
 <h3 id="hybrid-modes">2.1 Three Operating Modes</h3>
 
@@ -296,7 +296,7 @@ graph TD
   <tr><td><code>--bundle</code></td><td>(embedded)</td><td>Path to OPA bundle for offline/fallback mode. If unset, uses embedded <code>ops-v0.1</code></td></tr>
 </table>
 
-<div class="warn"><strong>Fail closed by default:</strong> When the API is configured but unreachable, Evidra returns an error rather than silently falling back to local evaluation. This prevents policy drift: if you expect server-managed policy, a silent fallback to a stale local bundle could allow actions the server would deny. Opt into fallback explicitly with <code>EVIDRA_FALLBACK=offline</code>.</div>
+<div class="warn"><strong>Fail closed by default:</strong> When the API is configured but unreachable, Evidra-Lock returns an error rather than silently falling back to local evaluation. This prevents policy drift: if you expect server-managed policy, a silent fallback to a stale local bundle could allow actions the server would deny. Opt into fallback explicitly with <code>EVIDRA_FALLBACK=offline</code>.</div>
 
 <h3 id="hybrid-mcp">2.3 MCP Server — Sidecar Pattern</h3>
 
@@ -446,7 +446,7 @@ sequenceDiagram
   participant GH as CI Runner
   participant TF as terraform
   participant AD as evidra-adapter-terraform
-  participant API as Evidra API
+  participant API as Evidra-Lock API
   participant OPA as Policy Engine
 
   GH->>TF: terraform plan -out=tfplan.bin
@@ -498,7 +498,7 @@ sequenceDiagram
   <div class="diagram-label">Evidence Lifecycle</div>
   <pre class="mermaid">
 sequenceDiagram
-  participant SRC as Evidra (API or local)
+  participant SRC as Evidra-Lock (API or local)
   participant EV as Evidence Store
   participant AUD as Auditor
 
@@ -548,7 +548,7 @@ graph TB
     PL["Platform<br/><i>Already has structured data</i><br/><i>No adapter needed</i>"]
   end
 
-  subgraph "Evidra API"
+  subgraph "Evidra-Lock API"
     V["/v1/validate"]
   end
 
@@ -830,7 +830,7 @@ graph TB
 </table>
 
 <p style="text-align: center; color: var(--text-muted); margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border);">
-  Evidra &bull; System Architecture &bull; v0.2.0
+  Evidra-Lock &bull; System Architecture &bull; v0.2.0
 </p>
 
 <script>

@@ -109,7 +109,7 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: "https://github.com/vitas/evidra-lock"
-    description: "Evidra is a kill-switch for AI agents managing infrastructure."
+    description: "Evidra-Lock is a kill-switch for AI agents managing infrastructure."
     license: "Apache-2.0"
     install: |
       bin.install "evidra-lock-mcp"

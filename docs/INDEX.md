@@ -1,4 +1,4 @@
-> Part of the Evidra OSS toolset by SameBits.
+> Part of the Evidra-Lock OSS toolset by SameBits.
 
 # Documentation
 
@@ -11,4 +11,4 @@
 7. [Security Model](SECURITY_MODEL.md) — Enforcement assumptions, evidence integrity, known limitations
 8. [Contributing](CONTRIBUTING.md) — Development workflow, adding rules, running tests
 9. [Claude Code Skill](../skills/evidra-infra-safety/SKILL.md) — Canonical installable skill for agents using `validate`/`get_event`
-10. [MCP Registry Publications](docker-mcp-registry.md) — Publishing Evidra to Docker MCP catalog and modelcontextprotocol.io registry (zero-config image, GHCR, registry files, update process)
+10. [MCP Registry Publications](docker-mcp-registry.md) — Publishing Evidra-Lock to Docker MCP catalog and modelcontextprotocol.io registry (zero-config image, GHCR, registry files, update process)

@@ -1,4 +1,4 @@
-> Part of the Evidra OSS toolset by SameBits.
+> Part of the Evidra-Lock OSS toolset by SameBits.
 
 # Contributing
 

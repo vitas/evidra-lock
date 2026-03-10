@@ -7,9 +7,9 @@ metadata:
   mcp-server: evidra-mcp
 ---
 
-# Evidra Infra Safety
+# Evidra-Lock Infra Safety
 
-Use this skill to apply Evidra as a strict safety gate before infrastructure mutations.
+Use this skill to apply Evidra-Lock as a strict safety gate before infrastructure mutations.
 
 ## Source of Truth
 

@@ -106,7 +106,7 @@
     "If this is a newly added tool: add a has_sufficient_context clause in deny_insufficient_context.rego."
   ],
   "ops.unknown_destructive": [
-    "This tool/operation is not recognized by Evidra policy.",
+    "This tool/operation is not recognized by Evidra-Lock policy.",
     "Add it to ops.destructive_operations in policy params, or use a known safe suffix (get, list, describe, plan, etc.).",
     "For emergency use: add risk_tag: breakglass to override (will be logged)."
   ],

@@ -1,8 +1,8 @@
-> Part of the Evidra OSS toolset by SameBits.
+> Part of the Evidra-Lock OSS toolset by SameBits.
 
 # Architecture
 
-Evidra is a policy evaluation and evidence signing system for AI agent infrastructure operations. Before an AI agent executes `kubectl apply` or `terraform apply`, it calls Evidra. Evidra evaluates OPA policy, returns allow/deny with risk level and remediation hints, and produces a cryptographically verifiable evidence record. The agent stores the evidence and proceeds (or aborts).
+Evidra-Lock is a policy evaluation and evidence signing system for AI agent infrastructure operations. Before an AI agent executes `kubectl apply` or `terraform apply`, it calls Evidra-Lock. Evidra-Lock evaluates OPA policy, returns allow/deny with risk level and remediation hints, and produces a cryptographically verifiable evidence record. The agent stores the evidence and proceeds (or aborts).
 
 Three binaries share one evaluation core. Two operating modes — online (API-first) and offline (local OPA) — ensure consistent policy decisions whether connected or air-gapped.
 
@@ -48,7 +48,7 @@ graph TD
 | `evidra/evidra` | API server, MCP server, CLI, OPA engine, evidence, policy bundle |
 | `evidra/adapters` | Adapter interface + `evidra-adapter-terraform` binary |
 
-Zero Go import coupling between repos. Communication between adapters and Evidra is HTTP JSON (`POST /v1/validate`) or stdin/stdout pipes.
+Zero Go import coupling between repos. Communication between adapters and Evidra-Lock is HTTP JSON (`POST /v1/validate`) or stdin/stdout pipes.
 
 ---
 

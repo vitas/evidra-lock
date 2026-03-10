@@ -1,12 +1,12 @@
-> Part of the Evidra OSS toolset by SameBits.
+> Part of the Evidra-Lock OSS toolset by SameBits.
 
 # Security Model
 
 ## Design Philosophy
 
-Evidra is a pre-execution validation layer. The policy baseline (`ops-v0.1`) contains a curated set of ops rules focused exclusively on catastrophic failure prevention: production namespace deletion, world-open security groups, wildcard IAM policies, privileged container escape. The ops layer is extensible with your own policies.
+Evidra-Lock is a pre-execution validation layer. The policy baseline (`ops-v0.1`) contains a curated set of ops rules focused exclusively on catastrophic failure prevention: production namespace deletion, world-open security groups, wildcard IAM policies, privileged container escape. The ops layer is extensible with your own policies.
 
-### What Evidra does
+### What Evidra-Lock does
 
 - Evaluates infrastructure changes against deterministic policy before execution.
 - Returns structured decisions with rule IDs, reasons, and actionable hints.
@@ -15,9 +15,9 @@ Evidra is a pre-execution validation layer. The policy baseline (`ops-v0.1`) con
 ### Non-goals
 
 - **Not a CIS compliance scanner.** Does not implement full CIS benchmarks or aim for checkbox coverage.
-- **Not a replacement for tfsec, trivy, or checkov.** Those tools perform deep static analysis across hundreds of rules. Evidra evaluates a small, curated set of catastrophic guardrails.
+- **Not a replacement for tfsec, trivy, or checkov.** Those tools perform deep static analysis across hundreds of rules. Evidra-Lock evaluates a small, curated set of catastrophic guardrails.
 - **Not a runtime security tool.** No runtime API calls, no cloud provider connections, no live infrastructure inspection.
-- **Not an enforcement gateway.** Evidra validates and records — it does not execute commands or manage infrastructure directly.
+- **Not an enforcement gateway.** Evidra-Lock validates and records — it does not execute commands or manage infrastructure directly.
 
 ---
 
@@ -121,7 +121,7 @@ The server uses `crypto/ed25519` from the Go standard library. No external crypt
 
 ## Logging and Redaction
 
-Evidra uses `log/slog` (structured JSON) for the API server and `log` for CLI/MCP.
+Evidra-Lock uses `log/slog` (structured JSON) for the API server and `log` for CLI/MCP.
 
 **Never logged:**
 - API key plaintext or signing key material.
@@ -139,9 +139,9 @@ Evidra uses `log/slog` (structured JSON) for the API server and `log` for CLI/MC
 
 ## Known Limitations
 
-- **Bypass risk:** Any execution path that skips `pkg/validate` / `evidra-mcp` / the API is not covered. If an agent can execute commands without calling the `validate` tool, Evidra provides no protection for that path.
+- **Bypass risk:** Any execution path that skips `pkg/validate` / `evidra-mcp` / the API is not covered. If an agent can execute commands without calling the `validate` tool, Evidra-Lock provides no protection for that path.
 - **Host-level access:** An adversary with root access to the host can rewrite the local evidence store directly. Mitigate by exporting evidence to an external system or using online mode where evidence is Ed25519-signed.
-- **Static analysis only:** Evidra evaluates declared configuration, not runtime state. A Terraform plan that passes policy may still produce unexpected results due to provider behavior.
+- **Static analysis only:** Evidra-Lock evaluates declared configuration, not runtime state. A Terraform plan that passes policy may still produce unexpected results due to provider behavior.
 - **No rate limiting (Phase 0):** The static-key API has no request rate limiting. Rely on network-level controls (firewall, reverse proxy) for Phase 0.
 - **Single static key (Phase 0):** All clients share one API key. No per-client audit trail until Phase 1 introduces dynamic key issuance.
 

@@ -1,4 +1,4 @@
-# Evidra Engine Logic v2
+# Evidra-Lock Engine Logic v2
 
 Canonical reference for current validation engine behavior.
 

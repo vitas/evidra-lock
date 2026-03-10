@@ -209,7 +209,7 @@ export function Docs() {
       <section className="docs-section">
         <h2>MCP Setup</h2>
         <p>
-          The fastest way to use Evidra: run the MCP server locally. Your AI agent
+          The fastest way to use Evidra-Lock: run the MCP server locally. Your AI agent
           calls <code>validate</code> before every destructive operation. No API
           key needed for local mode.{" "}
           <a
@@ -480,7 +480,7 @@ export function Docs() {
       <section className="docs-section">
         <h2>Supported Operations</h2>
         <p>
-          Evidra validates destructive operations and automatically allows safe (read-only)
+          Evidra-Lock validates destructive operations and automatically allows safe (read-only)
           operations. Custom tools can be added to <code>ops.destructive_operations</code>{" "}
           in policy <code>data.json</code>.
         </p>
@@ -521,7 +521,7 @@ export function Docs() {
       <section className="docs-section">
         <h2>CLI Usage</h2>
         <p>
-          Evidra ships three binaries: <code>evidra</code> (offline CLI),{" "}
+          Evidra-Lock ships three binaries: <code>evidra</code> (offline CLI),{" "}
           <code>evidra-mcp</code> (MCP server), and <code>evidra-api</code> (HTTP API).
         </p>
         <CodeBlock code={cliUsageExample} />

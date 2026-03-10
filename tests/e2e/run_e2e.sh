@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Evidra Skill E2E Test Runner
+# Evidra-Lock Skill E2E Test Runner
 #
-# Runs real AI agent (Claude Code headless) against real Evidra MCP server.
+# Runs real AI agent (Claude Code headless) against real Evidra-Lock MCP server.
 # Data-driven: prompts and expectations from tests/corpus/ (files with "agent" section).
 #
 # Usage:
@@ -831,7 +831,7 @@ generate_html_report() {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Evidra E2E Report — ${run_ts}</title>
+<title>Evidra-Lock E2E Report — ${run_ts}</title>
 <style>
   :root {
     --pass: #22c55e; --fail: #ef4444; --skip: #f59e0b;
@@ -884,7 +884,7 @@ generate_html_report() {
 </head>
 <body>
 <header>
-  <h1>Evidra <span>E2E</span> Report</h1>
+  <h1>Evidra-Lock <span>E2E</span> Report</h1>
   <div class="meta">
     <span>🕐 ${run_ts}</span>
     <span>🔗 ${mode_label}</span>
@@ -925,7 +925,7 @@ main() {
         esac
     done
 
-    log "Evidra Skill E2E Test Runner"
+    log "Evidra-Lock Skill E2E Test Runner"
     if [ -n "$EVIDRA_URL" ]; then
         log "Mode: online → $EVIDRA_URL"
     else

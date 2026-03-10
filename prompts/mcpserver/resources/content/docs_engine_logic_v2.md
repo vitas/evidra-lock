@@ -1,4 +1,4 @@
-# Evidra Engine Logic v2 (MCP summary)
+# Evidra-Lock Engine Logic v2 (MCP summary)
 
 - `actor.type` is the security classifier (`human|agent|ci`).
 - `actor.origin` is transport metadata (`mcp|cli|api`) and not a security classifier.

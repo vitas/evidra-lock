@@ -307,7 +307,7 @@ If you changed values, you should re-evaluate. Document this explicitly.
   map the agent sends. Document in SKILL.md and MCP contract:
   "Do NOT include secrets or credentials in Helm values payload.
   Use secret references or external secret management."
-  Evidra does not filter or redact values — it hashes what it
+  Evidra-Lock does not filter or redact values — it hashes what it
   receives. The contract must make this explicit.
 
 - **YAML anchors/aliases:** The agent sends JSON (MCP transport).

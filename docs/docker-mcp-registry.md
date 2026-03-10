@@ -1,12 +1,12 @@
 # MCP Registry Publications
 
-Evidra is published to two MCP registries, providing both local (Docker) and hosted installation options.
+Evidra-Lock is published to two MCP registries, providing both local (Docker) and hosted installation options.
 
 ---
 
 ## 1. Docker MCP Registry
 
-Published to the [Docker MCP Registry](https://github.com/docker/mcp-registry), making Evidra available as a one-click MCP server in Docker Desktop.
+Published to the [Docker MCP Registry](https://github.com/docker/mcp-registry), making Evidra-Lock available as a one-click MCP server in Docker Desktop.
 
 ### Image
 
@@ -27,7 +27,7 @@ The Docker image works out of the box with no configuration:
 
 ### Docker Desktop usage
 
-After installing from the Docker MCP catalog, Evidra appears as an MCP server in Docker Desktop. AI agents connected through Docker Desktop MCP can call `validate` before destructive infrastructure operations.
+After installing from the Docker MCP catalog, Evidra-Lock appears as an MCP server in Docker Desktop. AI agents connected through Docker Desktop MCP can call `validate` before destructive infrastructure operations.
 
 ### Registry files
 
@@ -49,7 +49,7 @@ meta:
   category: devops
   tags: [kubernetes, terraform, security, policy, opa, ai-agents, infrastructure]
 about:
-  title: Evidra
+  title: Evidra-Lock
   description: Fail-closed policy guardrails for AI agents running kubectl, terraform, helm, argocd, and oc.
   icon: https://www.samebits.com/evidra-icon.png
 source:
@@ -100,7 +100,7 @@ The `server.json` file in the project root defines the registry metadata:
 ```json
 {
   "name": "io.github.vitas/evidra-lock",
-  "title": "Evidra",
+  "title": "Evidra-Lock",
   "description": "Fail-closed policy guardrails for AI agents running kubectl, terraform, helm, and argocd.",
   "version": "0.2.0",
   "packages": [

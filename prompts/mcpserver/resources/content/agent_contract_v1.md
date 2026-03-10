@@ -1,6 +1,6 @@
-# Evidra Agent Contract v1
+# Evidra-Lock Agent Contract v1
 
-You are operating against an Evidra policy enforcement service.
+You are operating against an Evidra-Lock policy enforcement service.
 
 ## 1. Always Validate First
 
