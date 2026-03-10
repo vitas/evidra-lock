@@ -115,7 +115,7 @@ func TestExportCreatesAuditPack(t *testing.T) {
 	if mf["format"] != "evidra-audit-pack-v0.1" {
 		t.Fatalf("unexpected manifest format: %v", mf["format"])
 	}
-	if mf["notes"] != "Evidra audit pack v0.1" {
+	if mf["notes"] != "Evidra-Lock audit pack v0.1" {
 		t.Fatalf("unexpected manifest notes: %v", mf["notes"])
 	}
 	policySHA, ok := mf["policy_file_sha256"].(string)

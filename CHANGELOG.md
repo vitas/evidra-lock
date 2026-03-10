@@ -4,6 +4,62 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog.
 
+## [v0.2.0] — 2026-03-10
+
+Project renamed to **Evidra-Lock**. All binaries, Docker images, repo URLs, and documentation updated.
+
+### Added
+
+- **Engine v2** — rewritten evaluation pipeline with Rego canonicalization layer.
+  - `canonicalize.rego` projects raw action payloads into normalized flat shape before rule evaluation.
+  - `input.actions` list replaces single-action input — supports multi-action validation.
+  - Actor-aware decisions: `actor.type` (`human|agent|ci`) drives rule behavior (e.g. `ops.autonomous_execution` warn).
+  - Tool field semantics documented: `tool` = execution CLI, not manifest generator. `oc` treated as `kubectl`.
+
+- **Deny-loop prevention** (`stop_after_deny`) — opt-in cache that blocks agents from retrying identical denied operations. Enable with `--deny-cache` or `EVIDRA_DENY_CACHE=true`.
+
+- **OpenShift support** — `oc` recognized as equivalent to `kubectl` for canonicalization and sufficient-context rules.
+
+- **MCP input schema** — `validate` tool ships a JSON Schema describing expected input structure, improving agent payload accuracy.
+
+- **Agent contract prompts** — externalized MCP system prompts and tool descriptions (`prompts/mcpserver/`). Agent contract v1 defines validate-before-execute protocol.
+
+- **Deny hints** — all deny decisions return actionable hints (1–3 per rule) from `rule_hints/data.json`.
+
+- **MCP Registry publications** — published to both Docker MCP Registry (`mcp/evidra`) and modelcontextprotocol.io (`io.github.vitas/evidra-lock`). Docker Desktop zero-config install.
+
+- **Hosted endpoints** — `https://evidra-lock.samebits.com/mcp` (MCP) and `https://api.evidra.rest/v1` (REST API).
+
+- **E2E test suite** — data-driven tests using Claude Code headless against real MCP server. Corpus-backed with `tests/corpus/`. Supports Sonnet (blocking) and Haiku (signal) model runs. HTML report generation.
+
+- **UI improvements** — landing page rewrite with kill-switch positioning, interactive prompt table, hosted MCP one-liner setup, MCP client configs for Claude Code / Desktop / Cursor / Codex / Gemini CLI / OpenClaw.
+
+- **Policy additions** — `ops.unapproved_change` (protected namespace gate), `ops.public_exposure` (Terraform public exposure), `ops.autonomous_execution` (audit warn), `ops.breakglass_used` (audit warn). Total: 23 rules.
+
+- **Claude Code Skill** (`skills/evidra-infra-safety/`) — installable skill for automatic validate-before-mutate behavior.
+
+- **Homebrew tap** — `brew install samebits/tap/evidra-lock-mcp`.
+
+### Changed
+
+- **Renamed to Evidra-Lock** — repo URLs (`github.com/vitas/evidra-lock`), binary names (`evidra-lock`, `evidra-lock-mcp`, `evidra-lock-api`), Docker images (`ghcr.io/vitas/evidra-lock-*`), all documentation and UI.
+- Engine evaluates `defaults.actions` (canonicalized) instead of raw `input.params` — rules no longer depend on agent payload structure.
+- Embedded bundle cache moved to `~/.evidra/bundles/ops-v0.1/` (survives restarts).
+- MCP server prompts and tool descriptions externalized from Go code to `prompts/mcpserver/`.
+- Policy bundle restructured: insufficient context rule split into per-tool sufficient-context clauses.
+- UI redesigned with terminal demo, scenario grid, and docs section with API quickstart.
+
+### Documentation
+
+- Engine Logic v2 spec (`docs/ENGINE_LOGIC_V2.md`).
+- Model Behavior and Determinism guide (`docs/MODEL_BEHAVIOR_AND_DETERMINISM.md`).
+- MCP setup guide with configs for 6 agent platforms (`docs/mcp-setup.md`).
+- MCP Registry publication guide (`docs/docker-mcp-registry.md`).
+- Development guide with UI mock mode (`docs/evidra-development-guide.md`).
+- Roadmap v0.3.0–v0.5.0+ (`ROADMAP.md`).
+
+---
+
 ## [v0.1.0] — Phase 1
 
 ### Added

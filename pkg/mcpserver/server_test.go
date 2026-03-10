@@ -154,7 +154,7 @@ func TestValidateToolDescriptionAndSchemaGuidance(t *testing.T) {
 		t.Fatal("validate tool not found")
 	}
 	for _, snippet := range []string{
-		"Evaluates intended infrastructure action(s) against the Evidra policy bundle",
+		"Evaluates intended infrastructure action(s) against the Evidra-Lock policy bundle",
 		"Kubernetes payload may be a native manifest or a flat schema",
 		"If allow=false: STOP",
 		"Do not retry unchanged input",
@@ -248,7 +248,7 @@ func TestAgentContractResourceContainsRequiredClauses(t *testing.T) {
 	text := readResourceTextFromServer(t, server, resourceURIAgentContractV1)
 
 	for _, snippet := range []string{
-		"Evidra Agent Contract v1",
+		"Evidra-Lock Agent Contract v1",
 		"Always Validate First",
 		"STOP immediately",
 		"-32602",

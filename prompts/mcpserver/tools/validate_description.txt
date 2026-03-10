@@ -1,4 +1,4 @@
-Evaluates intended infrastructure action(s) against the Evidra policy bundle.
+Evaluates intended infrastructure action(s) against the Evidra-Lock policy bundle.
 Call before destructive or privileged operations (for example: kubectl apply/delete, terraform apply/destroy, helm upgrade/uninstall, argocd sync).
 The tool field identifies the execution tool, not the manifest generator. For kustomize/jsonnet/cdk8s output, use tool=kubectl.
 If allow=false: STOP. Show reasons to the user. Do not retry unchanged input.

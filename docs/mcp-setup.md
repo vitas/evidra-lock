@@ -1,8 +1,8 @@
-# Evidra MCP — Setup & Usage Guide
+# Evidra-Lock MCP — Setup & Usage Guide
 
-Evidra is an infrastructure safety gate. It validates planned changes (Kubernetes, Terraform, Helm, AWS, ArgoCD) against OPA policies before execution and produces a signed evidence trail.
+Evidra-Lock is an infrastructure safety gate. It validates planned changes (Kubernetes, Terraform, Helm, AWS, ArgoCD) against OPA policies before execution and produces a signed evidence trail.
 
-This guide covers connecting Evidra MCP server to your AI agent and getting the most out of it.
+This guide covers connecting Evidra-Lock MCP server to your AI agent and getting the most out of it.
 
 ---
 
@@ -96,13 +96,13 @@ agents:
         args: ["--bundle", "ops-v0.1"]
 ```
 
-OpenClaw agents need explicit instructions to use Evidra. Add the system prompt block from the [Other Agents](#codex--gemini-cli--other-agents) section to your agent's `systemPrompt` in openclaw.json:
+OpenClaw agents need explicit instructions to use Evidra-Lock. Add the system prompt block from the [Other Agents](#codex--gemini-cli--other-agents) section to your agent's `systemPrompt` in openclaw.json:
 
 ```json
 {
   "agents": {
     "defaults": {
-      "systemPrompt": "... your prompt ...\n\n## Infrastructure Safety Gate (Evidra)\n\nYou have access to an MCP tool called \"validate\". You MUST call it before executing any command that creates, modifies, or deletes infrastructure resources.\n\nWhen to call: kubectl apply/delete/create/patch, terraform apply/destroy, helm install/upgrade/uninstall, argocd sync, AWS mutations.\n\nSkip for: get, describe, list, plan, show, diff, status.\n\nCRITICAL: If validate returns allow=false, DO NOT execute the command. Show the deny reasons and hints to the user. If validate fails or is unreachable, DO NOT execute — fail closed."
+      "systemPrompt": "... your prompt ...\n\n## Infrastructure Safety Gate (Evidra-Lock)\n\nYou have access to an MCP tool called \"validate\". You MUST call it before executing any command that creates, modifies, or deletes infrastructure resources.\n\nWhen to call: kubectl apply/delete/create/patch, terraform apply/destroy, helm install/upgrade/uninstall, argocd sync, AWS mutations.\n\nSkip for: get, describe, list, plan, show, diff, status.\n\nCRITICAL: If validate returns allow=false, DO NOT execute the command. Show the deny reasons and hints to the user. If validate fails or is unreachable, DO NOT execute — fail closed."
     }
   }
 }
@@ -122,7 +122,7 @@ OpenClaw agents need explicit instructions to use Evidra. Add the system prompt 
 
 ### 3. Test
 
-Ask your agent: *"What tools do you have from Evidra?"*
+Ask your agent: *"What tools do you have from Evidra-Lock?"*
 
 You should see two tools: `validate` and `get_event`.
 
@@ -130,7 +130,7 @@ You should see two tools: `validate` and `get_event`.
 
 ## How It Works
 
-Evidra exposes two MCP tools:
+Evidra-Lock exposes two MCP tools:
 
 **`validate`** — Check a planned infrastructure change against policy. Returns `allow` or `deny` with reasons, hints, and an evidence ID.
 
@@ -140,23 +140,23 @@ Evidra exposes two MCP tools:
 
 ```
 You → Agent: "Deploy nginx to production"
-       Agent → Evidra: validate(kubectl, apply, namespace=production, ...)
-       Evidra → Agent: deny — missing resource limits, mutable image tag
+       Agent → Evidra-Lock: validate(kubectl, apply, namespace=production, ...)
+       Evidra-Lock → Agent: deny — missing resource limits, mutable image tag
 Agent → You: "Blocked: resource limits required, use a pinned image tag"
 ```
 
 When allowed:
 ```
 You → Agent: "Deploy nginx to default namespace with limits and pinned tag"
-       Agent → Evidra: validate(kubectl, apply, namespace=default, ...)
-       Evidra → Agent: allow — evidence evt-abc123
+       Agent → Evidra-Lock: validate(kubectl, apply, namespace=default, ...)
+       Evidra-Lock → Agent: allow — evidence evt-abc123
 Agent → You: "Approved (evt-abc123), deploying now"
        Agent → executes kubectl apply
 ```
 
 ---
 
-## What Evidra Checks (ops-v0.1 bundle)
+## What Evidra-Lock Checks (ops-v0.1 bundle)
 
 The default policy bundle covers:
 
@@ -191,7 +191,7 @@ The default policy bundle covers:
 
 ## Agent Instructions
 
-This section explains how your AI agent should use Evidra. If you're using Claude with the Evidra Skill installed, this happens automatically. For other agents (Codex, Gemini CLI), include these instructions in your system prompt or agent configuration.
+This section explains how your AI agent should use Evidra-Lock. If you're using Claude with the Evidra-Lock Skill installed, this happens automatically. For other agents (Codex, Gemini CLI), include these instructions in your system prompt or agent configuration.
 
 ### When to validate
 
@@ -250,7 +250,7 @@ If context is sparse, call validate with what you have. More context = better po
 
 **allow=false:** Stop. Show the user: reasons (human-readable), rule IDs, risk level, hints (how to fix). Never retry with the same parameters.
 
-**Error (ok=false with error field):** Evidra itself had a problem. Do not proceed. Tell the user validation could not complete.
+**Error (ok=false with error field):** Evidra-Lock itself had a problem. Do not proceed. Tell the user validation could not complete.
 
 ### Evidence retrieval
 
@@ -292,7 +292,7 @@ Expected: Claude calls validate → gets denied (protected namespace) → shows 
 Agents without Claude Skill support need explicit instructions. Add the following to your agent's system prompt or instructions file (for OpenClaw, add it to `systemPrompt` in openclaw.json — see [connection config above](#2-connect-to-your-agent)):
 
 ```
-## Infrastructure Safety Gate (Evidra)
+## Infrastructure Safety Gate (Evidra-Lock)
 
 You have access to an MCP tool called "validate". You MUST call it
 before executing any command that creates, modifies, or deletes
@@ -392,7 +392,7 @@ evidra-mcp --offline
 - Verify MCP connection: ask the agent "what tools do you have?"
 - If validate not listed: check MCP config, restart agent
 - If listed but not called: add explicit instructions (see Codex/Gemini section)
-- For Claude: install the Evidra Skill for automatic triggering
+- For Claude: install the Evidra-Lock Skill for automatic triggering
 
 **Validation returns error instead of allow/deny:**
 - Check policy bundle path: `--bundle ops-v0.1` must resolve to actual files

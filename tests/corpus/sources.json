@@ -603,13 +603,13 @@
     {
       "rule_id": "ops.unknown_destructive",
       "candidates": [],
-      "notes": "Rule enforces Evidra's internal allowlist model for operation kinds. Public sources discuss fail-closed design generally, but no concrete external dataset maps 1:1 to Evidra kind vocabulary and safe-suffix logic.",
+      "notes": "Rule enforces Evidra-Lock's internal allowlist model for operation kinds. Public sources discuss fail-closed design generally, but no concrete external dataset maps 1:1 to Evidra-Lock kind vocabulary and safe-suffix logic.",
       "status": "no_public_candidates"
     },
     {
       "rule_id": "sys.unlabeled_deny",
       "candidates": [],
-      "notes": "Hint-only internal quality label for policy authoring (not a domain misconfiguration rule). No external corpus maps to unlabeled deny emissions in Evidra's decision aggregator.",
+      "notes": "Hint-only internal quality label for policy authoring (not a domain misconfiguration rule). No external corpus maps to unlabeled deny emissions in Evidra-Lock's decision aggregator.",
       "status": "no_public_candidates"
     },
     {

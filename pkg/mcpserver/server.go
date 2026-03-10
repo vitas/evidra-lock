@@ -194,7 +194,7 @@ func NewServer(opts Options) *mcp.Server {
 	}, svc.readResourcePolicySummary)
 	server.AddResource(&mcp.Resource{
 		Name:        "evidra-agent-contract-v1",
-		Title:       "Evidra Agent Contract v1",
+		Title:       "Evidra-Lock Agent Contract v1",
 		Description: content.AgentContractDescription,
 		MIMEType:    "text/markdown",
 		URI:         resourceURIAgentContractV1,

@@ -1,4 +1,4 @@
-# Evidra Development Guide
+# Evidra-Lock Development Guide
 
 ## UI Dev Mock Mode (No Backend)
 

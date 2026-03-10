@@ -60,7 +60,7 @@
       "properties": {
         "payload": {
           "type": "object",
-          "description": "Kubernetes payload may be a native manifest (Deployment/Pod/CronJob) or a flat internal shape; Evidra canonicalizes it before policy evaluation using tool-aware normalization.",
+          "description": "Kubernetes payload may be a native manifest (Deployment/Pod/CronJob) or a flat internal shape; Evidra-Lock canonicalizes it before policy evaluation using tool-aware normalization.",
           "examples": [
             {
               "kind": "Deployment",

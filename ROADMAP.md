@@ -7,7 +7,7 @@ Last updated: 2026-03
 
 ## Current State (v0.2.x)
 
-Evidra ships two protection levels:
+Evidra-Lock ships two protection levels:
 
 **ops** (default) — kill-switch guardrails plus curated ops rules
 covering K8s workloads, Terraform plan metadata, ArgoCD sync safety,
@@ -133,17 +133,17 @@ Items on the radar, not yet committed:
 - **Multi-cluster context** — cluster identity in evaluation
 - **Policy marketplace** — community-contributed rule packs
 - **Admission controller mode** — ValidatingWebhookConfiguration
-  for teams that want Evidra in-cluster (complement to pre-execution)
+  for teams that want Evidra-Lock in-cluster (complement to pre-execution)
 
 ---
 
 ## Non-goals
 
-- **Compliance scanner.** Evidra checks actions, not cluster state.
+- **Compliance scanner.** Evidra-Lock checks actions, not cluster state.
   Use Trivy, Kubescape, or Prowler for compliance scanning.
-- **Full admission controller replacement.** Evidra runs before
+- **Full admission controller replacement.** Evidra-Lock runs before
   execution; admission controllers run at deploy time. Keep both.
 - **Natural language policy.** Policies are OPA/Rego. Deterministic,
   auditable, version-controlled. No prompt-based rules.
-- **Runtime monitoring.** Evidra evaluates pre-execution intent.
+- **Runtime monitoring.** Evidra-Lock evaluates pre-execution intent.
   Use Falco or Tetragon for runtime security.

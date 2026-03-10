@@ -28,7 +28,7 @@ func TestLoadGuidanceContentAutoFallsBackToEmbedded(t *testing.T) {
 	if !strings.Contains(content.InitializeInstructions, "Always call `validate`") {
 		t.Fatalf("unexpected initialize instructions: %q", content.InitializeInstructions)
 	}
-	if !strings.Contains(content.AgentContractV1Body, "Evidra Agent Contract v1") {
+	if !strings.Contains(content.AgentContractV1Body, "Evidra-Lock Agent Contract v1") {
 		t.Fatalf("unexpected agent contract body: %q", content.AgentContractV1Body)
 	}
 }

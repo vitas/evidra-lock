@@ -8,12 +8,12 @@ Evidra-mcp exposes two tools:
 - `get_event`
 
 It does not execute or intercept infrastructure mutations (e.g., `kubectl apply`, `terraform apply`, `argocd sync`).
-Mutation execution occurs outside Evidra.
+Mutation execution occurs outside Evidra-Lock.
 
 Because of this:
 
-- Evidra cannot enforce "validate-required" before execution.
-- Evidra cannot block execution after a deny.
+- Evidra-Lock cannot enforce "validate-required" before execution.
+- Evidra-Lock cannot block execution after a deny.
 - Enforcement is limited to behavior inside the `validate` tool.
 
 ## Tool-Use Variance Across Models
@@ -31,7 +31,7 @@ Engine correctness is independent of model compliance variance.
 
 ## Deterministic Engine Guarantees
 
-Evidra guarantees determinism at the policy layer:
+Evidra-Lock guarantees determinism at the policy layer:
 
 - Canonicalization produces stable normalized input.
 - Policy evaluation is deterministic.

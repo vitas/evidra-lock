@@ -1,4 +1,4 @@
-# Evidra-lock
+# Evidra-Lock
 
 [![CI](https://github.com/vitas/evidra-lock/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra-lock/actions/workflows/ci.yml)
 [![Release](https://github.com/vitas/evidra-lock/actions/workflows/release.yml/badge.svg)](https://github.com/vitas/evidra-lock/actions/workflows/release.yml)
@@ -28,22 +28,22 @@ incorrect actions.
 Humans may approve without understanding full impact. CI pipelines
 may apply plans automatically.
 
-Evidra-lock sits between the agent and your infrastructure. Every
+Evidra-Lock sits between the agent and your infrastructure. Every
 destructive command is validated against explicit policy before
 execution. If it's dangerous, incomplete, or unknown, it's denied.
 
-Evidra-lock does not rely on natural language analysis. It evaluates
+Evidra-Lock does not rely on natural language analysis. It evaluates
 structured tool invocations against OPA policy. If the input cannot
 be mapped to policy with sufficient context, the request is denied.
 
-Input must be structured. Evidra-lock does not parse raw shell commands.
+Input must be structured. Evidra-Lock does not parse raw shell commands.
 Tool + operation + payload are explicit.
 
 ---
 
 ## Fail-closed by default
 
-If Evidra-lock cannot evaluate the operation safely, it denies.
+If Evidra-Lock cannot evaluate the operation safely, it denies.
 
 - Unknown tool or operation -> deny
 - Missing payload fields on destructive operation -> deny
@@ -60,12 +60,12 @@ Read-only operations (`get`, `list`, `plan`, `describe`) are allowed by default.
 
 ## 30-Second Demo
 
-1. Install Evidra-lock. Connect to Claude Code. Try to break things.
+1. Install Evidra-Lock. Connect to Claude Code. Try to break things.
 2. Open Claude Code and type:
 
 > "Delete all pods in the kube-system namespace."
 
-3. Claude calls the `validate` MCP tool before acting. Evidra-lock evaluates the action against policy.
+3. Claude calls the `validate` MCP tool before acting. Evidra-Lock evaluates the action against policy.
 
 4. Claude receives:
 
@@ -128,17 +128,17 @@ For local development notes (including UI mock mode without backend), see [docs/
 
 ## How It Works
 
-Evidra-lock runs as a standard MCP server. AI agents discover it
+Evidra-Lock runs as a standard MCP server. AI agents discover it
 automatically and call `validate` before destructive operations.
 
 ```
-AI agent -> MCP: validate -> Evidra-lock (OPA policy) -> allow/deny -> evidence chain
+AI agent -> MCP: validate -> Evidra-Lock (OPA policy) -> allow/deny -> evidence chain
                                                |
                                    only if allowed -> kubectl / terraform / helm
 ```
 
 1. Agent sends tool invocation via MCP before executing.
-2. Evidra-lock maps tool + operation to intent (destructive or read-only).
+2. Evidra-Lock maps tool + operation to intent (destructive or read-only).
 3. Request is evaluated against a versioned OPA policy bundle.
 4. Decision returned: allow/deny + risk level + rule IDs + hints.
 5. Decision recorded to append-only, hash-linked evidence log.
@@ -166,14 +166,14 @@ terraform show -json tfplan | evidra validate --tool terraform --op apply
 ```
 
 Same policy engine. Same evidence chain. Works in AI workflows and
-traditional CI pipelines. In CI mode, Evidra-lock operates without MCP -
+traditional CI pipelines. In CI mode, Evidra-Lock operates without MCP -
 the same validation engine is called directly.
 
 ---
 
 ## Protection levels
 
-Evidra-lock ships with two protection levels. A third (DevSec) is planned.
+Evidra-Lock ships with two protection levels. A third (DevSec) is planned.
 
 **ops** (default) - full protection. Kill-switch guardrails plus
 curated ops rules that catch privileged containers, public S3 buckets,
@@ -202,7 +202,7 @@ evidra-mcp --bundle policy/bundles/baseline-v0.1   # kill-switch only
 Not a compliance scanner. Every rule prevents a specific high-impact
 failure that has caused real outages.
 
-Evidra-lock ships with `ops-v0.1`: curated ops rules (deny + warn) covering Kubernetes, Terraform, ArgoCD, S3, and IAM. The ops layer is extensible - add your own rules.
+Evidra-Lock ships with `ops-v0.1`: curated ops rules (deny + warn) covering Kubernetes, Terraform, ArgoCD, S3, and IAM. The ops layer is extensible - add your own rules.
 
 Design principles:
 
@@ -217,21 +217,21 @@ See [POLICY_CATALOG.md](POLICY_CATALOG.md) for the full rule catalog.
 ## Not a replacement for OPA
 
 Admission controllers run at deploy time, inside the cluster.
-Evidra-lock runs before execution - across `kubectl`, `terraform`, `helm`,
+Evidra-Lock runs before execution - across `kubectl`, `terraform`, `helm`,
 `argocd`. Especially in AI-driven workflows. Keep both.
 
 ---
 
 ## Threat model
 
-Evidra-lock assumes:
+Evidra-Lock assumes:
 
 - AI agents may generate incomplete or unsafe infrastructure actions.
 - Payload may be incorrect, partial, or adversarial.
 - Humans may approve without understanding full impact.
 - CI pipelines may apply plans automatically.
 
-Evidra-lock does not:
+Evidra-Lock does not:
 
 - Execute commands.
 - Modify infrastructure.
@@ -241,7 +241,7 @@ Evidra-lock does not:
 It validates structured input against explicit policy, and records
 the decision. Nothing more.
 
-Evidra-lock does not sit in the execution path. It must be called
+Evidra-Lock does not sit in the execution path. It must be called
 before execution by the agent, CLI, or CI pipeline.
 
 ---

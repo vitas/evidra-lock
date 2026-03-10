@@ -1,4 +1,4 @@
-> Part of the Evidra OSS toolset by SameBits.
+> Part of the Evidra-Lock OSS toolset by SameBits.
 
 # Policy Catalog — ops-v0.1
 
@@ -12,7 +12,7 @@ Last updated: 2026-02-25
 
 ### What this is (and what it is not)
 
-Evidra is **not** a CIS compliance scanner. It does not aim to cover every best-practice checkbox. These are **catastrophic guardrails** — a small, high-signal set of rules that prevent the most devastating infrastructure misconfigurations: production outages, mass data exposure, irreversible destruction, and cluster/account compromise.
+Evidra-Lock is **not** a CIS compliance scanner. It does not aim to cover every best-practice checkbox. These are **catastrophic guardrails** — a small, high-signal set of rules that prevent the most devastating infrastructure misconfigurations: production outages, mass data exposure, irreversible destruction, and cluster/account compromise.
 
 Every rule in this bundle satisfies all of the following:
 

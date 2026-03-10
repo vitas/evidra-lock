@@ -242,7 +242,7 @@ func runExport(args []string, stdout io.Writer, stderr io.Writer) int {
 		Records:                       meta.Records,
 		LastHash:                      meta.LastHash,
 		PolicyRef:                     meta.PolicyRef,
-		Notes:                         "Evidra audit pack v0.1",
+		Notes:                         "Evidra-Lock audit pack v0.1",
 		EvidenceStoreFormat:           storeFormat,
 		EvidenceStoreManifestLastHash: storeManifestLastHash,
 	}

@@ -87,7 +87,7 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 	// Connection flags
 	offlineFlag := fs.Bool("offline", false, "Force offline mode")
 	fallbackOffline := fs.Bool("fallback-offline", false, "Allow local eval when API unreachable")
-	urlFlag := fs.String("url", "", "Evidra API URL (overrides EVIDRA_URL)")
+	urlFlag := fs.String("url", "", "Evidra-Lock API URL (overrides EVIDRA_URL)")
 	apiKeyFlag := fs.String("api-key", "", "API key (overrides EVIDRA_API_KEY)")
 	timeoutFlag := fs.String("timeout", "", "HTTP timeout for API calls (default: 30s)")
 
@@ -488,7 +488,7 @@ func firstN(items []string, limit int) []string {
 func printUsage(w io.Writer) {
 	defaultEvidence := config.DefaultEvidencePathDescription()
 
-	fmt.Fprintln(w, "Evidra CLI — open-source utility by SameBits.")
+	fmt.Fprintln(w, "Evidra-Lock CLI — open-source utility by SameBits.")
 	fmt.Fprintln(w, "usage: evidra <validate|version>")
 	fmt.Fprintln(w, "  evidra validate [flags] <file>")
 	fmt.Fprintln(w, "  evidra version")

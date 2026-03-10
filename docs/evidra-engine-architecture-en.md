@@ -1,4 +1,4 @@
-# Evidra — Validation Engine Architecture (Historical, Pre-v2)
+# Evidra-Lock — Validation Engine Architecture (Historical, Pre-v2)
 
 > Status: This document is historical and contains pre-v2 details that are no longer authoritative.
 >
@@ -356,7 +356,7 @@ All parameters are per-environment via `resolve_param(key)`:
 
 ## 6. Error handling
 
-All errors in evaluation result in deny. Evidra never returns
+All errors in evaluation result in deny. Evidra-Lock never returns
 `allow: true` on evaluation failure.
 
 | Error | Sentinel | Result |
@@ -376,7 +376,7 @@ All errors in evaluation result in deny. Evidra never returns
 | **Deterministic** | No runtime API calls, network, or LLM in eval loop |
 | **Per-action eval** | Each action evaluated separately. Breakdown exact |
 | **Multi-action = any deny** | One deny → entire scenario denied |
-| **No execution** | Evidra does not execute commands. Called BEFORE execution |
+| **No execution** | Evidra-Lock does not execute commands. Called BEFORE execution |
 | **Evidence = side-effect** | Written AFTER evaluation. Write failure is not silent |
 | **Engine = pipeline** | All business logic in policy/data. Engine is minimal |
 | **actions[] = source of truth** | Rules read input.actions, not input.params |
