@@ -11,7 +11,7 @@ describe("Landing (product page)", () => {
 
   it("shows MCP integration example", () => {
     render(<Landing onGetStarted={vi.fn()} />);
-    expect(screen.getByText(/evidra-mcp/i)).toBeInTheDocument();
+    expect(screen.getByText(/evidra-lock-mcp/i)).toBeInTheDocument();
   });
 
   it("shows GitHub Actions integration example", () => {

@@ -1,6 +1,6 @@
 # MCP Inspector CLI Tests (Layer 2.5)
 
-Deterministic integration tests for `evidra-mcp` using the [MCP Inspector CLI](https://github.com/modelcontextprotocol/inspector).
+Deterministic integration tests for `evidra-lock-mcp` using the [MCP Inspector CLI](https://github.com/modelcontextprotocol/inspector).
 
 Sits between Go stdio integration tests (Layer 2, raw JSON-RPC) and agent E2E tests (Layer 3, Claude + LLM). No LLM, no Docker.
 
@@ -15,9 +15,9 @@ The runner supports three modes via `EVIDRA_TEST_MODE`:
                     │                      │                      │
                 stdio                  streamable-http        POST /v1/validate
                     │                      │                      │
-                evidra-mcp             supergateway             evidra-api
+                evidra-lock-mcp        supergateway             evidra-lock-api
                                            │
-                                       evidra-mcp (stdio)
+                                       evidra-lock-mcp (stdio)
 
                 MCP protocol           MCP protocol (same!)    HTTP/JSON (different)
                 same tools             same tools              validate only

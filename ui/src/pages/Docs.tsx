@@ -4,34 +4,34 @@ import "../styles/docs.css";
 const mcpClaudeDesktop = `{
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
+      "command": "evidra-lock-mcp",
       "args": []
     }
   }
 }`;
 
-const mcpClaudeCode = `claude mcp add evidra evidra-mcp`;
+const mcpClaudeCode = `claude mcp add evidra evidra-lock-mcp`;
 
 const mcpCursor = `{
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
+      "command": "evidra-lock-mcp",
       "args": []
     }
   }
 }`;
 
 const mcpCodex = `[mcp_servers.evidra]
-command = "evidra-mcp"`;
+command = "evidra-lock-mcp"`;
 
 const mcpCodexCustom = `[mcp_servers.evidra]
-command = "evidra-mcp"
+command = "evidra-lock-mcp"
 args = ["--offline", "--evidence-dir", "/path/to/evidence"]`;
 
 const mcpGemini = `{
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
+      "command": "evidra-lock-mcp",
       "args": []
     }
   }
@@ -40,7 +40,7 @@ const mcpGemini = `{
 const mcpGeminiCustom = `{
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
+      "command": "evidra-lock-mcp",
       "args": ["--offline", "--evidence-dir", "/path/to/evidence"]
     }
   }
@@ -119,7 +119,7 @@ const validateResExample = `{
   "event_id": "evt_01J...",
   "timestamp": "2026-02-26T14:23:01Z",
   "tenant_id": "01J...",
-  "server_id": "evidra-api-1",
+  "server_id": "evidra-lock-api-1",
   "policy_ref": "bundle://evidra/default:0.1.0",
   "actor": { "type": "agent", "id": "claude", "origin": "claude-code" },
   "tool": "kubectl",
@@ -142,7 +142,7 @@ const validateDenyExample = `{
   "event_id": "evt_01J...",
   "timestamp": "2026-02-26T14:24:00Z",
   "tenant_id": "01J...",
-  "server_id": "evidra-api-1",
+  "server_id": "evidra-lock-api-1",
   "policy_ref": "bundle://evidra/default:0.1.0",
   "actor": { "type": "agent", "id": "claude", "origin": "claude-code" },
   "tool": "kubectl",
@@ -173,7 +173,7 @@ const validateDenyExample = `{
 const signingPayloadExample = `evidra.v1
 event_id=evt_01J...
 timestamp=2026-02-26T14:23:01Z
-server_id=evidra-api-1
+server_id=evidra-lock-api-1
 policy_ref=bundle://evidra/default:0.1.0
 actor_type=agent
 actor_id=claude
@@ -192,13 +192,13 @@ const cliUsageExample = `# Evaluate a scenario file
 evidra validate -f scenario.yaml
 
 # Run MCP server (local mode, no API key needed)
-evidra-mcp
+evidra-lock-mcp
 
 # Run MCP server with deny-loop prevention
-evidra-mcp --deny-cache
+evidra-lock-mcp --deny-cache
 
 # Inspect a stored evidence event
-evidra-mcp get_event --event-id evt_01J...`;
+evidra-lock-mcp get_event --event-id evt_01J...`;
 
 export function Docs() {
   return (
@@ -223,7 +223,7 @@ export function Docs() {
         </p>
 
         <h3>Install</h3>
-        <CodeBlock code={`brew install samebits/tap/evidra-mcp`} />
+        <CodeBlock code={`brew install samebits/tap/evidra-lock-mcp`} />
         <p>
           Or: <code>go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
         </p>
@@ -253,7 +253,7 @@ export function Docs() {
           <code>~/.codex/config.toml</code>.
         </p>
         <p>Quick setup (CLI):</p>
-        <CodeBlock code={`codex mcp add evidra -- evidra-mcp`} />
+        <CodeBlock code={`codex mcp add evidra -- evidra-lock-mcp`} />
         <p>Or edit <code>~/.codex/config.toml</code> manually:</p>
         <CodeBlock code={mcpCodex} />
         <p>With custom flags:</p>
@@ -522,7 +522,7 @@ export function Docs() {
         <h2>CLI Usage</h2>
         <p>
           Evidra-Lock ships three binaries: <code>evidra</code> (offline CLI),{" "}
-          <code>evidra-mcp</code> (MCP server), and <code>evidra-api</code> (HTTP API).
+          <code>evidra-lock-mcp</code> (MCP server), and <code>evidra-lock-api</code> (HTTP API).
         </p>
         <CodeBlock code={cliUsageExample} />
       </section>
@@ -540,7 +540,7 @@ export function Docs() {
           on the API.
         </p>
         <p>
-          The MCP server (<code>evidra-mcp</code>) in offline mode writes evidence
+          The MCP server (<code>evidra-lock-mcp</code>) in offline mode writes evidence
           to a local JSONL chain and supports <code>get_event</code> for lookup.
           In online mode, the MCP server delegates to the API and does not store
           evidence locally.
@@ -585,10 +585,10 @@ export function Docs() {
         <p>
           Restart the editor/IDE completely (not just reload window).
           Verify the config file path is correct for your OS.
-          Check that <code>evidra-mcp --version</code> works in your terminal.
+          Check that <code>evidra-lock-mcp --version</code> works in your terminal.
         </p>
 
-        <h3>"command not found: evidra-mcp"</h3>
+        <h3>"command not found: evidra-lock-mcp"</h3>
         <p>
           Check that your PATH includes the install location:
         </p>
@@ -597,13 +597,13 @@ export function Docs() {
           <li><strong>go install:</strong> <code>~/go/bin</code></li>
         </ul>
         <p>
-          Run <code>which evidra-mcp</code> — if empty, PATH is wrong.
+          Run <code>which evidra-lock-mcp</code> — if empty, PATH is wrong.
         </p>
 
         <h3>Permission denied</h3>
         <p>
-          Ensure <code>evidra-mcp</code> is executable:{" "}
-          <code>chmod +x $(which evidra-mcp)</code>. On macOS, you may need to
+          Ensure <code>evidra-lock-mcp</code> is executable:{" "}
+          <code>chmod +x $(which evidra-lock-mcp)</code>. On macOS, you may need to
           allow it in System Settings &gt; Privacy &amp; Security.
         </p>
 
@@ -633,7 +633,7 @@ export function Docs() {
         <h3>All requests return allow</h3>
         <p>
           Check that the policy bundle is loaded correctly. Run{" "}
-          <code>evidra-mcp --version</code> — it should show the bundle revision.
+          <code>evidra-lock-mcp --version</code> — it should show the bundle revision.
           If you use a custom <code>--bundle</code> path, verify the bundle contains{" "}
           <code>.manifest</code> and rule files. Without rules, all operations are allowed
           by default.
@@ -650,7 +650,7 @@ export function Docs() {
 
         <h3>Evidence directory permission error</h3>
         <CodeBlock code={`mkdir -p ~/.evidra && chmod 700 ~/.evidra
-evidra-mcp --offline --evidence-dir ~/.evidra`} />
+evidra-lock-mcp --offline --evidence-dir ~/.evidra`} />
       </section>
 
       <section className="docs-section">

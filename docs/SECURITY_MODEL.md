@@ -139,7 +139,7 @@ Evidra-Lock uses `log/slog` (structured JSON) for the API server and `log` for C
 
 ## Known Limitations
 
-- **Bypass risk:** Any execution path that skips `pkg/validate` / `evidra-mcp` / the API is not covered. If an agent can execute commands without calling the `validate` tool, Evidra-Lock provides no protection for that path.
+- **Bypass risk:** Any execution path that skips `pkg/validate` / `evidra-lock-mcp` / the API is not covered. If an agent can execute commands without calling the `validate` tool, Evidra-Lock provides no protection for that path.
 - **Host-level access:** An adversary with root access to the host can rewrite the local evidence store directly. Mitigate by exporting evidence to an external system or using online mode where evidence is Ed25519-signed.
 - **Static analysis only:** Evidra-Lock evaluates declared configuration, not runtime state. A Terraform plan that passes policy may still produce unexpected results due to provider behavior.
 - **No rate limiting (Phase 0):** The static-key API has no request rate limiting. Rely on network-level controls (firewall, reverse proxy) for Phase 0.
@@ -149,7 +149,7 @@ Evidra-Lock uses `log/slog` (structured JSON) for the API server and `log` for C
 
 ## Recommended Deployment
 
-- Run `evidra-mcp` in an isolated runtime with network controls so only trusted clients can submit tool invocations.
+- Run `evidra-lock-mcp` in an isolated runtime with network controls so only trusted clients can submit tool invocations.
 - Restrict agent shells so they cannot bypass the MCP server or the offline `evidra validate` CLI.
 - Place the API server behind a reverse proxy (Traefik, nginx) with TLS termination. Do not expose the API without TLS.
 - Use a persistent Ed25519 signing key in production (`EVIDRA_SIGNING_KEY` or `EVIDRA_SIGNING_KEY_PATH`). Ephemeral keys are for development only.

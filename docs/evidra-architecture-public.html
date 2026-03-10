@@ -225,9 +225,9 @@ graph TB
 
 <table>
   <tr><th>Binary</th><th>Transport</th><th>Online Mode</th><th>Offline Mode</th></tr>
-  <tr><td><code>evidra-api</code></td><td>HTTP REST</td><td>Is the API (always online)</td><td>N/A</td></tr>
+  <tr><td><code>evidra-lock-api</code></td><td>HTTP REST</td><td>Is the API (always online)</td><td>N/A</td></tr>
   <tr><td><code>evidra</code> CLI</td><td>CLI args / files</td><td>POST to <code>EVIDRA_URL</code></td><td>Local OPA + local evidence</td></tr>
-  <tr><td><code>evidra-mcp</code></td><td>MCP stdio</td><td>Proxies through <code>evidra-api</code> sidecar</td><td>Local OPA + local evidence</td></tr>
+  <tr><td><code>evidra-lock-mcp</code></td><td>MCP stdio</td><td>Proxies through <code>evidra-lock-api</code> sidecar</td><td>Local OPA + local evidence</td></tr>
 </table>
 
 <!-- ═══════════════════════════════════════════════ -->
@@ -300,7 +300,7 @@ graph TD
 
 <h3 id="hybrid-mcp">2.3 MCP Server — Sidecar Pattern</h3>
 
-<p>In online mode, <code>evidra-mcp</code> does not make HTTP calls itself. Instead, <code>evidra-api</code> runs as a sidecar on localhost, and the MCP server proxies evaluation through it. This keeps the MCP binary focused on transport (stdio ↔ MCP protocol) while the API handles all business logic.</p>
+<p>In online mode, <code>evidra-lock-mcp</code> does not make HTTP calls itself. Instead, <code>evidra-lock-api</code> runs as a sidecar on localhost, and the MCP server proxies evaluation through it. This keeps the MCP binary focused on transport (stdio ↔ MCP protocol) while the API handles all business logic.</p>
 
 <div class="diagram-container">
   <div class="diagram-label">MCP Online Mode — Sidecar Architecture</div>
@@ -308,10 +308,10 @@ graph TD
 graph LR
   subgraph "Developer Machine"
     AGENT["AI Agent<br/><i>Claude Code</i>"]
-    MCP["evidra-mcp<br/><i>stdio transport</i>"]
+    MCP["evidra-lock-mcp<br/><i>stdio transport</i>"]
 
     subgraph "Sidecar"
-      API["evidra-api<br/><i>localhost:8080</i><br/><i>or EVIDRA_URL</i>"]
+      API["evidra-lock-api<br/><i>localhost:8080</i><br/><i>or EVIDRA_URL</i>"]
     end
   end
 
@@ -332,7 +332,7 @@ graph LR
 <table>
   <tr><th>Setup</th><th>EVIDRA_URL</th><th>How it works</th></tr>
   <tr><td>Fully local (offline)</td><td>(unset)</td><td>MCP uses local OPA directly</td></tr>
-  <tr><td>Local sidecar</td><td><code>http://localhost:8080</code></td><td>MCP → local <code>evidra-api</code> → local PostgreSQL</td></tr>
+  <tr><td>Local sidecar</td><td><code>http://localhost:8080</code></td><td>MCP → local <code>evidra-lock-api</code> → local PostgreSQL</td></tr>
   <tr><td>Hosted API</td><td><code>https://api.evidra.rest</code></td><td>MCP → <code>https://api.evidra.rest/v1</code> → hosted PostgreSQL</td></tr>
 </table>
 
@@ -393,8 +393,8 @@ graph TB
   <pre class="mermaid">
 sequenceDiagram
   participant Agent as AI Agent<br/>(Claude Code)
-  participant MCP as evidra-mcp<br/>(stdio)
-  participant API as evidra-api<br/>(sidecar / remote)
+  participant MCP as evidra-lock-mcp<br/>(stdio)
+  participant API as evidra-lock-api<br/>(sidecar / remote)
   participant OPA as OPA Engine
   participant EV as Evidence Store
 
@@ -421,7 +421,7 @@ sequenceDiagram
   <pre class="mermaid">
 sequenceDiagram
   participant Agent as AI Agent
-  participant MCP as evidra-mcp<br/>(stdio)
+  participant MCP as evidra-lock-mcp<br/>(stdio)
   participant OPA as Local OPA<br/>(embedded bundle)
   participant EV as ~/.evidra/evidence
 
@@ -660,8 +660,8 @@ graph TB
   end
 
   subgraph "Compute"
-    API1["evidra-api"]
-    API2["evidra-api<br/><i>(replica)</i>"]
+    API1["evidra-lock-api"]
+    API2["evidra-lock-api<br/><i>(replica)</i>"]
   end
 
   subgraph "Data"
@@ -684,7 +684,7 @@ graph TB
 <table>
   <tr><th>Component</th><th>Requirements</th><th>Notes</th></tr>
   <tr><td>Reverse Proxy</td><td>TLS termination</td><td>Traefik, Nginx, Caddy, ALB, Cloud LB</td></tr>
-  <tr><td>evidra-api</td><td>Go binary, ~30 MB, port 8080</td><td>Stateless, horizontally scalable</td></tr>
+  <tr><td>evidra-lock-api</td><td>Go binary, ~30 MB, port 8080</td><td>Stateless, horizontally scalable</td></tr>
   <tr><td>PostgreSQL</td><td>v14+</td><td>Managed or self-hosted</td></tr>
   <tr><td>Evidence Volume</td><td>Block storage or NFS</td><td>Append-only JSONL</td></tr>
 </table>
@@ -697,7 +697,7 @@ graph TB
 graph TB
   subgraph "Single Host"
     PROXY["Reverse Proxy<br/><i>TLS via Let's Encrypt</i>"]
-    API["evidra-api :8080"]
+    API["evidra-lock-api :8080"]
     PG["PostgreSQL :5432"]
     VOL["Persistent Volume"]
   end
@@ -725,7 +725,7 @@ graph TB
   <pre class="mermaid">
 graph TB
   ING["Ingress<br/><i>TLS via cert-manager</i>"]
-  DEP["Deployment: evidra-api<br/><i>replicas: 2+</i>"]
+  DEP["Deployment: evidra-lock-api<br/><i>replicas: 2+</i>"]
   SVC["Service: ClusterIP"]
   PG["PostgreSQL<br/><i>StatefulSet or managed</i>"]
   PVC["PVC: evidence"]
@@ -756,11 +756,11 @@ graph TB
   <pre class="mermaid">
 graph TB
   subgraph "Option A: MCP only (zero infra)"
-    AGENT["AI Agent"] -- "stdio" --> MCP["evidra-mcp<br/><i>Embedded bundle</i><br/><i>Local evidence</i>"]
+    AGENT["AI Agent"] -- "stdio" --> MCP["evidra-lock-mcp<br/><i>Embedded bundle</i><br/><i>Local evidence</i>"]
   end
 
   subgraph "Option B: Internal API"
-    CI["Internal CI"] --> API["evidra-api<br/><i>Internal registry mirror</i>"]
+    CI["Internal CI"] --> API["evidra-lock-api<br/><i>Internal registry mirror</i>"]
     API --> PG["PostgreSQL"]
   end
 

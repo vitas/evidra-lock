@@ -169,7 +169,7 @@ export function Dashboard() {
       if (err instanceof ApiError) {
         setError({ message: err.message, status: err.status });
       } else {
-        setError({ message: "Cannot reach API server. Check that evidra-api is running." });
+        setError({ message: "Cannot reach API server. Check that evidra-lock-api is running." });
       }
     } finally {
       setLoading(false);

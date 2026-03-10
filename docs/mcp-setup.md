@@ -15,21 +15,21 @@ This guide covers connecting Evidra-Lock MCP server to your AI agent and getting
 # Install from Docker MCP catalog: search "evidra" in Docker Desktop → MCP Servers
 
 # Option B: Homebrew
-brew install samebits/tap/evidra-mcp
+brew install samebits/tap/evidra-lock-mcp
 
 # Option C: Go
 go install github.com/vitas/evidra-lock/cmd/evidra-mcp@latest
 
 # Option D: From source
 git clone https://github.com/vitas/evidra-lock.git
-cd evidra && go build -o evidra-mcp ./cmd/evidra-mcp
+cd evidra && go build -o evidra-lock-mcp ./cmd/evidra-mcp
 ```
 
 ### 2. Connect to your agent
 
 **Claude Code:**
 ```bash
-claude mcp add evidra -- evidra-mcp --bundle ops-v0.1
+claude mcp add evidra -- evidra-lock-mcp --bundle ops-v0.1
 ```
 
 **Cursor / Claude Desktop / Windsurf (JSON config):**
@@ -37,7 +37,7 @@ claude mcp add evidra -- evidra-mcp --bundle ops-v0.1
 {
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
+      "command": "evidra-lock-mcp",
       "args": ["--bundle", "ops-v0.1"]
     }
   }
@@ -50,7 +50,7 @@ claude mcp add evidra -- evidra-mcp --bundle ops-v0.1
 {
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
+      "command": "evidra-lock-mcp",
       "args": ["--bundle", "ops-v0.1"]
     }
   }
@@ -62,9 +62,10 @@ claude mcp add evidra -- evidra-mcp --bundle ops-v0.1
 // In ~/.gemini/settings.json under mcpServers:
 {
   "evidra": {
-    "command": "evidra-mcp",
+    "command": "evidra-lock-mcp",
     "args": ["--bundle", "ops-v0.1"]
   }
+}
 }
 ```
 
@@ -75,7 +76,7 @@ claude mcp add evidra -- evidra-mcp --bundle ops-v0.1
   "mcp": {
     "servers": {
       "evidra": {
-        "command": "evidra-mcp",
+        "command": "evidra-lock-mcp",
         "args": ["--bundle", "ops-v0.1"],
         "transport": "stdio"
       }
@@ -92,7 +93,7 @@ agents:
     model: anthropic/claude-sonnet-4-5
     mcp_servers:
       - name: evidra
-        command: evidra-mcp
+        command: evidra-lock-mcp
         args: ["--bundle", "ops-v0.1"]
 ```
 
@@ -327,12 +328,12 @@ Ships embedded in the binary; extracted automatically on first run (zero-config)
 
 ```bash
 # Explicit bundle path (optional — embedded ops-v0.1 used by default)
-evidra-mcp --bundle ./policy/bundles/ops-v0.1
+evidra-lock-mcp --bundle ./policy/bundles/ops-v0.1
 ```
 
 Legacy loose-file mode (individual `.rego` + `data.json`):
 ```bash
-evidra-mcp --policy ./my-policy.rego --data ./my-data.json
+evidra-lock-mcp --policy ./my-policy.rego --data ./my-data.json
 ```
 
 ### Evidence storage
@@ -341,14 +342,14 @@ Default: `~/.evidra/evidence`
 
 Override:
 ```bash
-evidra-mcp --evidence-store /var/lib/evidra/evidence
+evidra-lock-mcp --evidence-store /var/lib/evidra/evidence
 ```
 
 ### Environment
 
 Set the environment for policy evaluation:
 ```bash
-evidra-mcp --environment production
+evidra-lock-mcp --environment production
 ```
 
 This affects environment-dependent rules (e.g. "production requires change-approved tag",
@@ -359,16 +360,16 @@ This affects environment-dependent rules (e.g. "production requires change-appro
 
 ```bash
 # Local-only (default) — embedded bundle, no network
-evidra-mcp
+evidra-lock-mcp
 
 # Online — evaluations sent to API server
-EVIDRA_URL=https://api.evidra.rest EVIDRA_API_KEY=ev1_... evidra-mcp
+EVIDRA_URL=https://api.evidra.rest EVIDRA_API_KEY=ev1_... evidra-lock-mcp
 
 # Online with offline fallback — use API, fall back to local if unreachable
-EVIDRA_URL=https://api.evidra.rest EVIDRA_API_KEY=ev1_... evidra-mcp --fallback-offline
+EVIDRA_URL=https://api.evidra.rest EVIDRA_API_KEY=ev1_... evidra-lock-mcp --fallback-offline
 
 # Force offline — skip API even if EVIDRA_URL is set
-evidra-mcp --offline
+evidra-lock-mcp --offline
 ```
 
 ### Environment variables
@@ -397,7 +398,7 @@ evidra-mcp --offline
 **Validation returns error instead of allow/deny:**
 - Check policy bundle path: `--bundle ops-v0.1` must resolve to actual files
 - Check evidence directory is writable
-- Run `evidra-mcp` standalone to verify: `echo '{}' | evidra-mcp` should start without errors
+- Run `evidra-lock-mcp` standalone to verify: `echo '{}' | evidra-lock-mcp` should start without errors
 
 **All validations return allow:**
 - Verify policy bundle has rules for your tool/operation

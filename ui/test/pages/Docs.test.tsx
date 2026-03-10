@@ -11,7 +11,7 @@ describe("Docs", () => {
 
   it("shows deny-cache CLI flag in usage section", () => {
     render(<Docs />);
-    expect(screen.getByText(/evidra-mcp --deny-cache/)).toBeInTheDocument();
+    expect(screen.getByText(/evidra-lock-mcp --deny-cache/)).toBeInTheDocument();
   });
 
   it("shows deny-loop prevention troubleshooting section", () => {

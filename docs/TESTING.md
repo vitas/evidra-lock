@@ -140,9 +140,9 @@ The runner supports three modes via `EVIDRA_TEST_MODE`:
 
 | Mode | Transport | Target | Command |
 |---|---|---|---|
-| `local` (default) | Inspector CLI → stdio | `evidra-mcp` binary | `make test-mcp-inspector` |
-| `hosted` | Inspector CLI → streamable-http | supergateway → `evidra-mcp` | `make test-mcp-inspector-hosted` |
-| `rest` | curl → HTTP | `evidra-api` REST `/v1/validate` | `make test-mcp-inspector-rest` |
+| `local` (default) | Inspector CLI → stdio | `evidra-lock-mcp` binary | `make test-mcp-inspector` |
+| `hosted` | Inspector CLI → streamable-http | supergateway → `evidra-lock-mcp` | `make test-mcp-inspector-hosted` |
+| `rest` | curl → HTTP | `evidra-lock-api` REST `/v1/validate` | `make test-mcp-inspector-rest` |
 
 `local` and `hosted` use the same MCP protocol — the only difference is transport
 (stdio vs streamable-http). `rest` uses a different response shape and normalizes

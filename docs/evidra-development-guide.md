@@ -2,7 +2,7 @@
 
 ## UI Dev Mock Mode (No Backend)
 
-If you want to review the UI locally without running `evidra-api`, start the UI with:
+If you want to review the UI locally without running `evidra-lock-api`, start the UI with:
 
 ```bash
 cd ui

@@ -46,7 +46,7 @@ Authorization = "Bearer ${key}"`;
 }
 
 function localApiClaudeCode(key: string) {
-  return `claude mcp add evidra evidra-mcp \\
+  return `claude mcp add evidra evidra-lock-mcp \\
   -e EVIDRA_URL=${API_URL} \\
   -e EVIDRA_API_KEY=${key} \\
   -e EVIDRA_ENVIRONMENT=production \\
@@ -59,7 +59,7 @@ function localApiJson(key: string) {
   return `{
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
+      "command": "evidra-lock-mcp",
       "env": {
         "EVIDRA_URL": "${API_URL}",
         "EVIDRA_API_KEY": "${key}",
@@ -75,7 +75,7 @@ function localApiJson(key: string) {
 
 function localApiCodex(key: string) {
   return `[mcp_servers.evidra]
-command = "evidra-mcp"
+command = "evidra-lock-mcp"
 
 [mcp_servers.evidra.env]
 EVIDRA_URL = "${API_URL}"
@@ -86,7 +86,7 @@ EVIDRA_BUNDLE_PATH = ""
 EVIDRA_DENY_CACHE = "true"`;
 }
 
-const offlineClaudeCode = `claude mcp add evidra evidra-mcp \\
+const offlineClaudeCode = `claude mcp add evidra evidra-lock-mcp \\
   -e EVIDRA_ENVIRONMENT=production
 # Optional: enable deny-loop prevention
 #   -e EVIDRA_DENY_CACHE=true`;
@@ -94,7 +94,7 @@ const offlineClaudeCode = `claude mcp add evidra evidra-mcp \\
 const offlineJson = `{
   "mcpServers": {
     "evidra": {
-      "command": "evidra-mcp",
+      "command": "evidra-lock-mcp",
       "env": {
         "EVIDRA_ENVIRONMENT": "production",
         "EVIDRA_BUNDLE_PATH": "",
@@ -105,7 +105,7 @@ const offlineJson = `{
 }`;
 
 const offlineCodex = `[mcp_servers.evidra]
-command = "evidra-mcp"
+command = "evidra-lock-mcp"
 
 [mcp_servers.evidra.env]
 EVIDRA_ENVIRONMENT = "production"
@@ -224,7 +224,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Cannot reach API server. Check that evidra-api is running.");
+        setError("Cannot reach API server. Check that evidra-lock-api is running.");
       }
     } finally {
       setLoading(false);
@@ -332,7 +332,7 @@ export function Console({ onKeyCreated: _onKeyCreated }: ConsoleProps) {
           {needsInstall && (
             <>
               <h3>1. Install</h3>
-              <CodeBlock code="brew install samebits/tap/evidra-mcp" />
+              <CodeBlock code="brew install samebits/tap/evidra-lock-mcp" />
               <p>
                 Or: <code>go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
               </p>

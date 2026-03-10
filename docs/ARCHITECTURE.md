@@ -11,9 +11,9 @@ graph TD
     Agent[AI Agent<br/>Claude Code / Cursor / CI]
 
     subgraph "evidra/evidra (main repo)"
-        MCP[evidra-mcp<br/>stdio transport]
+        MCP[evidra-lock-mcp<br/>stdio transport]
         CLI[evidra CLI<br/>validate / evidence / policy]
-        API[evidra-api<br/>HTTP server]
+        API[evidra-lock-api<br/>HTTP server]
         OPA[OPA Engine<br/>embedded, ops-v0.1 bundle]
     end
 

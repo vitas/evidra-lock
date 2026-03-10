@@ -503,14 +503,14 @@ export function Landing({ onGetStarted }: LandingProps) {
                 </div>
                 <div className="step-code">
                   <span className="t-prompt"></span>go install
-                  samebits.com/evidra/cmd/evidra-mcp@latest
+                  samebits.com/evidra/cmd/evidra-lock-mcp@latest
                   <br />
                   <br />
-                  <span className="t-prompt"></span>brew install samebits/tap/evidra-mcp
+                  <span className="t-prompt"></span>brew install samebits/tap/evidra-lock-mcp
                   <br />
                   <br />
                   <span className="t-prompt"></span>docker run -v
-                  $(pwd):/config ghcr.io/samebits/evidra
+                  $(pwd):/config ghcr.io/vitas/evidra-lock-mcp
                 </div>
               </div>
             </div>
