@@ -35,18 +35,18 @@ jobs:
           context: .
           file: Dockerfile.api
           load: true
-          tags: evidra-api:smoke
+          tags: evidra-lock-api:smoke
 
       - name: Smoke test
         run: |
           API_KEY="test-key-at-least-32-characters-long"
 
-          docker run -d --name evidra-api-smoke \
+          docker run -d --name evidra-lock-api-smoke \
             -p 8080:8080 \
             -e EVIDRA_ENV=development \
             -e EVIDRA_API_KEY="$API_KEY" \
             -e LOG_FORMAT=text \
-            evidra-api:smoke
+            evidra-lock-api:smoke
 
           # Wait for server to be ready
           for _ in $(seq 1 10); do
@@ -58,13 +58,13 @@ jobs:
 
           # Health check
           curl -sf http://localhost:8080/healthz \
-            || { echo "FAIL: /healthz not reachable"; docker logs evidra-api-smoke; exit 1; }
+            || { echo "FAIL: /healthz not reachable"; docker logs evidra-lock-api-smoke; exit 1; }
           echo "PASS: /healthz ok"
 
           # UI root — must return 200 text/html (embedded UI)
           UI_CT=$(curl -sf -o /dev/null -w "%{content_type}" http://localhost:8080/)
           echo "$UI_CT" | grep -q "text/html" \
-            || { echo "FAIL: GET / content-type not text/html (got: $UI_CT)"; docker logs evidra-api-smoke; exit 1; }
+            || { echo "FAIL: GET / content-type not text/html (got: $UI_CT)"; docker logs evidra-lock-api-smoke; exit 1; }
           echo "PASS: GET / returns text/html"
 
           # Public key endpoint
@@ -84,8 +84,8 @@ jobs:
             || { echo "FAIL: response missing signature"; echo "$RESP"; exit 1; }
           echo "PASS: /v1/validate returns signed response"
 
-          docker stop evidra-api-smoke
-          docker rm evidra-api-smoke
+          docker stop evidra-lock-api-smoke
+          docker rm evidra-lock-api-smoke
 
       - name: Push image (latest)
         uses: docker/build-push-action@v6

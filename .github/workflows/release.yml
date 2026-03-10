@@ -261,7 +261,7 @@ jobs:
             -e EVIDRA_ENV=development \
             -e EVIDRA_API_KEY="$API_KEY" \
             -e LOG_FORMAT=text \
-            evidra-api:smoke
+            evidra-lock-api:smoke
 
           # Wait for server to be ready
           for _ in $(seq 1 10); do
